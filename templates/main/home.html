@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Главная "Поиск золото"</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {font-family: Arial, sans-serif; padding: 24px; }
+
+        .topbar {
+            display:flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 100px;
+        }
+
+        .gold-widget {
+            width: 320px;
+            border: 1px solid #e6e6e6;
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+
+        .gold-widget-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        /* display: flex; Включает flex-разметку: дочерние элементы внутри .topbar (например .menu и .gold-widget) становятся “флекс-элементами” и по умолчанию выстраиваются горизонтально в ряд.
+           align-items: flex-start; Выравнивает элементы по вертикали внутри строки по верхнему краю.
+           То есть верх меню и верх виджета графика будут на одной линии. Если было бы center — график мог бы “плавать” по центру относительно меню.
+           justify-content: space-between; Распределяет свободное место между элементами так, чтобы:
+                            первый элемент был прижат к левому краю
+                            второй — к правому краю
+                            То есть меню уходит влево, мини-график — вправо
+            gap: 50px; Это расстояние между флекс-элементами (между меню и виджетом).Удобнее, чем делать margin-right вручную.
+        */
+        .gold_title {font-size: 14px; font-weight: 600;}
+        .gold-source{
+              font-size:12px;
+              opacity:.85;
+              color:#333;
+              text-decoration:none;
+            }
+        .gold-source:hover{ text-decoration: underline; }
+
+        .gold-error { font-size: 12px; color: #a00; display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="menu">
+      <h1>Главное Меню</h1>
+      <ul>
+        <li><a href="/debts/">Дебиторская задолженность</a></li>
+        <li><a href="/mining/">Горные работы</a></li>
+        <li><a href="/warehouse/">Остатки важных позиций на складе</a></li>
+        <li><a href="/tasks/">Менеджер задач</a></li>
+        <li><a href="/analytics/">Аналитика</a></li>
+      </ul>
+    </div>
+
+    <div class="gold-widget">
+      <div class="gold-widget-header">
+        <div class="gold_title">Золото (руб./г)</div>
+        <div class="gold-source">
+          Источник: <a id="goldSource" href="https://mfd.ru/centrobank/preciousmetals/" target="_blank" rel="noopener">MFD</a>
+        </div>
+      </div>
+
+      <canvas id="goldChart" height="90"></canvas>
+      <div id="goldError" class="gold-error">Не удалось загрузить данные.</div>
+    </div>
+  </div>
+
+   <script>
+      let chart = null;
+      let loading = false;
+
+      const REFRESH_MS = 10 * 60 * 1000; // 10 минут
+
+      async function loadGoldMini() {
+        if (loading) return;
+        loading = true;
+
+        const errEl = document.getElementById("goldError");
+        errEl.style.display = "none";
+        errEl.textContent = "";
+
+        try {
+          const url = "{% url 'main:gold_mini_json' %}" + "?_ts=" + Date.now();
+
+          const resp = await fetch(url, { cache: "no-store" });
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
+
+          const data = await resp.json();
+          if (!data.ok) throw new Error(data.error || "API ok=false");
+
+          // ссылка на источник (кликабельна всегда)
+          document.getElementById("goldSource").href = data.source;
+
+
+          const labels = data.series.map(x => x.date);
+          const values = data.series.map(x => x.value);
+
+          const canvas = document.getElementById("goldChart");
+
+          if (chart) chart.destroy();
+
+          chart = new Chart(canvas, {
+            type: "line",
+            data: {
+              labels,
+              datasets: [{
+                data: values,
+                tension: 0.25,
+                pointRadius: 0,
+                borderWidth: 2,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false }, tooltip: { enabled: true } },
+              scales: { x: { display: false }, y: { display: false } }
+            }
+          });
+
+        } catch (e) {
+          errEl.textContent = "График не загрузился: " + e.message;
+          errEl.style.display = "block";
+          console.error(e);
+        } finally {
+          loading = false;
+        }
+      }
+
+      loadGoldMini();
+
+      setInterval(() => {
+        if (document.visibilityState === "visible") loadGoldMini();
+      }, REFRESH_MS);
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") loadGoldMini();
+      });
+  </script>
+
+
+</body>
+</html>
