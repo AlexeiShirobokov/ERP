@@ -3,14 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <title>Главная</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .submenu {
+            margin-left: 20px;
+            margin-top: 4px;
+            margin-bottom: 16px;
+        }
+
+        .submenu a {
+            display: block;
+            margin: 8px 0;
+        }
+    </style>
 </head>
 <body>
     <h1>Главная страница</h1>
 
-    <h2><a href="{% url 'debitor_report' %}">Открыть отчет по дебиторской задолженности</a></h2>
+    <h2><a href="{% url 'debitor_report' %}">Дебиторская задолженность</a></h2>
+    <div class="submenu">
+        <h4><a href="{% url 'debitor_report' %}">Отчет по дебиторской задолженности</a></h4>
+        <h4><a href="#">ДЗ по срокам погашения</a></h4>
+        <h4><a href="#">Канбан</a></h4>
+
+    </div>
     <h2><a href="{% url 'maintenance:index' %}">Техническое обслуживание</a></h2>
-    <h2><a href="#">Аналитика по месторождениям</a></h2>
+    <h2><a href="#">Аналитика по подразделениям</a></h2>
     <h2><a href="#">Менеджер задач</a></h2>
-    <h2><a href="#">Погода Gismeteo</a></h2>
+    <h2><a href="#">Склад</a></h2>
+    <div class="submenu">
+        <h4><a href="#">  текущие остатки</a></h4>
+        <h4><a href="#">  движение склада за вчерашний день</a></h4>
+
+    </div>
 </body>
 </html>
