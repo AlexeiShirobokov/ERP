@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Создать ТО</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        form { max-width: 700px; }
+        .row { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 4px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; box-sizing: border-box; }
+        .errors { color: red; margin-bottom: 15px; }
+        button { padding: 10px 16px; }
+    </style>
+</head>
+<body>
+    <h1>Создание технического обслуживания</h1>
+
+    <p><a href="{% url 'maintenance:index' %}">← Назад</a></p>
+
+    {% if form.non_field_errors %}
+        <div class="errors">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="row">
+            <label>{{ form.department.label }}</label>
+            {{ form.department }}
+            {{ form.department.errors }}
+        </div>
+
+        <div class="row">
+            <label>{{ form.machine_brand.label }}</label>
+            {{ form.machine_brand }}
+            {{ form.machine_brand.errors }}
+        </div>
+
+        <div class="row">
+            <label>{{ form.maintenance_number.label }}</label>
+            {{ form.maintenance_number }}
+            {{ form.maintenance_number.errors }}
+        </div>
+
+        <div class="row">
+            <label>{{ form.inventory_number.label }}</label>
+            {{ form.inventory_number }}
+            {{ form.inventory_number.errors }}
+        </div>
+
+        <div class="row">
+            <label>{{ form.maintenance_date.label }}</label>
+            {{ form.maintenance_date }}
+            {{ form.maintenance_date.errors }}
+        </div>
+
+        <div class="row">
+            <label>{{ form.responsible_fio.label }}</label>
+            {{ form.responsible_fio }}
+            {{ form.responsible_fio.errors }}
+        </div>
+
+        <div class="row">
+            <label>{{ form.machine_hours.label }}</label>
+            {{ form.machine_hours }}
+            {{ form.machine_hours.errors }}
+        </div>
+
+        <button type="submit">Сформировать работы</button>
+    </form>
+</body>
+</html>

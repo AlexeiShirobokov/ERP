@@ -1,12 +1,20 @@
 from django.db import models
 
-# Create your models here.
 
-class DebitorUpload(models.Model): # создадим модель в базе данных, добавляет id, save, objects
+class DebitorComment(models.Model):
+    account = models.CharField(max_length=100, verbose_name="Счет")
+    subkonto1 = models.CharField(max_length=255, blank=True, null=True, verbose_name="Субконто 1")
+    subkonto2 = models.CharField(max_length=255, blank=True, null=True, verbose_name="Субконто 2")
+    subkonto3 = models.CharField(max_length=255, blank=True, null=True, verbose_name="Субконто 3")
+    report_date = models.CharField(max_length=50, blank=True, null=True, verbose_name="Дата отчета")
+    comment = models.TextField(blank=True, null=True, verbose_name="Комментарий")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
 
-    file=models.FileField(upload_to='uploads/debitorka/')
-    uploaded_at=models.DateTimeField(auto_now_add=True) #upload_to=... задаёт папку внутри MEDIA_ROOT.
+    class Meta:
+        verbose_name = "Комментарий по дебиторке"
+        verbose_name_plural = "Комментарии по дебиторке"
+        unique_together = ("account", "subkonto1", "subkonto2", "subkonto3", "report_date")
 
     def __str__(self):
-        return self.file.name
-
+        return f"{self.account} | {self.subkonto1} | {self.report_date}"

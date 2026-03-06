@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Карточка ТО</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; min-width: 1200px; }
+        th, td { border: 1px solid #ccc; padding: 6px; vertical-align: top; }
+        th { background: #eef2f6; }
+        .table-wrap { overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Карточка технического обслуживания</h1>
+
+    <p><a href="{% url 'maintenance:index' %}">← К списку</a></p>
+
+    <p><strong>ID:</strong> {{ record.id }}</p>
+    <p><strong>Подразделение:</strong> {{ record.department }}</p>
+    <p><strong>Марка техники:</strong> {{ record.machine_brand }}</p>
+    <p><strong>Инв. номер:</strong> {{ record.inventory_number }}</p>
+    <p><strong>Дата проведения ТО:</strong> {{ record.maintenance_date }}</p>
+    <p><strong>ФИО ответственного:</strong> {{ record.responsible_fio }}</p>
+    <p><strong>Машиночасы:</strong> {{ record.machine_hours }}</p>
+    <p><strong>Номер проведения ТО:</strong> {{ record.maintenance_number }}</p>
+    <p><strong>Вид ТО:</strong> {{ record.maintenance_type }}</p>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Работа</th>
+                    <th>Группа деталей</th>
+                    <th>Наименование</th>
+                    <th>Кат. №</th>
+                    <th>Ед. изм.</th>
+                    <th>Количество план</th>
+                    <th>Количество факт</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in record.tasks.all %}
+                <tr>
+                    <td>{{ task.work_name }}</td>
+                    <td>{{ task.detail_group }}</td>
+                    <td>{{ task.item_name }}</td>
+                    <td>{{ task.catalog_number }}</td>
+                    <td>{{ task.unit }}</td>
+                    <td>{{ task.qty_plan }}</td>
+                    <td>{{ task.qty_fact }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7">Строк нет</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

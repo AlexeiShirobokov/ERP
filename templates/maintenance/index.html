@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Техническое обслуживание</title>
+</head>
+<body>
+    <h1>Техническое обслуживание</h1>
+
+    <p>
+        <a href="{% url 'maintenance:create_record' %}">Создать новое ТО</a>
+    </p>
+
+    <h2>Последние документы</h2>
+
+    <table border="1" cellpadding="6" cellspacing="0">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Дата</th>
+                <th>Подразделение</th>
+                <th>Марка</th>
+                <th>Инв. номер</th>
+                <th>Вид ТО</th>
+                <th>Машиночасы</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for obj in records %}
+            <tr>
+                <td>{{ obj.id }}</td>
+                <td>{{ obj.maintenance_date }}</td>
+                <td>{{ obj.department }}</td>
+                <td>{{ obj.machine_brand }}</td>
+                <td>{{ obj.inventory_number }}</td>
+                <td>{{ obj.maintenance_type }}</td>
+                <td>{{ obj.machine_hours }}</td>
+                <td>
+                    <a href="{% url 'maintenance:detail' obj.id %}">Открыть</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8">Документов пока нет</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

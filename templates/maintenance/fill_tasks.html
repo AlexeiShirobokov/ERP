@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Заполнение работ ТО</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; min-width: 1200px; }
+        th, td { border: 1px solid #ccc; padding: 6px; vertical-align: top; }
+        th { background: #eef2f6; }
+        input[type="text"], input[type="number"] { width: 100%; box-sizing: border-box; }
+        .table-wrap { overflow-x: auto; }
+        .meta { margin-bottom: 20px; }
+        .meta p { margin: 4px 0; }
+        .readonly input { background: #f7f7f7; }
+        button { margin-top: 16px; padding: 10px 16px; }
+    </style>
+</head>
+<body>
+    <h1>Работы по техническому обслуживанию</h1>
+
+    <div class="meta">
+        <p><strong>Подразделение:</strong> {{ header.department_id }}</p>
+        <p><strong>Марка техники:</strong> {{ header.machine_brand }}</p>
+        <p><strong>Инв. номер:</strong> {{ header.inventory_number }}</p>
+        <p><strong>Дата:</strong> {{ header.maintenance_date }}</p>
+        <p><strong>Ответственный:</strong> {{ header.responsible_fio }}</p>
+        <p><strong>Машиночасы:</strong> {{ header.machine_hours }}</p>
+        <p><strong>Номер проведения ТО:</strong> {{ header.maintenance_number }}</p>
+        <p><strong>Вид ТО:</strong> {{ header.maintenance_type }}</p>
+        <p><strong>Количество строк:</strong> {{ tasks_count }}</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ formset.management_form }}
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Работа</th>
+                        <th>Группа деталей</th>
+                        <th>Наименование</th>
+                        <th>Кат. №</th>
+                        <th>Ед. изм.</th>
+                        <th>Количество план</th>
+                        <th>Количество факт</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for form in formset %}
+                    <tr>
+                        <td class="readonly">
+                            {{ form.work_name }}
+                        </td>
+                        <td class="readonly">
+                            {{ form.detail_group }}
+                        </td>
+                        <td class="readonly">
+                            {{ form.item_name }}
+                        </td>
+                        <td class="readonly">
+                            {{ form.catalog_number }}
+                        </td>
+                        <td class="readonly">
+                            {{ form.unit }}
+                        </td>
+                        <td class="readonly">
+                            {{ form.qty_plan }}
+                        </td>
+                        <td>
+                            {{ form.qty_fact }}
+                            {{ form.qty_fact.errors }}
+                        </td>
+                    </tr>
+                        {{ form.work_name.as_hidden }}
+                        {{ form.detail_group.as_hidden }}
+                        {{ form.item_name.as_hidden }}
+                        {{ form.catalog_number.as_hidden }}
+                        {{ form.unit.as_hidden }}
+                        {{ form.qty_plan.as_hidden }}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <button type="submit">Сохранить ТО</button>
+    </form>
+</body>
+</html>

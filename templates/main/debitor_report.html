@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Отчет по дебиторской задолженности</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        .meta {
+            margin-bottom: 15px;
+            color: #444;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 1600px;
+            font-size: 13px;
+        }
+
+        th, td {
+            border: 1px solid #b7c3d0;
+            padding: 6px;
+            vertical-align: top;
+            text-align: left;
+        }
+
+        th {
+            background: #dfe8d5;
+        }
+
+        textarea {
+            width: 240px;
+            height: 80px;
+            resize: vertical;
+        }
+
+        button {
+            margin-top: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Отчет по дебиторской задолженности</h1>
+    <div class="meta">Всего строк: {{ rows_total }}</div>
+    <p>
+        <a href="{% url 'export_debitor_excel' %}">
+            <button type="button">Сохранить файл в Excel</button>
+        </a>
+    </p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Счет</th>
+                    <th>Субконто 1</th>
+                    <th>Субконто 2</th>
+                    <th>Субконто 3</th>
+                    <th>Дата</th>
+                    <th>Сумма остаток Дт</th>
+                    <th>Сумма остаток Кт</th>
+                    <th>Количество записей</th>
+                    <th>Дата образования задолженности</th>
+                    <th>Срок дебиторской задолженности</th>
+                    <th>Период задолженности</th>
+                    <th>Дата отчета</th>
+                    <th>Причина образования ДЗ</th>
+                    <th>Ответственный отдел</th>
+                    <th>Комментарий решения</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in records %}
+                <tr>
+                    <td>{{ row.account }}</td>
+                    <td>{{ row.subkonto1 }}</td>
+                    <td>{{ row.subkonto2 }}</td>
+                    <td>{{ row.subkonto3 }}</td>
+                    <td>{{ row.date }}</td>
+                    <td>{{ row.sum_dt }}</td>
+                    <td>{{ row.sum_kt }}</td>
+                    <td>{{ row.records_count }}</td>
+                    <td>{{ row.debt_date }}</td>
+                    <td>{{ row.debt_term }}</td>
+                    <td>{{ row.debt_period }}</td>
+                    <td>{{ row.report_date }}</td>
+                    <td>{{ row.debt_reason }}</td>
+                    <td>{{ row.responsible_department }}</td>
+                    <td>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="row_index" value="{{ row.row_index }}">
+                            <textarea name="comment">{{ row.saved_comment }}</textarea>
+                            <br>
+                            <button type="submit">Сохранить</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="15">Нет данных для отображения</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
