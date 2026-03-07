@@ -9,22 +9,26 @@
             padding: 20px;
         }
 
-        h1 {
-            margin-bottom: 10px;
-        }
-
-        .meta {
+        .meta, .actions, .filters {
             margin-bottom: 15px;
-            color: #444;
         }
 
+        .filters form,
         .actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .messages {
             margin-bottom: 15px;
         }
 
-        .actions button {
-            padding: 8px 14px;
-            cursor: pointer;
+        .message {
+            padding: 10px 14px;
+            background: #e9f7e9;
+            border: 1px solid #b7dfb7;
         }
 
         .table-wrap {
@@ -66,20 +70,56 @@
             background: #eef2f6;
             font-size: 12px;
         }
+
+        select, button {
+            padding: 6px 10px;
+        }
+
+        form.inline {
+            display: inline;
+            margin: 0;
+        }
     </style>
 </head>
 <body>
     <h1>Отчет по дебиторской задолженности</h1>
-    <div class = "topbar-links">
-        <a href = "{% url 'index' %}">На главную</a>
 
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+            <div class="message">{{ message }}</div>
+        {% endfor %}
     </div>
+    {% endif %}
+
     <div class="meta">Всего строк: {{ rows_total }}</div>
 
     <div class="actions">
+        <form method="post" action="{% url 'debitor_sync' %}" class="inline">
+            {% csrf_token %}
+            <button type="submit">Обновить из Excel</button>
+        </form>
+
         <a href="{% url 'export_debitor_excel' %}">
             <button type="button">Сохранить файл в Excel</button>
         </a>
+
+        <a href="{% url 'debitor_board' %}">
+            <button type="button">Открыть kanban-доску</button>
+        </a>
+    </div>
+
+    <div class="filters">
+        <form method="get">
+            <label for="report_date">Дата отчета:</label>
+            <select name="report_date" id="report_date">
+                <option value="">Все даты</option>
+                {% for dt in report_dates %}
+                    <option value="{{ dt }}" {% if selected_report_date == dt %}selected{% endif %}>{{ dt }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Применить</button>
+        </form>
     </div>
 
     <div class="table-wrap">
@@ -119,7 +159,7 @@
                     <td>{{ row.debt_period }}</td>
                     <td>{{ row.report_date }}</td>
                     <td>{{ row.debt_reason }}</td>
-                    <td>{{ row.responsible_department }}</td>
+                    <td>{{ row.case_stage }}</td>
                     <td>
                         <a class="open-link"
                            href="{% url 'debitor_case' %}?account={{ row.account|urlencode }}&subkonto1={{ row.subkonto1|urlencode }}&subkonto2={{ row.subkonto2|urlencode }}&subkonto3={{ row.subkonto3|urlencode }}&report_date={{ row.report_date|urlencode }}">

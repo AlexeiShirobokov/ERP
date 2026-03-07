@@ -14,14 +14,17 @@
             display: inline-block;
         }
 
-        .info-table {
+        .info-table,
+        .history-table {
             border-collapse: collapse;
             width: 100%;
             margin-bottom: 24px;
         }
 
         .info-table th,
-        .info-table td {
+        .info-table td,
+        .history-table th,
+        .history-table td {
             border: 1px solid #cfd6df;
             padding: 8px;
             text-align: left;
@@ -30,6 +33,10 @@
 
         .info-table th {
             width: 260px;
+            background: #eef2f6;
+        }
+
+        .history-table th {
             background: #eef2f6;
         }
 
@@ -152,6 +159,10 @@
             padding: 9px 14px;
             cursor: pointer;
         }
+
+        .selected-row {
+            background: #eef7ff;
+        }
     </style>
 </head>
 <body>
@@ -160,10 +171,11 @@
     <h1>Карточка дебиторской задолженности</h1>
     <div class="meta">
         Текущий этап: <strong id="current-stage-text">{{ case_obj.get_stage_display }}</strong> |
+        Последняя дата отчета: {{ case_obj.last_report_date }} |
         Обновлено: {{ case_obj.updated_at }}
     </div>
 
-    <h2>Данные по задолженности</h2>
+    <h2>Текущие данные по задолженности</h2>
     <table class="info-table">
         <tr><th>Счет</th><td>{{ row.account }}</td></tr>
         <tr><th>Субконто 1</th><td>{{ row.subkonto1 }}</td></tr>
@@ -186,12 +198,8 @@
         <div class="kanban-col {% if case_obj.stage == 'accounting' %}active{% endif %}" data-stage="accounting">
             <div class="kanban-title">Бухгалтерия</div>
             <div class="kanban-hint">Здесь определяют причину образования ДЗ</div>
-
             {% if case_obj.stage == 'accounting' %}
-            <div class="kanban-card"
-                 id="debitor-case-card"
-                 draggable="true"
-                 data-case-id="{{ case_obj.id }}">
+            <div class="kanban-card" draggable="true" data-case-id="{{ case_obj.id }}">
                 <div class="card-title">{{ row.subkonto1 }}</div>
                 <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
                 <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
@@ -203,12 +211,8 @@
         <div class="kanban-col {% if case_obj.stage == 'supply' %}active{% endif %}" data-stage="supply">
             <div class="kanban-title">Снабжение</div>
             <div class="kanban-hint">Проверка вопросов снабжения и поставок</div>
-
             {% if case_obj.stage == 'supply' %}
-            <div class="kanban-card"
-                 id="debitor-case-card"
-                 draggable="true"
-                 data-case-id="{{ case_obj.id }}">
+            <div class="kanban-card" draggable="true" data-case-id="{{ case_obj.id }}">
                 <div class="card-title">{{ row.subkonto1 }}</div>
                 <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
                 <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
@@ -220,12 +224,8 @@
         <div class="kanban-col {% if case_obj.stage == 'legal' %}active{% endif %}" data-stage="legal">
             <div class="kanban-title">Юридический отдел</div>
             <div class="kanban-hint">Работа с юридическим сопровождением долга</div>
-
             {% if case_obj.stage == 'legal' %}
-            <div class="kanban-card"
-                 id="debitor-case-card"
-                 draggable="true"
-                 data-case-id="{{ case_obj.id }}">
+            <div class="kanban-card" draggable="true" data-case-id="{{ case_obj.id }}">
                 <div class="card-title">{{ row.subkonto1 }}</div>
                 <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
                 <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
@@ -237,12 +237,8 @@
         <div class="kanban-col {% if case_obj.stage == 'closed' %}active{% endif %}" data-stage="closed">
             <div class="kanban-title">Закрыто</div>
             <div class="kanban-hint">Завершенные карточки</div>
-
             {% if case_obj.stage == 'closed' %}
-            <div class="kanban-card"
-                 id="debitor-case-card"
-                 draggable="true"
-                 data-case-id="{{ case_obj.id }}">
+            <div class="kanban-card" draggable="true" data-case-id="{{ case_obj.id }}">
                 <div class="card-title">{{ row.subkonto1 }}</div>
                 <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
                 <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
@@ -280,6 +276,46 @@
             </div>
         </form>
     </div>
+
+    <h2>История по датам отчета</h2>
+    <table class="history-table">
+        <thead>
+            <tr>
+                <th>Дата отчета</th>
+                <th>Дата</th>
+                <th>Сумма Дт</th>
+                <th>Сумма Кт</th>
+                <th>Количество записей</th>
+                <th>Дата образования задолженности</th>
+                <th>Срок</th>
+                <th>Период</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for snap in snapshots %}
+            <tr {% if selected_snapshot.id == snap.id %}class="selected-row"{% endif %}>
+                <td>{{ snap.report_date }}</td>
+                <td>{{ snap.date }}</td>
+                <td>{{ snap.sum_dt }}</td>
+                <td>{{ snap.sum_kt }}</td>
+                <td>{{ snap.records_count }}</td>
+                <td>{{ snap.debt_date }}</td>
+                <td>{{ snap.debt_term }}</td>
+                <td>{{ snap.debt_period }}</td>
+                <td>
+                    <a href="{% url 'debitor_case' %}?account={{ case_obj.account|urlencode }}&subkonto1={{ case_obj.subkonto1|urlencode }}&subkonto2={{ case_obj.subkonto2|urlencode }}&subkonto3={{ case_obj.subkonto3|urlencode }}&report_date={{ snap.report_date|urlencode }}">
+                        Открыть срез
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9">История отсутствует</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 
     <script>
         const card = document.querySelector(".kanban-card[data-case-id]");

@@ -1,11 +1,12 @@
 from io import BytesIO
 
 import pandas as pd
+from django.contrib import messages
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .models import DebitorCase
+from .models import DebitorCase, DebitorSnapshot
 from Services.debitor import Upload
 
 
@@ -24,93 +25,180 @@ def _get_debitor_df():
     return df
 
 
-def _get_case_key_from_row(row):
-    return {
-        "account": str(row.get("account", "")),
-        "subkonto1": str(row.get("subkonto1", "")),
-        "subkonto2": str(row.get("subkonto2", "")),
-        "subkonto3": str(row.get("subkonto3", "")),
-        "report_date": str(row.get("report_date", "")),
-    }
+def _report_date_sort_key(value):
+    if value in ("", None):
+        return pd.Timestamp.min
+    try:
+        return pd.to_datetime(value, dayfirst=True, errors="coerce")
+    except Exception:
+        return pd.Timestamp.min
+
+
+def _to_float_or_none(value):
+    if value in ("", None):
+        return None
+    try:
+        return float(value)
+    except Exception:
+        return None
 
 
 def _sync_cases_from_excel():
     """
-    Создает карточки DebitorCase для всех строк Excel, если их еще нет.
-    Все новые карточки по умолчанию попадают в Бухгалтерию.
+    1. Создает/обновляет DebitorCase по ключу без report_date
+    2. Создает/обновляет DebitorSnapshot по (case, report_date)
+    3. Обновляет текущие поля кейса по самой свежей дате отчета
     """
     df = _get_debitor_df()
     records = df.to_dict(orient="records")
 
-    existing_keys = set(
-        DebitorCase.objects.values_list(
-            "account", "subkonto1", "subkonto2", "subkonto3", "report_date"
-        )
-    )
-
-    to_create = []
-    for row in records:
-        key = (
-            str(row.get("account", "")),
-            str(row.get("subkonto1", "")),
-            str(row.get("subkonto2", "")),
-            str(row.get("subkonto3", "")),
-            str(row.get("report_date", "")),
-        )
-
-        if key in existing_keys:
-            continue
-
-        to_create.append(
-            DebitorCase(
-                account=key[0],
-                subkonto1=key[1],
-                subkonto2=key[2],
-                subkonto3=key[3],
-                report_date=key[4],
-                stage="accounting",
-                debt_reason=str(row.get("debt_reason", "")),
-            )
-        )
-
-    if to_create:
-        DebitorCase.objects.bulk_create(to_create, ignore_conflicts=True)
-
-    return df
-
-
-def debitor_report(request):
-    df = _sync_cases_from_excel()
-    records = df.to_dict(orient="records")
-
-    existing_cases = DebitorCase.objects.all()
-    cases_map = {}
-    for obj in existing_cases:
-        key = (
+    existing_cases = {
+        (
             str(obj.account or ""),
             str(obj.subkonto1 or ""),
             str(obj.subkonto2 or ""),
             str(obj.subkonto3 or ""),
-            str(obj.report_date or ""),
-        )
-        cases_map[key] = obj
+        ): obj
+        for obj in DebitorCase.objects.all()
+    }
+
+    touched_case_ids = set()
 
     for row in records:
-        key = (
+        case_key = (
             str(row.get("account", "")),
             str(row.get("subkonto1", "")),
             str(row.get("subkonto2", "")),
             str(row.get("subkonto3", "")),
-            str(row.get("report_date", "")),
         )
 
-        case_obj = cases_map.get(key)
-        row["case_exists"] = case_obj is not None
-        row["case_stage"] = case_obj.get_stage_display() if case_obj else "Бухгалтерия"
+        case_obj = existing_cases.get(case_key)
+        if not case_obj:
+            case_obj = DebitorCase.objects.create(
+                account=case_key[0],
+                subkonto1=case_key[1],
+                subkonto2=case_key[2],
+                subkonto3=case_key[3],
+                stage="accounting",
+                debt_reason="",
+                is_active=True,
+            )
+            existing_cases[case_key] = case_obj
+
+        touched_case_ids.add(case_obj.id)
+
+        report_date = str(row.get("report_date", ""))
+
+        DebitorSnapshot.objects.update_or_create(
+            case=case_obj,
+            report_date=report_date,
+            defaults={
+                "date": str(row.get("date", "")),
+                "sum_dt": _to_float_or_none(row.get("sum_dt")),
+                "sum_kt": _to_float_or_none(row.get("sum_kt")),
+                "records_count": str(row.get("records_count", "")),
+                "debt_date": str(row.get("debt_date", "")),
+                "debt_term": str(row.get("debt_term", "")),
+                "debt_period": str(row.get("debt_period", "")),
+                "debt_reason_excel": str(row.get("debt_reason", "")),
+                "responsible_department_excel": str(row.get("responsible_department", "")),
+            },
+        )
+
+    DebitorCase.objects.exclude(id__in=touched_case_ids).update(is_active=False)
+    DebitorCase.objects.filter(id__in=touched_case_ids).update(is_active=True)
+
+    cases = DebitorCase.objects.prefetch_related("snapshots").all()
+    for case_obj in cases:
+        snapshots = list(case_obj.snapshots.all())
+        if not snapshots:
+            continue
+
+        latest_snapshot = max(
+            snapshots,
+            key=lambda s: (_report_date_sort_key(s.report_date), s.id),
+        )
+
+        case_obj.last_report_date = latest_snapshot.report_date
+        case_obj.current_date = latest_snapshot.date
+        case_obj.current_sum_dt = latest_snapshot.sum_dt
+        case_obj.current_sum_kt = latest_snapshot.sum_kt
+        case_obj.current_records_count = latest_snapshot.records_count
+        case_obj.current_debt_date = latest_snapshot.debt_date
+        case_obj.current_debt_term = latest_snapshot.debt_term
+        case_obj.current_debt_period = latest_snapshot.debt_period
+        case_obj.current_debt_reason_excel = latest_snapshot.debt_reason_excel
+        case_obj.current_responsible_department_excel = latest_snapshot.responsible_department_excel
+        case_obj.save(
+            update_fields=[
+                "last_report_date",
+                "current_date",
+                "current_sum_dt",
+                "current_sum_kt",
+                "current_records_count",
+                "current_debt_date",
+                "current_debt_term",
+                "current_debt_period",
+                "current_debt_reason_excel",
+                "current_responsible_department_excel",
+                "is_active",
+                "updated_at",
+            ]
+        )
+
+
+def debitor_sync(request):
+    _sync_cases_from_excel()
+    messages.success(request, "Данные из Excel обновлены.")
+    return redirect("debitor_report")
+
+
+def debitor_report(request):
+    report_date_filter = request.GET.get("report_date", "").strip()
+
+    snapshots_qs = DebitorSnapshot.objects.select_related("case").all()
+
+    if report_date_filter:
+        snapshots_qs = snapshots_qs.filter(report_date=report_date_filter)
+
+    snapshots = list(snapshots_qs.order_by("-report_date", "-id"))
+
+    report_dates_qs = (
+        DebitorSnapshot.objects.exclude(report_date__isnull=True)
+        .exclude(report_date__exact="")
+        .values_list("report_date", flat=True)
+        .distinct()
+    )
+    report_dates = sorted(
+        set(str(x).strip() for x in report_dates_qs if str(x).strip()),
+        key=_report_date_sort_key,
+        reverse=True,
+    )
+
+    records = []
+    for snap in snapshots:
+        records.append({
+            "account": snap.case.account,
+            "subkonto1": snap.case.subkonto1,
+            "subkonto2": snap.case.subkonto2,
+            "subkonto3": snap.case.subkonto3,
+            "date": snap.date,
+            "sum_dt": snap.sum_dt,
+            "sum_kt": snap.sum_kt,
+            "records_count": snap.records_count,
+            "debt_date": snap.debt_date,
+            "debt_term": snap.debt_term,
+            "debt_period": snap.debt_period,
+            "report_date": snap.report_date,
+            "debt_reason": snap.debt_reason_excel,
+            "case_stage": snap.case.get_stage_display(),
+        })
 
     context = {
         "records": records,
         "rows_total": len(records),
+        "report_dates": report_dates,
+        "selected_report_date": report_date_filter,
     }
     return render(request, "main/debitor_report.html", context)
 
@@ -120,39 +208,44 @@ def debitor_case(request):
     subkonto1 = request.GET.get("subkonto1", "")
     subkonto2 = request.GET.get("subkonto2", "")
     subkonto3 = request.GET.get("subkonto3", "")
-    report_date = request.GET.get("report_date", "")
+    report_date = request.GET.get("report_date", "").strip()
 
-    df = _sync_cases_from_excel()
-    records = df.to_dict(orient="records")
-
-    selected_row = None
-    for row in records:
-        if (
-            str(row.get("account", "")) == str(account)
-            and str(row.get("subkonto1", "")) == str(subkonto1)
-            and str(row.get("subkonto2", "")) == str(subkonto2)
-            and str(row.get("subkonto3", "")) == str(subkonto3)
-            and str(row.get("report_date", "")) == str(report_date)
-        ):
-            selected_row = row
-            break
-
-    if not selected_row:
-        raise Http404("Карточка по данной строке Excel не найдена")
-
-    key_data = _get_case_key_from_row(selected_row)
-
-    case_obj, created = DebitorCase.objects.get_or_create(
-        account=key_data["account"],
-        subkonto1=key_data["subkonto1"],
-        subkonto2=key_data["subkonto2"],
-        subkonto3=key_data["subkonto3"],
-        report_date=key_data["report_date"],
-        defaults={
-            "stage": "accounting",
-            "debt_reason": str(selected_row.get("debt_reason", "")),
-        },
+    case_obj = get_object_or_404(
+        DebitorCase,
+        account=str(account),
+        subkonto1=str(subkonto1),
+        subkonto2=str(subkonto2),
+        subkonto3=str(subkonto3),
     )
+
+    snapshots = list(case_obj.snapshots.all().order_by("-report_date", "-id"))
+    if not snapshots:
+        raise Http404("История по данной карточке не найдена")
+
+    selected_snapshot = None
+    if report_date:
+        for snap in snapshots:
+            if str(snap.report_date) == str(report_date):
+                selected_snapshot = snap
+                break
+
+    if not selected_snapshot:
+        selected_snapshot = snapshots[0]
+
+    row = {
+        "account": case_obj.account,
+        "subkonto1": case_obj.subkonto1,
+        "subkonto2": case_obj.subkonto2,
+        "subkonto3": case_obj.subkonto3,
+        "date": selected_snapshot.date,
+        "sum_dt": selected_snapshot.sum_dt,
+        "sum_kt": selected_snapshot.sum_kt,
+        "records_count": selected_snapshot.records_count,
+        "debt_date": selected_snapshot.debt_date,
+        "debt_term": selected_snapshot.debt_term,
+        "debt_period": selected_snapshot.debt_period,
+        "report_date": selected_snapshot.report_date,
+    }
 
     if request.method == "POST":
         action = request.POST.get("action", "save")
@@ -177,96 +270,43 @@ def debitor_case(request):
             f"&subkonto1={case_obj.subkonto1}"
             f"&subkonto2={case_obj.subkonto2}"
             f"&subkonto3={case_obj.subkonto3}"
-            f"&report_date={case_obj.report_date}"
+            f"&report_date={selected_snapshot.report_date}"
         )
         return redirect(f"{request.path}{query}")
 
     context = {
-        "row": selected_row,
+        "row": row,
         "case_obj": case_obj,
+        "snapshots": snapshots,
+        "selected_snapshot": selected_snapshot,
     }
     return render(request, "main/debitor_case.html", context)
 
 
 def export_debitor_excel(request):
-    df = _sync_cases_from_excel()
+    snapshots = DebitorSnapshot.objects.select_related("case").all().order_by("-report_date", "id")
 
-    cases = DebitorCase.objects.all()
+    export_rows = []
+    for snap in snapshots:
+        export_rows.append({
+            "Счет": snap.case.account,
+            "Субконто 1": snap.case.subkonto1,
+            "Субконто 2": snap.case.subkonto2,
+            "Субконто 3": snap.case.subkonto3,
+            "Дата": snap.date,
+            "Сумма остаток Дт": snap.sum_dt,
+            "Сумма остаток Кт": snap.sum_kt,
+            "Количество записей": snap.records_count,
+            "Дата образования задолженности": snap.debt_date,
+            "срок дебиторской задолженности": snap.debt_term,
+            "Период задолженности": snap.debt_period,
+            "Дата отчета": snap.report_date,
+            "Причина образования ДЗ": snap.case.debt_reason or snap.debt_reason_excel,
+            "Ответственный отдел по урегулированию ДЗ": snap.case.get_stage_display(),
+            "Комментарий решения": snap.case.comment or "",
+        })
 
-    cases_map = {}
-    for obj in cases:
-        key = (
-            str(obj.account or ""),
-            str(obj.subkonto1 or ""),
-            str(obj.subkonto2 or ""),
-            str(obj.subkonto3 or ""),
-            str(obj.report_date or ""),
-        )
-        cases_map[key] = obj
-
-    def get_case_value(row, attr_name, fallback=""):
-        key = (
-            str(row.get("account", "")),
-            str(row.get("subkonto1", "")),
-            str(row.get("subkonto2", "")),
-            str(row.get("subkonto3", "")),
-            str(row.get("report_date", "")),
-        )
-        obj = cases_map.get(key)
-        if not obj:
-            return fallback
-        return getattr(obj, attr_name, fallback) or fallback
-
-    df["debt_reason"] = df.apply(
-        lambda row: get_case_value(row, "debt_reason", str(row.get("debt_reason", ""))),
-        axis=1,
-    )
-    df["responsible_department"] = df.apply(
-        lambda row: (
-            cases_map.get(
-                (
-                    str(row.get("account", "")),
-                    str(row.get("subkonto1", "")),
-                    str(row.get("subkonto2", "")),
-                    str(row.get("subkonto3", "")),
-                    str(row.get("report_date", "")),
-                )
-            ).get_stage_display()
-            if cases_map.get(
-                (
-                    str(row.get("account", "")),
-                    str(row.get("subkonto1", "")),
-                    str(row.get("subkonto2", "")),
-                    str(row.get("subkonto3", "")),
-                    str(row.get("report_date", "")),
-                )
-            )
-            else "Бухгалтерия"
-        ),
-        axis=1,
-    )
-    df["solution_comment"] = df.apply(
-        lambda row: get_case_value(row, "comment", ""),
-        axis=1,
-    )
-
-    export_df = df.rename(columns={
-        "account": "Счет",
-        "subkonto1": "Субконто 1",
-        "subkonto2": "Субконто 2",
-        "subkonto3": "Субконто 3",
-        "date": "Дата",
-        "sum_dt": "Сумма остаток Дт",
-        "sum_kt": "Сумма остаток Кт",
-        "records_count": "Количество записей",
-        "debt_date": "Дата образования задолженности",
-        "debt_term": "срок дебиторской задолженности",
-        "debt_period": "Период задолженности",
-        "report_date": "Дата отчета",
-        "debt_reason": "Причина образования ДЗ",
-        "responsible_department": "Ответственный отдел по урегулированию ДЗ",
-        "solution_comment": "Комментарий решения",
-    })
+    export_df = pd.DataFrame(export_rows)
 
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -304,6 +344,5 @@ def move_debitor_case(request):
 
 
 def debitor_board(request):
-    _sync_cases_from_excel()
-    cases = DebitorCase.objects.all().order_by("stage", "subkonto1")
+    cases = DebitorCase.objects.filter(is_active=True).order_by("stage", "subkonto1")
     return render(request, "main/debitor_board.html", {"cases": cases})

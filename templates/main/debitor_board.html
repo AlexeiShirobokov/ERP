@@ -163,10 +163,11 @@
                             <div class="card-title">{{ case.subkonto1|default:"Без названия" }}</div>
                             <div class="card-line"><strong>Счет:</strong> {{ case.account }}</div>
                             <div class="card-line"><strong>Субконто 2:</strong> {{ case.subkonto2 }}</div>
-                            <div class="card-line"><strong>Дата отчета:</strong> {{ case.report_date }}</div>
+                            <div class="card-line"><strong>Последняя дата отчета:</strong> {{ case.last_report_date }}</div>
+                            <div class="card-line"><strong>Сумма Дт:</strong> {{ case.current_sum_dt }}</div>
                             <div class="card-line"><strong>Ответственный:</strong> {{ case.responsible_person|default:"—" }}</div>
                             <div class="card-actions">
-                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}&report_date={{ case.report_date|urlencode }}">
+                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}">
                                     Открыть карточку
                                 </a>
                             </div>
@@ -188,10 +189,11 @@
                             <div class="card-title">{{ case.subkonto1|default:"Без названия" }}</div>
                             <div class="card-line"><strong>Счет:</strong> {{ case.account }}</div>
                             <div class="card-line"><strong>Субконто 2:</strong> {{ case.subkonto2 }}</div>
-                            <div class="card-line"><strong>Дата отчета:</strong> {{ case.report_date }}</div>
+                            <div class="card-line"><strong>Последняя дата отчета:</strong> {{ case.last_report_date }}</div>
+                            <div class="card-line"><strong>Сумма Дт:</strong> {{ case.current_sum_dt }}</div>
                             <div class="card-line"><strong>Ответственный:</strong> {{ case.responsible_person|default:"—" }}</div>
                             <div class="card-actions">
-                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}&report_date={{ case.report_date|urlencode }}">
+                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}">
                                     Открыть карточку
                                 </a>
                             </div>
@@ -213,10 +215,11 @@
                             <div class="card-title">{{ case.subkonto1|default:"Без названия" }}</div>
                             <div class="card-line"><strong>Счет:</strong> {{ case.account }}</div>
                             <div class="card-line"><strong>Субконто 2:</strong> {{ case.subkonto2 }}</div>
-                            <div class="card-line"><strong>Дата отчета:</strong> {{ case.report_date }}</div>
+                            <div class="card-line"><strong>Последняя дата отчета:</strong> {{ case.last_report_date }}</div>
+                            <div class="card-line"><strong>Сумма Дт:</strong> {{ case.current_sum_dt }}</div>
                             <div class="card-line"><strong>Ответственный:</strong> {{ case.responsible_person|default:"—" }}</div>
                             <div class="card-actions">
-                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}&report_date={{ case.report_date|urlencode }}">
+                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}">
                                     Открыть карточку
                                 </a>
                             </div>
@@ -238,10 +241,11 @@
                             <div class="card-title">{{ case.subkonto1|default:"Без названия" }}</div>
                             <div class="card-line"><strong>Счет:</strong> {{ case.account }}</div>
                             <div class="card-line"><strong>Субконто 2:</strong> {{ case.subkonto2 }}</div>
-                            <div class="card-line"><strong>Дата отчета:</strong> {{ case.report_date }}</div>
+                            <div class="card-line"><strong>Последняя дата отчета:</strong> {{ case.last_report_date }}</div>
+                            <div class="card-line"><strong>Сумма Дт:</strong> {{ case.current_sum_dt }}</div>
                             <div class="card-line"><strong>Ответственный:</strong> {{ case.responsible_person|default:"—" }}</div>
                             <div class="card-actions">
-                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}&report_date={{ case.report_date|urlencode }}">
+                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}">
                                     Открыть карточку
                                 </a>
                             </div>
