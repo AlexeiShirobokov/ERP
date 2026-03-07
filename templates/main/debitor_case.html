@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Карточка дебиторской задолженности</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .back-link {
+            margin-bottom: 16px;
+            display: inline-block;
+        }
+
+        .info-table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 24px;
+        }
+
+        .info-table th,
+        .info-table td {
+            border: 1px solid #cfd6df;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .info-table th {
+            width: 260px;
+            background: #eef2f6;
+        }
+
+        .meta {
+            color: #666;
+            margin-bottom: 16px;
+        }
+
+        .kanban {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin: 20px 0 30px;
+        }
+
+        .kanban-col {
+            border: 1px solid #ccd4dd;
+            border-radius: 10px;
+            padding: 14px;
+            min-height: 180px;
+            background: #f8fafc;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .kanban-col.active {
+            border: 2px solid #4a7bd1;
+            background: #eaf2ff;
+        }
+
+        .kanban-col.drag-over {
+            background: #dfeeff;
+            border-color: #2f6fd6;
+        }
+
+        .kanban-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .kanban-hint {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+
+        .kanban-card {
+            background: #fff;
+            border: 1px solid #d6dde6;
+            border-radius: 8px;
+            padding: 10px;
+            cursor: grab;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .kanban-card:active {
+            cursor: grabbing;
+        }
+
+        .kanban-card.dragging {
+            opacity: 0.55;
+        }
+
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        .card-line {
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .move-status {
+            margin: 12px 0 20px;
+            font-size: 14px;
+            min-height: 20px;
+        }
+
+        .move-status.ok {
+            color: #1f7a1f;
+        }
+
+        .move-status.error {
+            color: #c62828;
+        }
+
+        .form-block {
+            max-width: 900px;
+        }
+
+        .row {
+            margin-bottom: 14px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        textarea,
+        input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+        }
+
+        textarea {
+            min-height: 100px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+        }
+
+        button {
+            padding: 9px 14px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <a class="back-link" href="{% url 'debitor_report' %}">← Назад к отчету</a>
+
+    <h1>Карточка дебиторской задолженности</h1>
+    <div class="meta">
+        Текущий этап: <strong id="current-stage-text">{{ case_obj.get_stage_display }}</strong> |
+        Обновлено: {{ case_obj.updated_at }}
+    </div>
+
+    <h2>Данные по задолженности</h2>
+    <table class="info-table">
+        <tr><th>Счет</th><td>{{ row.account }}</td></tr>
+        <tr><th>Субконто 1</th><td>{{ row.subkonto1 }}</td></tr>
+        <tr><th>Субконто 2</th><td>{{ row.subkonto2 }}</td></tr>
+        <tr><th>Субконто 3</th><td>{{ row.subkonto3 }}</td></tr>
+        <tr><th>Дата</th><td>{{ row.date }}</td></tr>
+        <tr><th>Сумма остаток Дт</th><td>{{ row.sum_dt }}</td></tr>
+        <tr><th>Сумма остаток Кт</th><td>{{ row.sum_kt }}</td></tr>
+        <tr><th>Количество записей</th><td>{{ row.records_count }}</td></tr>
+        <tr><th>Дата образования задолженности</th><td>{{ row.debt_date }}</td></tr>
+        <tr><th>Срок дебиторской задолженности</th><td>{{ row.debt_term }}</td></tr>
+        <tr><th>Период задолженности</th><td>{{ row.debt_period }}</td></tr>
+        <tr><th>Дата отчета</th><td>{{ row.report_date }}</td></tr>
+    </table>
+
+    <h2>Kanban по отделам</h2>
+    <div class="move-status" id="move-status"></div>
+
+    <div class="kanban">
+        <div class="kanban-col {% if case_obj.stage == 'accounting' %}active{% endif %}" data-stage="accounting">
+            <div class="kanban-title">Бухгалтерия</div>
+            <div class="kanban-hint">Здесь определяют причину образования ДЗ</div>
+
+            {% if case_obj.stage == 'accounting' %}
+            <div class="kanban-card"
+                 id="debitor-case-card"
+                 draggable="true"
+                 data-case-id="{{ case_obj.id }}">
+                <div class="card-title">{{ row.subkonto1 }}</div>
+                <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
+                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
+                <div class="card-line"><strong>Сумма Дт:</strong> {{ row.sum_dt }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="kanban-col {% if case_obj.stage == 'supply' %}active{% endif %}" data-stage="supply">
+            <div class="kanban-title">Снабжение</div>
+            <div class="kanban-hint">Проверка вопросов снабжения и поставок</div>
+
+            {% if case_obj.stage == 'supply' %}
+            <div class="kanban-card"
+                 id="debitor-case-card"
+                 draggable="true"
+                 data-case-id="{{ case_obj.id }}">
+                <div class="card-title">{{ row.subkonto1 }}</div>
+                <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
+                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
+                <div class="card-line"><strong>Сумма Дт:</strong> {{ row.sum_dt }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="kanban-col {% if case_obj.stage == 'legal' %}active{% endif %}" data-stage="legal">
+            <div class="kanban-title">Юридический отдел</div>
+            <div class="kanban-hint">Работа с юридическим сопровождением долга</div>
+
+            {% if case_obj.stage == 'legal' %}
+            <div class="kanban-card"
+                 id="debitor-case-card"
+                 draggable="true"
+                 data-case-id="{{ case_obj.id }}">
+                <div class="card-title">{{ row.subkonto1 }}</div>
+                <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
+                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
+                <div class="card-line"><strong>Сумма Дт:</strong> {{ row.sum_dt }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="kanban-col {% if case_obj.stage == 'closed' %}active{% endif %}" data-stage="closed">
+            <div class="kanban-title">Закрыто</div>
+            <div class="kanban-hint">Завершенные карточки</div>
+
+            {% if case_obj.stage == 'closed' %}
+            <div class="kanban-card"
+                 id="debitor-case-card"
+                 draggable="true"
+                 data-case-id="{{ case_obj.id }}">
+                <div class="card-title">{{ row.subkonto1 }}</div>
+                <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
+                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
+                <div class="card-line"><strong>Сумма Дт:</strong> {{ row.sum_dt }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="form-block">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="row">
+                <label for="debt_reason">Причина образования ДЗ</label>
+                <textarea name="debt_reason" id="debt_reason">{{ case_obj.debt_reason|default_if_none:"" }}</textarea>
+            </div>
+
+            <div class="row">
+                <label for="responsible_person">Ответственный</label>
+                <input type="text" name="responsible_person" id="responsible_person" value="{{ case_obj.responsible_person|default_if_none:"" }}">
+            </div>
+
+            <div class="row">
+                <label for="comment">Комментарий</label>
+                <textarea name="comment" id="comment">{{ case_obj.comment|default_if_none:"" }}</textarea>
+            </div>
+
+            <div class="buttons">
+                <button type="submit" name="action" value="save">Сохранить</button>
+                <button type="submit" name="action" value="to_accounting">В Бухгалтерию</button>
+                <button type="submit" name="action" value="to_supply">В Снабжение</button>
+                <button type="submit" name="action" value="to_legal">В Юридический отдел</button>
+                <button type="submit" name="action" value="to_closed">Закрыть</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const card = document.querySelector(".kanban-card[data-case-id]");
+        const columns = document.querySelectorAll(".kanban-col[data-stage]");
+        const statusBox = document.getElementById("move-status");
+        const currentStageText = document.getElementById("current-stage-text");
+
+        function getCookie(name) {
+            const cookies = document.cookie ? document.cookie.split(";") : [];
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.startsWith(name + "=")) {
+                    return decodeURIComponent(cookie.slice(name.length + 1));
+                }
+            }
+            return null;
+        }
+
+        function showStatus(message, type="ok") {
+            statusBox.textContent = message;
+            statusBox.className = "move-status " + type;
+        }
+
+        function stageLabel(stage) {
+            const mapping = {
+                accounting: "Бухгалтерия",
+                supply: "Снабжение",
+                legal: "Юридический отдел",
+                closed: "Закрыто"
+            };
+            return mapping[stage] || stage;
+        }
+
+        if (card) {
+            card.addEventListener("dragstart", function (event) {
+                card.classList.add("dragging");
+                event.dataTransfer.setData("case_id", card.dataset.caseId);
+            });
+
+            card.addEventListener("dragend", function () {
+                card.classList.remove("dragging");
+            });
+        }
+
+        columns.forEach(column => {
+            column.addEventListener("dragover", function (event) {
+                event.preventDefault();
+                column.classList.add("drag-over");
+            });
+
+            column.addEventListener("dragleave", function () {
+                column.classList.remove("drag-over");
+            });
+
+            column.addEventListener("drop", function (event) {
+                event.preventDefault();
+                column.classList.remove("drag-over");
+
+                const caseId = event.dataTransfer.getData("case_id");
+                const newStage = column.dataset.stage;
+
+                if (!caseId) {
+                    return;
+                }
+
+                fetch("{% url 'move_debitor_case' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                        "X-CSRFToken": getCookie("csrftoken")
+                    },
+                    body: new URLSearchParams({
+                        case_id: caseId,
+                        new_stage: newStage
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.ok) {
+                        showStatus(data.error || "Ошибка перемещения карточки", "error");
+                        return;
+                    }
+
+                    const draggedCard = document.querySelector(`.kanban-card[data-case-id="${caseId}"]`);
+                    if (draggedCard) {
+                        column.appendChild(draggedCard);
+                    }
+
+                    document.querySelectorAll(".kanban-col").forEach(col => {
+                        col.classList.remove("active");
+                    });
+                    column.classList.add("active");
+
+                    currentStageText.textContent = data.stage_display || stageLabel(newStage);
+                    showStatus("Карточка успешно перемещена в: " + (data.stage_display || stageLabel(newStage)), "ok");
+                })
+                .catch(() => {
+                    showStatus("Не удалось переместить карточку", "error");
+                });
+            });
+        });
+    </script>
+</body>
+</html>

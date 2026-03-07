@@ -18,6 +18,15 @@
             color: #444;
         }
 
+        .actions {
+            margin-bottom: 15px;
+        }
+
+        .actions button {
+            padding: 8px 14px;
+            cursor: pointer;
+        }
+
         .table-wrap {
             overflow-x: auto;
         }
@@ -25,7 +34,7 @@
         table {
             border-collapse: collapse;
             width: 100%;
-            min-width: 1600px;
+            min-width: 1700px;
             font-size: 13px;
         }
 
@@ -40,27 +49,39 @@
             background: #dfe8d5;
         }
 
-        textarea {
-            width: 240px;
-            height: 80px;
-            resize: vertical;
+        .open-link {
+            display: inline-block;
+            padding: 6px 10px;
+            border: 1px solid #999;
+            text-decoration: none;
+            color: #000;
+            background: #f4f4f4;
         }
 
-        button {
+        .stage-badge {
+            display: inline-block;
             margin-top: 6px;
-            padding: 6px 12px;
-            cursor: pointer;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: #eef2f6;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
     <h1>Отчет по дебиторской задолженности</h1>
+    <div class = "topbar-links">
+        <a href = "{% url 'index' %}">На главную</a>
+
+    </div>
     <div class="meta">Всего строк: {{ rows_total }}</div>
-    <p>
+
+    <div class="actions">
         <a href="{% url 'export_debitor_excel' %}">
             <button type="button">Сохранить файл в Excel</button>
         </a>
-    </p>
+    </div>
+
     <div class="table-wrap">
         <table>
             <thead>
@@ -79,7 +100,7 @@
                     <th>Дата отчета</th>
                     <th>Причина образования ДЗ</th>
                     <th>Ответственный отдел</th>
-                    <th>Комментарий решения</th>
+                    <th>Карточка</th>
                 </tr>
             </thead>
             <tbody>
@@ -100,13 +121,11 @@
                     <td>{{ row.debt_reason }}</td>
                     <td>{{ row.responsible_department }}</td>
                     <td>
-                        <form method="post">
-                            {% csrf_token %}
-                            <input type="hidden" name="row_index" value="{{ row.row_index }}">
-                            <textarea name="comment">{{ row.saved_comment }}</textarea>
-                            <br>
-                            <button type="submit">Сохранить</button>
-                        </form>
+                        <a class="open-link"
+                           href="{% url 'debitor_case' %}?account={{ row.account|urlencode }}&subkonto1={{ row.subkonto1|urlencode }}&subkonto2={{ row.subkonto2|urlencode }}&subkonto3={{ row.subkonto3|urlencode }}&report_date={{ row.report_date|urlencode }}">
+                            Открыть карточку
+                        </a>
+                        <div class="stage-badge">{{ row.case_stage }}</div>
                     </td>
                 </tr>
                 {% empty %}

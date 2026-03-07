@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Доска дебиторской задолженности</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f7fb;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .topbar a {
+            text-decoration: none;
+            color: #1f4f99;
+        }
+
+        .topbar-links {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .status-box {
+            min-height: 24px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .status-box.ok {
+            color: #1b7f2a;
+        }
+
+        .status-box.error {
+            color: #c62828;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        .column {
+            background: #e9eef6;
+            border: 1px solid #cfd8e6;
+            border-radius: 14px;
+            padding: 14px;
+            min-height: 500px;
+        }
+
+        .column.drag-over {
+            background: #dbe9ff;
+            border-color: #3f78d8;
+        }
+
+        .column-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        .column-subtitle {
+            font-size: 13px;
+            color: #5a6575;
+            margin-bottom: 14px;
+        }
+
+        .card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid #d8dfeb;
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+            cursor: grab;
+        }
+
+        .card:active {
+            cursor: grabbing;
+        }
+
+        .card.dragging {
+            opacity: 0.55;
+        }
+
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .card-line {
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .card-actions {
+            margin-top: 10px;
+        }
+
+        .card-actions a {
+            font-size: 13px;
+            text-decoration: none;
+            color: #1f4f99;
+        }
+
+        .empty {
+            font-size: 13px;
+            color: #6f7a89;
+            padding: 8px 0;
+        }
+
+        @media (max-width: 1200px) {
+            .board {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .board {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div>
+            <h1>Доска дебиторской задолженности</h1>
+            <div class="topbar-links">
+                <a href="{% url 'debitor_report' %}">← К отчету</a>
+                <a href="{% url 'index' %}">На главную</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="status-box" class="status-box"></div>
+
+    <div class="board">
+        <div class="column" data-stage="accounting">
+            <div class="column-title">Бухгалтерия</div>
+            <div class="column-subtitle">Определение причины образования ДЗ</div>
+            <div class="card-list">
+                {% for case in cases %}
+                    {% if case.stage == "accounting" %}
+                        <div class="card" draggable="true" data-case-id="{{ case.id }}">
+                            <div class="card-title">{{ case.subkonto1|default:"Без названия" }}</div>
+                            <div class="card-line"><strong>Счет:</strong> {{ case.account }}</div>
+                            <div class="card-line"><strong>Субконто 2:</strong> {{ case.subkonto2 }}</div>
+                            <div class="card-line"><strong>Дата отчета:</strong> {{ case.report_date }}</div>
+                            <div class="card-line"><strong>Ответственный:</strong> {{ case.responsible_person|default:"—" }}</div>
+                            <div class="card-actions">
+                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}&report_date={{ case.report_date|urlencode }}">
+                                    Открыть карточку
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% empty %}
+                    <div class="empty">Карточек нет</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="column" data-stage="supply">
+            <div class="column-title">Снабжение</div>
+            <div class="column-subtitle">Работа по поставкам и снабжению</div>
+            <div class="card-list">
+                {% for case in cases %}
+                    {% if case.stage == "supply" %}
+                        <div class="card" draggable="true" data-case-id="{{ case.id }}">
+                            <div class="card-title">{{ case.subkonto1|default:"Без названия" }}</div>
+                            <div class="card-line"><strong>Счет:</strong> {{ case.account }}</div>
+                            <div class="card-line"><strong>Субконто 2:</strong> {{ case.subkonto2 }}</div>
+                            <div class="card-line"><strong>Дата отчета:</strong> {{ case.report_date }}</div>
+                            <div class="card-line"><strong>Ответственный:</strong> {{ case.responsible_person|default:"—" }}</div>
+                            <div class="card-actions">
+                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}&report_date={{ case.report_date|urlencode }}">
+                                    Открыть карточку
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% empty %}
+                    <div class="empty">Карточек нет</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="column" data-stage="legal">
+            <div class="column-title">Юридический отдел</div>
+            <div class="column-subtitle">Юридическое сопровождение задолженности</div>
+            <div class="card-list">
+                {% for case in cases %}
+                    {% if case.stage == "legal" %}
+                        <div class="card" draggable="true" data-case-id="{{ case.id }}">
+                            <div class="card-title">{{ case.subkonto1|default:"Без названия" }}</div>
+                            <div class="card-line"><strong>Счет:</strong> {{ case.account }}</div>
+                            <div class="card-line"><strong>Субконто 2:</strong> {{ case.subkonto2 }}</div>
+                            <div class="card-line"><strong>Дата отчета:</strong> {{ case.report_date }}</div>
+                            <div class="card-line"><strong>Ответственный:</strong> {{ case.responsible_person|default:"—" }}</div>
+                            <div class="card-actions">
+                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}&report_date={{ case.report_date|urlencode }}">
+                                    Открыть карточку
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% empty %}
+                    <div class="empty">Карточек нет</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="column" data-stage="closed">
+            <div class="column-title">Закрыто</div>
+            <div class="column-subtitle">Завершенные карточки</div>
+            <div class="card-list">
+                {% for case in cases %}
+                    {% if case.stage == "closed" %}
+                        <div class="card" draggable="true" data-case-id="{{ case.id }}">
+                            <div class="card-title">{{ case.subkonto1|default:"Без названия" }}</div>
+                            <div class="card-line"><strong>Счет:</strong> {{ case.account }}</div>
+                            <div class="card-line"><strong>Субконто 2:</strong> {{ case.subkonto2 }}</div>
+                            <div class="card-line"><strong>Дата отчета:</strong> {{ case.report_date }}</div>
+                            <div class="card-line"><strong>Ответственный:</strong> {{ case.responsible_person|default:"—" }}</div>
+                            <div class="card-actions">
+                                <a href="{% url 'debitor_case' %}?account={{ case.account|urlencode }}&subkonto1={{ case.subkonto1|urlencode }}&subkonto2={{ case.subkonto2|urlencode }}&subkonto3={{ case.subkonto3|urlencode }}&report_date={{ case.report_date|urlencode }}">
+                                    Открыть карточку
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% empty %}
+                    <div class="empty">Карточек нет</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const cards = document.querySelectorAll(".card[data-case-id]");
+        const columns = document.querySelectorAll(".column[data-stage]");
+        const statusBox = document.getElementById("status-box");
+
+        function getCookie(name) {
+            const cookies = document.cookie ? document.cookie.split(";") : [];
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.startsWith(name + "=")) {
+                    return decodeURIComponent(cookie.slice(name.length + 1));
+                }
+            }
+            return null;
+        }
+
+        function showStatus(message, type = "ok") {
+            statusBox.textContent = message;
+            statusBox.className = "status-box " + type;
+        }
+
+        cards.forEach(card => {
+            card.addEventListener("dragstart", event => {
+                card.classList.add("dragging");
+                event.dataTransfer.setData("case_id", card.dataset.caseId);
+            });
+
+            card.addEventListener("dragend", () => {
+                card.classList.remove("dragging");
+            });
+        });
+
+        columns.forEach(column => {
+            column.addEventListener("dragover", event => {
+                event.preventDefault();
+                column.classList.add("drag-over");
+            });
+
+            column.addEventListener("dragleave", () => {
+                column.classList.remove("drag-over");
+            });
+
+            column.addEventListener("drop", event => {
+                event.preventDefault();
+                column.classList.remove("drag-over");
+
+                const caseId = event.dataTransfer.getData("case_id");
+                const newStage = column.dataset.stage;
+
+                if (!caseId || !newStage) {
+                    return;
+                }
+
+                fetch("{% url 'move_debitor_case' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                        "X-CSRFToken": getCookie("csrftoken")
+                    },
+                    body: new URLSearchParams({
+                        case_id: caseId,
+                        new_stage: newStage
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.ok) {
+                        showStatus(data.error || "Ошибка перемещения", "error");
+                        return;
+                    }
+
+                    const movedCard = document.querySelector(`.card[data-case-id="${caseId}"]`);
+                    const list = column.querySelector(".card-list");
+                    if (movedCard && list) {
+                        list.appendChild(movedCard);
+                    }
+
+                    showStatus("Карточка перемещена: " + (data.stage_display || newStage), "ok");
+                })
+                .catch(() => {
+                    showStatus("Не удалось переместить карточку", "error");
+                });
+            });
+        });
+    </script>
+</body>
+</html>
