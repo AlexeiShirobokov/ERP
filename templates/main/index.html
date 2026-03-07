@@ -4,10 +4,23 @@
     <meta charset="UTF-8">
     <title>Главная</title>
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
         body {
             font-family: Arial, sans-serif;
         }
+        .page-wrapper {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
 
+        .page-content {
+            flex: 1;
+            padding: 20px;
+        }
         .submenu {
             margin-left: 20px;
             margin-top: 4px;
@@ -18,26 +31,46 @@
             display: block;
             margin: 8px 0;
         }
+        .site-footer {
+            background-color: #f0f0f0;  /* Светлый фон */
+            padding: 20px;              /* Отступы вокруг текста */
+            text-align: center;         /* Выравнивание по центру */
+            font-size: 12px;            /* Размер шрифта */
+            color: #333;                /* Тёмно-серый текст */
+        }
     </style>
 </head>
 <body>
-    <h1>Главная страница</h1>
+    <div class="page-wrapper">
+           <div class="page-content">
+            <h1>Главная страница</h1>
 
-    <h2><a href="{% url 'debitor_report' %}">Дебиторская задолженность</a></h2>
-    <div class="submenu">
-        <h4><a href="{% url 'debitor_report' %}">Отчет по дебиторской задолженности</a></h4>
-        <h4><a href="#">ДЗ по срокам погашения</a></h4>
-        <h4><a href="{% url 'debitor_board' %}">Канбан</a></h4>
+            <h2><a href="{% url 'debitor_report' %}">Дебиторская задолженность</a></h2>
+            <div class="submenu">
+                <h4><a href="{% url 'debitor_report' %}">Отчет по дебиторской задолженности</a></h4>
+                <h4><a href="#">ДЗ по срокам погашения</a></h4>
+                <h4><a href="{% url 'debitor_board' %}">Канбан</a></h4>
+            </div>
 
-    </div>
-    <h2><a href="{% url 'maintenance:index' %}">Техническое обслуживание</a></h2>
-    <h2><a href="#">Аналитика по подразделениям</a></h2>
-    <h2><a href="#">Менеджер задач</a></h2>
-    <h2><a href="#">Склад</a></h2>
-    <div class="submenu">
-        <h4><a href="#">  текущие остатки</a></h4>
-        <h4><a href="#">  движение склада за вчерашний день</a></h4>
+            <h2><a href="{% url 'maintenance:index' %}">Техническое обслуживание</a></h2>
+            <div class="submenu">
+                <h4><a href="#">Создать ТО</a></h4>
+                <h4><a href="#">Календарь техобслуживания</a></h4>
+            </div>
 
-    </div>
+            <h2><a href="#">Аналитика по подразделениям</a></h2>
+            <h2><a href="#">Менеджер задач</a></h2>
+
+            <h2><a href="#">Склад</a></h2>
+            <div class="submenu">
+                <h4><a href="#">текущие остатки</a></h4>
+                <h4><a href="#">движение склада за вчерашний день</a></h4>
+            </div>
+        </div>
+
+        <footer class="site-footer">
+            <p>Все права защищены ШАД</p>
+        </footer>
 </body>
+
 </html>
