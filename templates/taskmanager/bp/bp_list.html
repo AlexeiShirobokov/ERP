@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Бизнес-процессы{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Бизнес-процессы</h3>
+  <a class="btn btn-success" href="{% url 'bp_create' %}">
+    <i class="bi bi-plus-lg"></i> Новый процесс
+  </a>
+</div>
+
+<form class="input-group mb-3" method="get">
+  <input type="text" class="form-control" name="q"
+         placeholder="Поиск по названию/описанию/ФИО" value="{{ q }}">
+  <button class="btn btn-outline-secondary" type="submit">Искать</button>
+</form>
+
+<div class="card clean">
+  <div class="card-body p-0">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>Руководитель</th>
+          <th>Создан</th>
+          <th>Срок</th>
+          <th class="text-end">Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in processes %}
+        <tr>
+          <td><a href="{% url 'bp_board' p.id %}">{{ p.title }}</a></td>
+
+          {# Менеджер процесса, если есть; иначе — автор #}
+          <td>
+            {% if p.manager %}
+              {{ p.manager.get_full_name|default:p.manager.username }}
+            {% else %}
+              {{ p.creator.get_full_name|default:p.creator.username }}
+            {% endif %}
+          </td>
+
+          <td>{{ p.created_at|date:"d.m.Y H:i" }}</td>
+          <td>{% if p.deadline %}{{ p.deadline|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'bp_board' p.id %}">
+              <i class="bi bi-kanban"></i> Канбан
+            </a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">Пока нет процессов</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

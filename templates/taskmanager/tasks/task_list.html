@@ -1,0 +1,112 @@
+{% extends 'taskmanager/base.html' %}
+{% block title %}Дашборд{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+
+  <!-- Фильтры -->
+  <form method="get" class="row g-3 align-items-center mb-3">
+    <div class="col-lg-4">
+      <input type="text" name="q" class="form-control" placeholder="Поиск по теме или ФИО"
+             value="{{ query|default_if_none:'' }}">
+    </div>
+    <div class="col-lg-2">
+      <input type="date" name="date_from" class="form-control" value="{{ date_from|default_if_none:'' }}">
+    </div>
+    <div class="col-lg-2">
+      <input type="date" name="date_to" class="form-control" value="{{ date_to|default_if_none:'' }}">
+    </div>
+    <div class="col-lg-2">
+      <button class="btn btn-primary w-100">Фильтр</button>
+    </div>
+    <div class="col-lg-2">
+      <a class="btn btn-success w-100"
+         href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if date_from %}date_from={{ date_from }}&{% endif %}{% if date_to %}date_to={{ date_to }}&{% endif %}export=1">
+        Скачать Excel
+      </a>
+    </div>
+  </form>
+
+  <!-- Табы -->
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link {% if active_tab == 'creator' %}active{% endif %}" href="?tab=creator">Созданные мной</a></li>
+    <li class="nav-item"><a class="nav-link {% if active_tab == 'responsible' %}active{% endif %}" href="?tab=responsible">Мне поручены</a></li>
+    <li class="nav-item"><a class="nav-link {% if active_tab == 'participant' %}active{% endif %}" href="?tab=participant">Я участник</a></li>
+    <li class="nav-item"><a class="nav-link {% if active_tab == 'completed' %}active{% endif %}" href="?tab=completed">Завершённые</a></li>
+  </ul>
+
+  <!-- Таблица -->
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead class="border-0">
+        <tr style="border-bottom:2px solid #eaecef">
+          <th>Тема</th>
+          <th>Описание</th>
+          <th>Срок</th>
+          <th class="text-center">Ответственный</th>
+          <th class="text-center">Роль</th>
+          <th class="text-center">Файлы</th>
+          <th class="text-center">Статус</th>
+          <th class="text-end">Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in current_tasks %}
+          <tr class="{% cycle '' 'table-light' %}">
+            <td style="width:22%;">
+              <a href="{% url 'task_detail' t.id %}" class="fw-semibold text-decoration-none">{{ t.title }}</a>
+              <div class="small text-muted">#{{ t.id }}</div>
+            </td>
+
+            <td style="width:22%;">{{ t.description|default:"—" }}</td>
+
+            <td style="width:16%;">
+              {% if t.deadline %}
+                {% if t.deadline_status == "overdue" %}
+                  <span class="text-danger fw-bold">{{ t.deadline|date:"d.m.Y H:i" }}</span>
+                {% elif t.deadline_status == "soon" %}
+                  <span class="text-warning fw-bold">{{ t.deadline|date:"d.m.Y H:i" }}</span>
+                {% elif t.deadline_status == "done" %}
+                  <span class="text-success">{{ t.deadline|date:"d.m.Y H:i" }}</span>
+                {% else %}
+                  {{ t.deadline|date:"d.m.Y H:i" }}
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+
+            <td class="text-center" style="width:16%;">{{ t.responsible.get_full_name|default:t.responsible.username|default:"—" }}</td>
+            <td class="text-center" style="width:12%;">{{ t.my_role }}</td>
+
+            <td class="text-center" style="width:10%;">
+              {% if t.files_count > 0 %}
+                <i class="bi bi-paperclip"></i>
+                <a href="{% url 'task_detail' t.id %}">{{ t.files_count }} файл(ов)</a>
+              {% else %}—{% endif %}
+            </td>
+
+            <td class="text-center" style="width:10%;">
+              {% if t.is_completed %}
+                <span class="badge bg-success-subtle text-success-emphasis rounded-3 px-3 py-2">Завершена</span>
+              {% else %}
+                <span class="badge bg-warning-subtle text-dark rounded-3 px-3 py-2">В работе</span>
+              {% endif %}
+            </td>
+
+            <td class="text-end" style="width:10%;">
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'task_detail' t.id %}">Открыть</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="text-center text-muted py-4">Ничего не найдено</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+  .table > :not(caption) > * > * { padding: 0.9rem 0.75rem; }
+  .badge.bg-warning-subtle{ background:#ffe8a3!important; color:#6e5200!important; }
+  .badge.bg-success-subtle{ background:#d1f7d9!important; color:#0a7f2e!important; }
+</style>
+{% endblock %}

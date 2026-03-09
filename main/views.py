@@ -5,11 +5,15 @@ from django.contrib import messages
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from collections import defaultdict
+from django.db.models import Sum
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
 
 from .models import DebitorCase, DebitorSnapshot
 from Services.debitor import Upload
 
-
+@login_required
 def index(request):
     return render(request, "main/index.html")
 
@@ -346,3 +350,300 @@ def move_debitor_case(request):
 def debitor_board(request):
     cases = DebitorCase.objects.filter(is_active=True).order_by("stage", "subkonto1")
     return render(request, "main/debitor_board.html", {"cases": cases})
+
+### === для debitor_aging ===
+
+PERIOD_ORDER = [
+    "0-30",
+    "31-90",
+    "91-120",
+    "121-180",
+    "181-270",
+    "271-360",
+    ">360",
+]
+
+
+def _normalize_period(value):
+    value = str(value or "").strip()
+    if value in PERIOD_ORDER:
+        return value
+    return value if value else "Без периода"
+
+
+def _format_number(value):
+    if value in (None, ""):
+        return ""
+    try:
+        return f"{float(value):,.0f}".replace(",", " ")
+    except Exception:
+        return str(value)
+
+
+def debitor_aging(request):
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+
+    snapshots_qs = DebitorSnapshot.objects.select_related("case").all()
+
+    all_report_dates = sorted(
+        set(
+            str(x).strip()
+            for x in DebitorSnapshot.objects.exclude(report_date__isnull=True)
+            .exclude(report_date__exact="")
+            .values_list("report_date", flat=True)
+            if str(x).strip()
+        ),
+        key=_report_date_sort_key,
+    )
+
+    snapshots_qs = list(snapshots_qs)
+
+    if date_from:
+        snapshots_qs = [
+            s for s in snapshots_qs
+            if _report_date_sort_key(s.report_date) >= _report_date_sort_key(date_from)
+        ]
+
+    if date_to:
+        snapshots_qs = [
+            s for s in snapshots_qs
+            if _report_date_sort_key(s.report_date) <= _report_date_sort_key(date_to)
+        ]
+
+    snapshots = list(snapshots_qs)
+
+    report_dates = sorted(
+        set(str(s.report_date).strip() for s in snapshots if str(s.report_date).strip()),
+        key=_report_date_sort_key,
+    )
+
+    if not report_dates:
+        context = {
+            "date_from": date_from,
+            "date_to": date_to,
+            "all_report_dates": all_report_dates,
+            "report_dates": [],
+            "period_rows": [],
+            "totals_by_date": [],
+            "grand_total": 0,
+            "over_90_total": 0,
+            "over_360_total": 0,
+            "change_total": None,
+            "chart_labels": [],
+            "chart_datasets": [],
+            "top_counterparties": [],
+            "growth_counterparties": [],
+            "worsened_counterparties": [],
+        }
+        return render(request, "main/debitor_aging.html", context)
+
+    # ---------- блок по периодам ----------
+    from collections import defaultdict
+
+    matrix = defaultdict(lambda: defaultdict(float))
+    totals_by_date = defaultdict(float)
+
+    for snap in snapshots:
+        period = _normalize_period(snap.debt_period)
+        report_date = str(snap.report_date).strip()
+        amount = float(snap.sum_dt or 0)
+
+        matrix[period][report_date] += amount
+        totals_by_date[report_date] += amount
+
+    present_periods = list(matrix.keys())
+    ordered_periods = [p for p in PERIOD_ORDER if p in present_periods]
+    other_periods = [p for p in present_periods if p not in PERIOD_ORDER]
+    final_periods = ordered_periods + sorted(other_periods)
+
+    period_rows = []
+    for period in final_periods:
+        values = []
+        first_value = None
+        last_value = None
+
+        for i, dt in enumerate(report_dates):
+            val = matrix[period].get(dt, 0)
+            values.append({
+                "raw": val,
+                "formatted": _format_number(val),
+            })
+            if i == 0:
+                first_value = val
+            if i == len(report_dates) - 1:
+                last_value = val
+
+        delta = (last_value or 0) - (first_value or 0)
+
+        period_rows.append({
+            "period": period,
+            "values": values,
+            "delta_raw": delta,
+            "delta_formatted": _format_number(delta),
+        })
+
+    totals_row = []
+    for dt in report_dates:
+        totals_row.append({
+            "raw": totals_by_date.get(dt, 0),
+            "formatted": _format_number(totals_by_date.get(dt, 0)),
+        })
+
+    grand_total = totals_by_date.get(report_dates[-1], 0)
+
+    over_90_periods = {"91-120", "121-180", "181-270", "271-360", ">360"}
+    over_90_total = sum(
+        matrix[p].get(report_dates[-1], 0)
+        for p in final_periods
+        if p in over_90_periods
+    )
+
+    over_360_total = matrix.get(">360", {}).get(report_dates[-1], 0)
+
+    change_total = None
+    if len(report_dates) >= 2:
+        change_total = totals_by_date.get(report_dates[-1], 0) - totals_by_date.get(report_dates[0], 0)
+
+    chart_labels = report_dates
+    chart_datasets = []
+    for period in final_periods:
+        chart_datasets.append({
+            "label": period,
+            "data": [round(matrix[period].get(dt, 0), 2) for dt in report_dates],
+        })
+
+    # ---------- блок по контрагентам ----------
+    top_counterparties, growth_counterparties, worsened_counterparties = _build_counterparty_analytics(snapshots)
+
+    context = {
+        "date_from": date_from,
+        "date_to": date_to,
+        "all_report_dates": all_report_dates,
+        "report_dates": report_dates,
+        "period_rows": period_rows,
+        "totals_by_date": totals_row,
+        "grand_total": _format_number(grand_total),
+        "over_90_total": _format_number(over_90_total),
+        "over_360_total": _format_number(over_360_total),
+        "change_total": _format_number(change_total) if change_total is not None else None,
+        "chart_labels": chart_labels,
+        "chart_datasets": chart_datasets,
+        "top_counterparties": top_counterparties,
+        "growth_counterparties": growth_counterparties,
+        "worsened_counterparties": worsened_counterparties,
+    }
+    return render(request, "main/debitor_aging.html", context)
+
+### === helper функции ===
+def _period_rank(period):
+    order_map = {
+        "0-30": 1,
+        "31-90": 2,
+        "91-120": 3,
+        "121-180": 4,
+        "181-270": 5,
+        "271-360": 6,
+        ">360": 7,
+        "Без периода": 999,
+        "": 999,
+    }
+    return order_map.get(str(period).strip(), 999)
+
+
+def _case_url(case_obj, report_date=""):
+    return (
+        f"/debitor-report/case/"
+        f"?account={case_obj.account}"
+        f"&subkonto1={case_obj.subkonto1 or ''}"
+        f"&subkonto2={case_obj.subkonto2 or ''}"
+        f"&subkonto3={case_obj.subkonto3 or ''}"
+        f"&report_date={report_date or ''}"
+    )
+
+
+def _build_counterparty_analytics(snapshots):
+    """
+    Для каждого case берем:
+    - первый snapshot в диапазоне
+    - последний snapshot в диапазоне
+    И строим:
+    1. top_counterparties
+    2. growth_counterparties
+    3. worsened_counterparties
+    """
+    grouped = {}
+
+    for snap in snapshots:
+        case_id = snap.case.id
+        grouped.setdefault(case_id, []).append(snap)
+
+    top_counterparties = []
+    growth_counterparties = []
+    worsened_counterparties = []
+
+    for case_id, snaps in grouped.items():
+        snaps_sorted = sorted(
+            snaps,
+            key=lambda s: (_report_date_sort_key(s.report_date), s.id)
+        )
+
+        first_snap = snaps_sorted[0]
+        last_snap = snaps_sorted[-1]
+        case_obj = last_snap.case
+
+        first_sum = float(first_snap.sum_dt or 0)
+        last_sum = float(last_snap.sum_dt or 0)
+        delta_sum = last_sum - first_sum
+
+        first_period = _normalize_period(first_snap.debt_period)
+        last_period = _normalize_period(last_snap.debt_period)
+
+        item = {
+            "case_id": case_obj.id,
+            "counterparty": case_obj.subkonto1 or "Без названия",
+            "account": case_obj.account,
+            "subkonto2": case_obj.subkonto2 or "",
+            "first_report_date": first_snap.report_date,
+            "last_report_date": last_snap.report_date,
+            "first_sum": first_sum,
+            "last_sum": last_sum,
+            "delta_sum": delta_sum,
+            "first_sum_fmt": _format_number(first_sum),
+            "last_sum_fmt": _format_number(last_sum),
+            "delta_sum_fmt": _format_number(delta_sum),
+            "first_period": first_period,
+            "last_period": last_period,
+            "stage": case_obj.get_stage_display(),
+            "detail_url": _case_url(case_obj, last_snap.report_date),
+        }
+
+        top_counterparties.append(item)
+        growth_counterparties.append(item)
+
+        if _period_rank(last_period) > _period_rank(first_period):
+            worsened_counterparties.append(item)
+
+    top_counterparties = sorted(
+        top_counterparties,
+        key=lambda x: x["last_sum"],
+        reverse=True
+    )[:20]
+
+    growth_counterparties = sorted(
+        growth_counterparties,
+        key=lambda x: x["delta_sum"],
+        reverse=True
+    )[:20]
+
+    worsened_counterparties = sorted(
+        worsened_counterparties,
+        key=lambda x: (
+            _period_rank(x["last_period"]) - _period_rank(x["first_period"]),
+            x["last_sum"]
+        ),
+        reverse=True
+    )[:20]
+
+    return top_counterparties, growth_counterparties, worsened_counterparties
+

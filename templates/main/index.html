@@ -48,7 +48,7 @@
             <h2><a href="{% url 'debitor_report' %}">Дебиторская задолженность</a></h2>
             <div class="submenu">
                 <h4><a href="{% url 'debitor_report' %}">Отчет по дебиторской задолженности</a></h4>
-                <h4><a href="#">ДЗ по срокам погашения</a></h4>
+                <h4><a href="{% url 'debitor_aging' %}">ДЗ по срокам погашения</a></h4>
                 <h4><a href="{% url 'debitor_board' %}">Канбан</a></h4>
             </div>
 
@@ -59,7 +59,7 @@
             </div>
 
             <h2><a href="#">Аналитика по подразделениям</a></h2>
-            <h2><a href="#">Менеджер задач</a></h2>
+            <h2><a href="{% url 'taskmanager:task_list' %}">Менеджер задач</a></h2>
 
             <h2><a href="#">Склад</a></h2>
             <div class="submenu">
@@ -69,7 +69,7 @@
         </div>
 
         <footer class="site-footer">
-            <p>Все права защищены ШАД</p>
+            <p>Все права защищены АО "Поиск золото"</p>
         </footer>
 </body>
 

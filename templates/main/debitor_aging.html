@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>ДЗ по срокам погашения</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .top-links {
+            margin-bottom: 16px;
+        }
+
+        .top-links a {
+            margin-right: 14px;
+        }
+
+        .filters {
+            margin-bottom: 20px;
+            padding: 14px;
+            background: #f4f6f8;
+            border: 1px solid #d7dde4;
+        }
+
+        .filters form {
+            display: flex;
+            gap: 12px;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .filters label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: bold;
+        }
+
+        .filters select,
+        .filters button {
+            padding: 8px 10px;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            border: 1px solid #d7dde4;
+            background: #f9fbfc;
+            padding: 16px;
+            border-radius: 10px;
+        }
+
+        .kpi-title {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 900px;
+        }
+
+        th, td {
+            border: 1px solid #bcc8d3;
+            padding: 8px;
+            text-align: right;
+        }
+
+        th:first-child, td:first-child {
+            text-align: left;
+        }
+
+        th {
+            background: #dfe8d5;
+        }
+
+        .total-row {
+            font-weight: bold;
+            background: #f3f6f9;
+        }
+
+        .chart-block {
+            margin-top: 20px;
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            margin-top: 40px;
+            margin-bottom: 14px;
+        }
+
+        .counterparty-table th,
+        .counterparty-table td {
+            font-size: 13px;
+        }
+
+        .link-btn {
+            text-decoration: none;
+            color: #1f4f99;
+        }
+
+        @media (max-width: 1000px) {
+            .kpi-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="top-links">
+        <a href="{% url 'index' %}">← На главную</a>
+        <a href="{% url 'debitor_report' %}">К отчету по дебиторке</a>
+    </div>
+
+    <h1>ДЗ по срокам погашения</h1>
+
+    <div class="filters">
+        <form method="get">
+            <div>
+                <label for="date_from">Дата отчета с</label>
+                <select name="date_from" id="date_from">
+                    <option value="">Все</option>
+                    {% for dt in all_report_dates %}
+                        <option value="{{ dt }}" {% if date_from == dt %}selected{% endif %}>{{ dt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="date_to">Дата отчета по</label>
+                <select name="date_to" id="date_to">
+                    <option value="">Все</option>
+                    {% for dt in all_report_dates %}
+                        <option value="{{ dt }}" {% if date_to == dt %}selected{% endif %}>{{ dt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <button type="submit">Построить</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-title">Общая ДЗ на последнюю дату</div>
+            <div class="kpi-value">{{ grand_total }}</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-title">Просрочка > 90</div>
+            <div class="kpi-value">{{ over_90_total }}</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-title">Хвост > 360</div>
+            <div class="kpi-value">{{ over_360_total }}</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-title">Изменение к первой дате</div>
+            <div class="kpi-value">
+                {% if change_total %}
+                    {{ change_total }}
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <h2>Сводка по периодам</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Период</th>
+                    {% for dt in report_dates %}
+                        <th>{{ dt }}</th>
+                    {% endfor %}
+                    <th>Изменение</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in period_rows %}
+                <tr>
+                    <td>{{ row.period }}</td>
+                    {% for val in row.values %}
+                        <td>{{ val.formatted }}</td>
+                    {% endfor %}
+                    <td>{{ row.delta_formatted }}</td>
+                </tr>
+                {% endfor %}
+
+                <tr class="total-row">
+                    <td>Общий итог</td>
+                    {% for val in totals_by_date %}
+                        <td>{{ val.formatted }}</td>
+                    {% endfor %}
+                    <td>
+                        {% if change_total %}
+                            {{ change_total }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="chart-block">
+        <h2>Динамика по периодам</h2>
+        <canvas id="agingChart"></canvas>
+    </div>
+
+    <h2 class="section-title">По контрагентам: крупнейшие на последнюю дату</h2>
+    <div class="table-wrap">
+        <table class="counterparty-table">
+            <thead>
+                <tr>
+                    <th>Контрагент</th>
+                    <th>Счет</th>
+                    <th>Субконто 2</th>
+                    <th>Последняя дата</th>
+                    <th>Сумма</th>
+                    <th>Период</th>
+                    <th>Этап</th>
+                    <th>Карточка</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in top_counterparties %}
+                <tr>
+                    <td>{{ row.counterparty }}</td>
+                    <td>{{ row.account }}</td>
+                    <td>{{ row.subkonto2 }}</td>
+                    <td>{{ row.last_report_date }}</td>
+                    <td>{{ row.last_sum_fmt }}</td>
+                    <td>{{ row.last_period }}</td>
+                    <td>{{ row.stage }}</td>
+                    <td><a class="link-btn" href="{{ row.detail_url }}">Открыть</a></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8">Нет данных</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="section-title">По контрагентам: наибольший рост</h2>
+    <div class="table-wrap">
+        <table class="counterparty-table">
+            <thead>
+                <tr>
+                    <th>Контрагент</th>
+                    <th>Счет</th>
+                    <th>Было</th>
+                    <th>Стало</th>
+                    <th>Изменение</th>
+                    <th>Период был</th>
+                    <th>Период стал</th>
+                    <th>Этап</th>
+                    <th>Карточка</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in growth_counterparties %}
+                <tr>
+                    <td>{{ row.counterparty }}</td>
+                    <td>{{ row.account }}</td>
+                    <td>{{ row.first_sum_fmt }}</td>
+                    <td>{{ row.last_sum_fmt }}</td>
+                    <td>{{ row.delta_sum_fmt }}</td>
+                    <td>{{ row.first_period }}</td>
+                    <td>{{ row.last_period }}</td>
+                    <td>{{ row.stage }}</td>
+                    <td><a class="link-btn" href="{{ row.detail_url }}">Открыть</a></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9">Нет данных</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="section-title">По контрагентам: ухудшение по срокам</h2>
+    <div class="table-wrap">
+        <table class="counterparty-table">
+            <thead>
+                <tr>
+                    <th>Контрагент</th>
+                    <th>Счет</th>
+                    <th>Было</th>
+                    <th>Стало</th>
+                    <th>Период был</th>
+                    <th>Период стал</th>
+                    <th>Этап</th>
+                    <th>Карточка</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in worsened_counterparties %}
+                <tr>
+                    <td>{{ row.counterparty }}</td>
+                    <td>{{ row.account }}</td>
+                    <td>{{ row.first_sum_fmt }}</td>
+                    <td>{{ row.last_sum_fmt }}</td>
+                    <td>{{ row.first_period }}</td>
+                    <td>{{ row.last_period }}</td>
+                    <td>{{ row.stage }}</td>
+                    <td><a class="link-btn" href="{{ row.detail_url }}">Открыть</a></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8">Нет данных</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {{ chart_labels|json_script:"aging-labels" }}
+    {{ chart_datasets|json_script:"aging-datasets" }}
+
+    <script>
+        const labels = JSON.parse(document.getElementById("aging-labels").textContent);
+        const datasetsRaw = JSON.parse(document.getElementById("aging-datasets").textContent);
+
+        const datasets = datasetsRaw.map(item => ({
+            label: item.label,
+            data: item.data,
+            fill: false,
+            tension: 0.2
+        }));
+
+        const ctx = document.getElementById("agingChart").getContext("2d");
+        new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: "top"
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
