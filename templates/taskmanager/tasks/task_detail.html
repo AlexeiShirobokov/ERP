@@ -12,17 +12,17 @@
 
     <div class="d-flex flex-wrap gap-2">
       {% if can_edit %}
-        <a href="{% url 'edit_task' task.pk %}" class="btn btn-outline-secondary">
+        <a href="{% url 'taskmanager:edit_task' task.pk %}" class="btn btn-outline-secondary">
           <i class="bi bi-pencil"></i> Редактировать
         </a>
       {% endif %}
       {% if can_delegate %}
-        <a href="{% url 'delegate_task' task.pk %}" class="btn btn-outline-secondary">
+        <a href="{% url 'taskmanager:delegate_task' task.pk %}" class="btn btn-outline-secondary">
           <i class="bi bi-people"></i> Делегировать
         </a>
       {% endif %}
       {% if can_complete and not task.is_completed %}
-        <a href="{% url 'complete_task' task.pk %}" class="btn btn-success">
+        <a href="{% url 'taskmanager:complete_task' task.pk %}" class="btn btn-success">
           <i class="bi bi-check-circle"></i> Завершить
         </a>
       {% endif %}
@@ -126,7 +126,7 @@
           <h5 class="mb-3">Файлы</h5>
 
           {% if can_upload_files %}
-          <form method="post" action="{% url 'upload_files' task.pk %}" enctype="multipart/form-data" class="mb-3">
+          <form method="post" action="{% url 'taskmanager:upload_files' task.pk %}" enctype="multipart/form-data" class="mb-3">
             {% csrf_token %}
             <input type="file" name="files" multiple class="form-control mb-2">
             <button type="submit" class="btn btn-primary">Загрузить</button>

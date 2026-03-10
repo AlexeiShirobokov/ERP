@@ -42,10 +42,12 @@ from .models import (
     BPMessage,
     BPFile,
     PurchaseRequest,
+    Notification,
     BP_ROLES,
     BP_STAGES,
 )
 from .notifications import (
+    notify_task_created,
     notify_task_updated,
     notify_task_completed,
     notify_task_delegated,
@@ -53,7 +55,6 @@ from .notifications import (
     notify_bp_item_moved,
     notify_bp_message,
 )
-
 # =========================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # =========================
@@ -234,11 +235,9 @@ def task_create(request):
                 if user_id:
                     TaskParticipant.objects.create(task=task, user_id=user_id, role=role)
 
-            # файлы
-            for f in request.FILES.getlist("files"):
-                TaskFile.objects.create(task=task, file=f, uploaded_by=request.user)
+            notify_task_created(task, changed_by=request.user)
 
-            return redirect("task_detail", pk=task.pk)
+            return redirect("taskmanager:task_detail", pk=task.pk)
     else:
         form = TaskForm()
     return render(request, "taskmanager/tasks/task_form.html", {"form": form, "users": users})
@@ -268,13 +267,13 @@ def task_detail(request, pk):
             for f in request.FILES.getlist("files"):
                 TaskFile.objects.create(task=task, file=f, uploaded_by=request.user)
             messages.success(request, "Файлы загружены")
-            return redirect("task_detail", pk=pk)
+            return redirect("taskmanager:task_detail", pk=pk)
 
         # сообщение
         content = request.POST.get("content")
         if content:
             TaskMessage.objects.create(task=task, sender=request.user, content=content)
-            return redirect("task_detail", pk=pk)
+            return redirect("taskmanager:task_detail", pk=pk)
 
     participants = TaskParticipant.objects.filter(task=task)
     task_messages = task.messages.all().order_by("timestamp")
@@ -320,7 +319,7 @@ def edit_task(request, pk):
             notify_task_updated(task, changed_by=request.user)
 
             messages.success(request, "Задача успешно обновлена")
-            return redirect("task_detail", pk=task.pk)
+            return redirect("taskmanager:task_detail", pk=task.pk)
     else:
         form = TaskForm(instance=task)
 
@@ -362,7 +361,7 @@ def delegate_task(request, pk):
                 content=f"Задача делегирована от {old_resp.get_full_name() if old_resp else request.user.get_full_name()} к {new_resp.get_full_name()}",
             )
             messages.success(request, f"Задача успешно делегирована {new_resp.get_full_name()}")
-            return redirect("task_detail", pk=task.pk)
+            return redirect("taskmanager:task_detail", pk=task.pk)
 
     return render(request, "taskmanager/tasks/delegate_task.html", {"task": task, "users": users})
 
@@ -377,7 +376,7 @@ def complete_task(request, pk):
         task.save()
         notify_task_completed(task, changed_by=request.user)
         messages.success(request, "Задача отмечена как завершенная")
-    return redirect("task_list")
+    return redirect("taskmanager:task_list")
 
 
 @login_required
@@ -389,7 +388,7 @@ def upload_files(request, pk):
         for f in request.FILES.getlist("files"):
             TaskFile.objects.create(task=task, file=f, uploaded_by=request.user)
         messages.success(request, "Файлы загружены")
-    return redirect("task_detail", pk=task.pk)
+    return redirect("taskmanager:task_detail", pk=task.pk)
 
 
 @login_required
@@ -465,7 +464,7 @@ def project_create(request):
             notify_project_updated(project, changed_by=request.user)
 
             messages.success(request, "Проект создан")
-            return redirect("project_detail", pk=project.pk)
+            return redirect("taskmanager:project_detail", pk=project.pk)
     else:
         form = ProjectForm()
         formset = ProjectItemFormSet(instance=Project())
@@ -513,7 +512,7 @@ def project_edit(request, pk):
             notify_project_updated(project, changed_by=request.user)
 
             messages.success(request, "Проект обновлён")
-            return redirect("project_detail", pk=project.pk)
+            return redirect("taskmanager:project_detail", pk=project.pk)
     else:
         form = ProjectForm(instance=project)
         formset = ProjectItemFormSet(instance=project)
@@ -542,7 +541,7 @@ def project_detail(request, pk):
             msg = ProjectMessage.objects.create(project=project, sender=request.user, content=text)
             # уведомим участников проекта о новом сообщении/изменении
             notify_project_updated(project, changed_by=request.user)
-            return redirect("project_detail", pk=pk)
+            return redirect("taskmanager:project_detail", pk=pk)
 
     items = project.items.prefetch_related("assignees")
     members = project.members.select_related("user")
@@ -576,7 +575,7 @@ def project_upload_files(request, pk):
         # можно тоже оповещать об изменении файла проекта:
         notify_project_updated(project, changed_by=request.user)
         messages.success(request, "Файлы загружены")
-    return redirect("project_detail", pk=pk)
+    return redirect("taskmanager:project_detail", pk=pk)
 
 
 @login_required
@@ -634,7 +633,7 @@ def bp_create(request):
                 )
 
             messages.success(request, "Бизнес-процесс создан")
-            return redirect("bp_detail", pk=bp.pk)
+            return redirect("taskmanager:bp_detail", pk=bp.pk)
         else:
             messages.error(request, "Проверьте форму — есть ошибки.")
     else:
@@ -657,7 +656,7 @@ def bp_detail(request, pk):
         if msg:
             message = BPMessage.objects.create(process=bp, sender=request.user, content=msg)
             notify_bp_message(bp, message)
-            return redirect("bp_detail", pk=pk)
+            return redirect("taskmanager:bp_detail", pk=pk)
 
         # Загрузка файлов на процесс
         if request.FILES.getlist("files"):
@@ -668,7 +667,7 @@ def bp_detail(request, pk):
             # оповещение об изменении процесса при загрузке файлов — опционально:
             notify_bp_message(bp, BPMessage(process=bp, sender=request.user, content="Загружены файлы"))
             messages.success(request, f"Загружено файлов: {uploaded}")
-            return redirect("bp_detail", pk=pk)
+            return redirect("taskmanager:bp_detail", pk=pk)
 
     members = bp.members.select_related("user").all().order_by("role", "user__first_name", "user__last_name")
     items = bp.purchases.prefetch_related("assignees").order_by("stage", "order", "id")
@@ -774,3 +773,24 @@ def bp_add_comment(request, item_id):
 def bp_upload_file(request, item_id):
     # Заглушка — если будете грузить файлы на карточку отдельно
     return JsonResponse({"ok": True, "msg": "Файл загружен (заглушка)"})
+
+@login_required
+def notification_list(request):
+    notifications = request.user.task_notifications.all()
+    return render(
+        request,
+        "taskmanager/notifications/list.html",
+        {"notifications": notifications},
+    )
+
+
+@login_required
+@require_POST
+def notification_read(request, pk):
+    notification = get_object_or_404(Notification, pk=pk, user=request.user)
+    notification.is_read = True
+    notification.save(update_fields=["is_read"])
+
+    if notification.url:
+        return redirect(notification.url)
+    return redirect("taskmanager:notification_list")

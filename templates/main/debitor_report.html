@@ -9,7 +9,14 @@
             padding: 20px;
         }
 
-        .meta, .actions, .filters {
+        .back-link {
+            display: inline-block;
+            margin-bottom: 16px;
+        }
+
+        .meta,
+        .actions,
+        .filters {
             margin-bottom: 15px;
         }
 
@@ -116,7 +123,9 @@
             <select name="report_date" id="report_date">
                 <option value="">Все даты</option>
                 {% for dt in report_dates %}
-                    <option value="{{ dt }}" {% if selected_report_date == dt %}selected{% endif %}>{{ dt }}</option>
+                    <option value="{{ dt }}" {% if selected_report_date == dt %}selected{% endif %}>
+                        {{ dt }}
+                    </option>
                 {% endfor %}
             </select>
             <button type="submit">Применить</button>
@@ -128,13 +137,10 @@
             <thead>
                 <tr>
                     <th>Счет</th>
-                    <th>Субконто 1</th>
-                    <th>Субконто 2</th>
-                    <th>Субконто 3</th>
-                    <th>Дата</th>
+                    <th>Контрагент</th>
+                    <th>Документ</th>
+                    <th>Субконто</th>
                     <th>Сумма остаток Дт</th>
-                    <th>Сумма остаток Кт</th>
-                    <th>Количество записей</th>
                     <th>Дата образования задолженности</th>
                     <th>Срок дебиторской задолженности</th>
                     <th>Период задолженности</th>
@@ -147,31 +153,34 @@
             <tbody>
                 {% for row in records %}
                 <tr>
-                    <td>{{ row.account }}</td>
-                    <td>{{ row.subkonto1 }}</td>
-                    <td>{{ row.subkonto2 }}</td>
-                    <td>{{ row.subkonto3 }}</td>
-                    <td>{{ row.date }}</td>
-                    <td>{{ row.sum_dt }}</td>
-                    <td>{{ row.sum_kt }}</td>
-                    <td>{{ row.records_count }}</td>
-                    <td>{{ row.debt_date }}</td>
-                    <td>{{ row.debt_term }}</td>
-                    <td>{{ row.debt_period }}</td>
-                    <td>{{ row.report_date }}</td>
-                    <td>{{ row.debt_reason }}</td>
-                    <td>{{ row.case_stage }}</td>
+                    <td>{{ row.account|default:"—" }}</td>
+                    <td>{{ row.subkonto1|default:"—" }}</td>
+                    <td>{{ row.subkonto2|default:"—" }}</td>
+                    <td>{{ row.subkonto3|default:"—" }}</td>
+                    <td>
+                        {% if row.sum_dt is not None %}
+                            {{ row.sum_dt|floatformat:2 }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>{{ row.debt_date|date:"Y-m-d"|default:"—" }}</td>
+                    <td>{{ row.debt_term|default:"—" }}</td>
+                    <td>{{ row.debt_period|default:"—" }}</td>
+                    <td>{{ row.report_date|date:"Y-m-d"|default:"—" }}</td>
+                    <td>{{ row.debt_reason|default:"—" }}</td>
+                    <td>{{ row.case_stage|default:"—" }}</td>
                     <td>
                         <a class="open-link"
-                           href="{% url 'debitor_case' %}?account={{ row.account|urlencode }}&subkonto1={{ row.subkonto1|urlencode }}&subkonto2={{ row.subkonto2|urlencode }}&subkonto3={{ row.subkonto3|urlencode }}&report_date={{ row.report_date|urlencode }}">
+                           href="{% url 'debitor_case' %}?account={{ row.account|urlencode }}&subkonto1={{ row.subkonto1|urlencode }}&subkonto2={{ row.subkonto2|urlencode }}&subkonto3={{ row.subkonto3|urlencode }}&report_date={{ row.report_date|date:'Y-m-d'|urlencode }}">
                             Открыть карточку
                         </a>
-                        <div class="stage-badge">{{ row.case_stage }}</div>
+                        <div class="stage-badge">{{ row.case_stage|default:"—" }}</div>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="15">Нет данных для отображения</td>
+                    <td colspan="12">Нет данных для отображения</td>
                 </tr>
                 {% endfor %}
             </tbody>

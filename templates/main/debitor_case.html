@@ -171,24 +171,31 @@
     <h1>Карточка дебиторской задолженности</h1>
     <div class="meta">
         Текущий этап: <strong id="current-stage-text">{{ case_obj.get_stage_display }}</strong> |
-        Последняя дата отчета: {{ case_obj.last_report_date }} |
-        Обновлено: {{ case_obj.updated_at }}
+        Последняя дата отчета: {{ case_obj.last_report_date|date:"Y-m-d"|default:"—" }} |
+        Обновлено: {{ case_obj.updated_at|date:"Y-m-d H:i"|default:"—" }}
     </div>
 
     <h2>Текущие данные по задолженности</h2>
     <table class="info-table">
-        <tr><th>Счет</th><td>{{ row.account }}</td></tr>
-        <tr><th>Субконто 1</th><td>{{ row.subkonto1 }}</td></tr>
-        <tr><th>Субконто 2</th><td>{{ row.subkonto2 }}</td></tr>
-        <tr><th>Субконто 3</th><td>{{ row.subkonto3 }}</td></tr>
-        <tr><th>Дата</th><td>{{ row.date }}</td></tr>
-        <tr><th>Сумма остаток Дт</th><td>{{ row.sum_dt }}</td></tr>
-        <tr><th>Сумма остаток Кт</th><td>{{ row.sum_kt }}</td></tr>
-        <tr><th>Количество записей</th><td>{{ row.records_count }}</td></tr>
-        <tr><th>Дата образования задолженности</th><td>{{ row.debt_date }}</td></tr>
-        <tr><th>Срок дебиторской задолженности</th><td>{{ row.debt_term }}</td></tr>
-        <tr><th>Период задолженности</th><td>{{ row.debt_period }}</td></tr>
-        <tr><th>Дата отчета</th><td>{{ row.report_date }}</td></tr>
+        <tr><th>Счет</th><td>{{ row.account|default:"—" }}</td></tr>
+        <tr><th>Субконто 1</th><td>{{ row.subkonto1|default:"—" }}</td></tr>
+        <tr><th>Субконто 2</th><td>{{ row.subkonto2|default:"—" }}</td></tr>
+        <tr><th>Субконто 3</th><td>{{ row.subkonto3|default:"—" }}</td></tr>
+        <tr><th>Дата</th><td>{{ row.date|date:"Y-m-d"|default:"—" }}</td></tr>
+        <tr>
+            <th>Сумма остаток Дт</th>
+            <td>
+                {% if row.sum_dt is not None %}
+                    {{ row.sum_dt|floatformat:2 }}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+        </tr>
+        <tr><th>Дата образования задолженности</th><td>{{ row.debt_date|date:"Y-m-d"|default:"—" }}</td></tr>
+        <tr><th>Срок дебиторской задолженности</th><td>{{ row.debt_term|default:"—" }}</td></tr>
+        <tr><th>Период задолженности</th><td>{{ row.debt_period|default:"—" }}</td></tr>
+        <tr><th>Дата отчета</th><td>{{ row.report_date|date:"Y-m-d"|default:"—" }}</td></tr>
     </table>
 
     <h2>Kanban по отделам</h2>
@@ -197,39 +204,57 @@
     <div class="kanban">
         <div class="kanban-col {% if case_obj.stage == 'accounting' %}active{% endif %}" data-stage="accounting">
             <div class="kanban-title">Бухгалтерия</div>
-            <div class="kanban-hint">Здесь определяют причину образования ДЗ</div>
             {% if case_obj.stage == 'accounting' %}
             <div class="kanban-card" draggable="true" data-case-id="{{ case_obj.id }}">
-                <div class="card-title">{{ row.subkonto1 }}</div>
-                <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
-                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
-                <div class="card-line"><strong>Сумма Дт:</strong> {{ row.sum_dt }}</div>
+                <div class="card-title">{{ row.subkonto1|default:"—" }}</div>
+                <div class="card-line"><strong>Счет:</strong> {{ row.account|default:"—" }}</div>
+                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date|date:"Y-m-d"|default:"—" }}</div>
+                <div class="card-line">
+                    <strong>Сумма Дт:</strong>
+                    {% if row.sum_dt is not None %}
+                        {{ row.sum_dt|floatformat:2 }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
         </div>
 
         <div class="kanban-col {% if case_obj.stage == 'supply' %}active{% endif %}" data-stage="supply">
             <div class="kanban-title">Снабжение</div>
-            <div class="kanban-hint">Проверка вопросов снабжения и поставок</div>
             {% if case_obj.stage == 'supply' %}
             <div class="kanban-card" draggable="true" data-case-id="{{ case_obj.id }}">
-                <div class="card-title">{{ row.subkonto1 }}</div>
-                <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
-                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
-                <div class="card-line"><strong>Сумма Дт:</strong> {{ row.sum_dt }}</div>
+                <div class="card-title">{{ row.subkonto1|default:"—" }}</div>
+                <div class="card-line"><strong>Счет:</strong> {{ row.account|default:"—" }}</div>
+                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date|date:"Y-m-d"|default:"—" }}</div>
+                <div class="card-line">
+                    <strong>Сумма Дт:</strong>
+                    {% if row.sum_dt is not None %}
+                        {{ row.sum_dt|floatformat:2 }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
         </div>
 
         <div class="kanban-col {% if case_obj.stage == 'legal' %}active{% endif %}" data-stage="legal">
             <div class="kanban-title">Юридический отдел</div>
-            <div class="kanban-hint">Работа с юридическим сопровождением долга</div>
             {% if case_obj.stage == 'legal' %}
             <div class="kanban-card" draggable="true" data-case-id="{{ case_obj.id }}">
-                <div class="card-title">{{ row.subkonto1 }}</div>
-                <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
-                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
-                <div class="card-line"><strong>Сумма Дт:</strong> {{ row.sum_dt }}</div>
+                <div class="card-title">{{ row.subkonto1|default:"—" }}</div>
+                <div class="card-line"><strong>Счет:</strong> {{ row.account|default:"—" }}</div>
+                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date|date:"Y-m-d"|default:"—" }}</div>
+                <div class="card-line">
+                    <strong>Сумма Дт:</strong>
+                    {% if row.sum_dt is not None %}
+                        {{ row.sum_dt|floatformat:2 }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
         </div>
@@ -239,10 +264,17 @@
             <div class="kanban-hint">Завершенные карточки</div>
             {% if case_obj.stage == 'closed' %}
             <div class="kanban-card" draggable="true" data-case-id="{{ case_obj.id }}">
-                <div class="card-title">{{ row.subkonto1 }}</div>
-                <div class="card-line"><strong>Счет:</strong> {{ row.account }}</div>
-                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date }}</div>
-                <div class="card-line"><strong>Сумма Дт:</strong> {{ row.sum_dt }}</div>
+                <div class="card-title">{{ row.subkonto1|default:"—" }}</div>
+                <div class="card-line"><strong>Счет:</strong> {{ row.account|default:"—" }}</div>
+                <div class="card-line"><strong>Дата отчета:</strong> {{ row.report_date|date:"Y-m-d"|default:"—" }}</div>
+                <div class="card-line">
+                    <strong>Сумма Дт:</strong>
+                    {% if row.sum_dt is not None %}
+                        {{ row.sum_dt|floatformat:2 }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
         </div>
@@ -282,10 +314,7 @@
         <thead>
             <tr>
                 <th>Дата отчета</th>
-                <th>Дата</th>
                 <th>Сумма Дт</th>
-                <th>Сумма Кт</th>
-                <th>Количество записей</th>
                 <th>Дата образования задолженности</th>
                 <th>Срок</th>
                 <th>Период</th>
@@ -295,23 +324,26 @@
         <tbody>
             {% for snap in snapshots %}
             <tr {% if selected_snapshot.id == snap.id %}class="selected-row"{% endif %}>
-                <td>{{ snap.report_date }}</td>
-                <td>{{ snap.date }}</td>
-                <td>{{ snap.sum_dt }}</td>
-                <td>{{ snap.sum_kt }}</td>
-                <td>{{ snap.records_count }}</td>
-                <td>{{ snap.debt_date }}</td>
-                <td>{{ snap.debt_term }}</td>
-                <td>{{ snap.debt_period }}</td>
+                <td>{{ snap.report_date|date:"Y-m-d"|default:"—" }}</td>
                 <td>
-                    <a href="{% url 'debitor_case' %}?account={{ case_obj.account|urlencode }}&subkonto1={{ case_obj.subkonto1|urlencode }}&subkonto2={{ case_obj.subkonto2|urlencode }}&subkonto3={{ case_obj.subkonto3|urlencode }}&report_date={{ snap.report_date|urlencode }}">
+                    {% if snap.sum_dt is not None %}
+                        {{ snap.sum_dt|floatformat:2 }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>{{ snap.debt_date|date:"Y-m-d"|default:"—" }}</td>
+                <td>{{ snap.debt_term|default:"—" }}</td>
+                <td>{{ snap.debt_period|default:"—" }}</td>
+                <td>
+                    <a href="{% url 'debitor_case' %}?account={{ case_obj.account|urlencode }}&subkonto1={{ case_obj.subkonto1|urlencode }}&subkonto2={{ case_obj.subkonto2|urlencode }}&subkonto3={{ case_obj.subkonto3|urlencode }}&report_date={{ snap.report_date|date:'Y-m-d'|urlencode }}">
                         Открыть срез
                     </a>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="9">История отсутствует</td>
+                <td colspan="6">История отсутствует</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -334,7 +366,7 @@
             return null;
         }
 
-        function showStatus(message, type="ok") {
+        function showStatus(message, type = "ok") {
             statusBox.textContent = message;
             statusBox.className = "move-status " + type;
         }

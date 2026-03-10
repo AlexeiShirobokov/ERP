@@ -79,7 +79,11 @@
                   <i class="bi bi-bar-chart"></i> Дашборд
                 </a>
               </li>
-
+              <li class="nav-item me-lg-3">
+                <a class="nav-link" href="{% url 'taskmanager:notification_list' %}">
+                  <i class="bi bi-bell"></i> Уведомления
+                </a>
+              </li>
               <li class="nav-item me-lg-3">
                 <a class="nav-link {% if request.resolver_match and request.resolver_match.url_name == 'project_list' %}active{% endif %}"
                    href="{% url 'taskmanager:project_list' %}">

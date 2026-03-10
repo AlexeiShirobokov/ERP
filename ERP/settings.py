@@ -123,3 +123,18 @@ STATIC_URL = "static/"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "index"
 LOGOUT_REDIRECT_URL = "login"
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+EMAIL_HOST = "smtp.yandex.com"
+EMAIL_PORT = 465
+EMAIL_HOST_USER = "shirobokov@pskgold.ru"
+EMAIL_HOST_PASSWORD = "Leo1+Vlad2"
+EMAIL_USE_SSL = True
+EMAIL_USE_TLS = False
+
+DEFAULT_FROM_EMAIL = "shirobokov@pskgold.ru"
+SERVER_EMAIL = "shirobokov@pskgold.ru"
+EMAIL_TIMEOUT = 20
+
+APP_BASE_URL = "http://127.0.0.1:8000"

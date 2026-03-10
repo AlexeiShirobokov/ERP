@@ -14,6 +14,9 @@ urlpatterns = [
     path("tasks/<int:pk>/complete/", views.complete_task, name="complete_task"),
     path("tasks/<int:pk>/upload/", views.upload_files, name="upload_files"),
 
+    path("notifications/", views.notification_list, name="notification_list"),
+    path("notifications/<int:pk>/read/", views.notification_read, name="notification_read"),
+
     path("projects/", views.project_list, name="project_list"),
     path("projects/new/", views.project_create, name="project_create"),
     path("projects/<int:pk>/", views.project_detail, name="project_detail"),

@@ -24,7 +24,6 @@ def about(request):
 
 def _get_debitor_df():
     df = Upload().open().transform()
-    df = df.fillna("")
     df = df.loc[~(df.astype(str).apply(lambda col: col.str.strip()).eq("").all(axis=1))]
     return df
 
@@ -33,26 +32,43 @@ def _report_date_sort_key(value):
     if value in ("", None):
         return pd.Timestamp.min
     try:
-        return pd.to_datetime(value, dayfirst=True, errors="coerce")
+        ts = pd.to_datetime(value, dayfirst=True, errors="coerce")
+        if pd.isna(ts):
+            return pd.Timestamp.min
+        return ts
     except Exception:
         return pd.Timestamp.min
+
+
+def _to_date_or_none(value):
+    if value in ("", None):
+        return None
+    try:
+        ts = pd.to_datetime(value, dayfirst=True, errors="coerce")
+        if pd.isna(ts):
+            return None
+        return ts.date()
+    except Exception:
+        return None
 
 
 def _to_float_or_none(value):
     if value in ("", None):
         return None
+
+    text = str(value).strip()
+    text = text.replace("\xa0", "").replace(" ", "").replace(",", ".")
+
+    if not text:
+        return None
+
     try:
-        return float(value)
+        return float(text)
     except Exception:
         return None
 
 
 def _sync_cases_from_excel():
-    """
-    1. Создает/обновляет DebitorCase по ключу без report_date
-    2. Создает/обновляет DebitorSnapshot по (case, report_date)
-    3. Обновляет текущие поля кейса по самой свежей дате отчета
-    """
     df = _get_debitor_df()
     records = df.to_dict(orient="records")
 
@@ -70,10 +86,10 @@ def _sync_cases_from_excel():
 
     for row in records:
         case_key = (
-            str(row.get("account", "")),
-            str(row.get("subkonto1", "")),
-            str(row.get("subkonto2", "")),
-            str(row.get("subkonto3", "")),
+            str(row.get("account", "") or ""),
+            str(row.get("subkonto1", "") or ""),
+            str(row.get("subkonto2", "") or ""),
+            str(row.get("subkonto3", "") or ""),
         )
 
         case_obj = existing_cases.get(case_key)
@@ -91,21 +107,23 @@ def _sync_cases_from_excel():
 
         touched_case_ids.add(case_obj.id)
 
-        report_date = str(row.get("report_date", ""))
+        report_date = row.get("report_date")
+        if not report_date:
+            continue
 
         DebitorSnapshot.objects.update_or_create(
             case=case_obj,
             report_date=report_date,
             defaults={
-                "date": str(row.get("date", "")),
-                "sum_dt": _to_float_or_none(row.get("sum_dt")),
-                "sum_kt": _to_float_or_none(row.get("sum_kt")),
-                "records_count": str(row.get("records_count", "")),
-                "debt_date": str(row.get("debt_date", "")),
-                "debt_term": str(row.get("debt_term", "")),
-                "debt_period": str(row.get("debt_period", "")),
-                "debt_reason_excel": str(row.get("debt_reason", "")),
-                "responsible_department_excel": str(row.get("responsible_department", "")),
+                "date": row.get("date"),
+                "sum_dt": row.get("sum_dt"),
+                "sum_kt": row.get("sum_kt"),
+                "records_count": str(row.get("records_count", "") or ""),
+                "debt_date": row.get("debt_date"),
+                "debt_term": str(row.get("debt_term", "") or ""),
+                "debt_period": str(row.get("debt_period", "") or ""),
+                "debt_reason_excel": str(row.get("debt_reason", "") or ""),
+                "responsible_department_excel": str(row.get("responsible_department", "") or ""),
             },
         )
 
@@ -150,7 +168,6 @@ def _sync_cases_from_excel():
             ]
         )
 
-
 def debitor_sync(request):
     _sync_cases_from_excel()
     messages.success(request, "Данные из Excel обновлены.")
@@ -169,7 +186,6 @@ def debitor_report(request):
 
     report_dates_qs = (
         DebitorSnapshot.objects.exclude(report_date__isnull=True)
-        .exclude(report_date__exact="")
         .values_list("report_date", flat=True)
         .distinct()
     )
@@ -188,8 +204,6 @@ def debitor_report(request):
             "subkonto3": snap.case.subkonto3,
             "date": snap.date,
             "sum_dt": snap.sum_dt,
-            "sum_kt": snap.sum_kt,
-            "records_count": snap.records_count,
             "debt_date": snap.debt_date,
             "debt_term": snap.debt_term,
             "debt_period": snap.debt_period,
@@ -243,8 +257,6 @@ def debitor_case(request):
         "subkonto3": case_obj.subkonto3,
         "date": selected_snapshot.date,
         "sum_dt": selected_snapshot.sum_dt,
-        "sum_kt": selected_snapshot.sum_kt,
-        "records_count": selected_snapshot.records_count,
         "debt_date": selected_snapshot.debt_date,
         "debt_term": selected_snapshot.debt_term,
         "debt_period": selected_snapshot.debt_period,
@@ -299,8 +311,6 @@ def export_debitor_excel(request):
             "Субконто 3": snap.case.subkonto3,
             "Дата": snap.date,
             "Сумма остаток Дт": snap.sum_dt,
-            "Сумма остаток Кт": snap.sum_kt,
-            "Количество записей": snap.records_count,
             "Дата образования задолженности": snap.debt_date,
             "срок дебиторской задолженности": snap.debt_term,
             "Период задолженности": snap.debt_period,
@@ -390,7 +400,6 @@ def debitor_aging(request):
         set(
             str(x).strip()
             for x in DebitorSnapshot.objects.exclude(report_date__isnull=True)
-            .exclude(report_date__exact="")
             .values_list("report_date", flat=True)
             if str(x).strip()
         ),

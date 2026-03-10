@@ -355,3 +355,24 @@ class PRFile(models.Model):
     @property
     def filename(self):
         return os.path.basename(self.file.name)
+
+class Notification(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="task_notifications",
+        verbose_name="Получатель",
+    )
+    title = models.CharField("Заголовок", max_length=255)
+    text = models.TextField("Текст", blank=True)
+    url = models.CharField("Ссылка", max_length=500, blank=True)
+    is_read = models.BooleanField("Прочитано", default=False)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Уведомление"
+        verbose_name_plural = "Уведомления"
+
+    def __str__(self):
+        return f"{self.user} — {self.title}"

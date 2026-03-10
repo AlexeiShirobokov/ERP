@@ -17,6 +17,7 @@ from .models import (
     BPFile,
     PRComment,
     PRFile,
+    Notification,
 )
 
 
@@ -158,3 +159,9 @@ class PRCommentAdmin(admin.ModelAdmin):
 class PRFileAdmin(admin.ModelAdmin):
     list_display = ("item", "filename", "uploaded_at", "uploaded_by")
     search_fields = ("item__title", "file")
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("user", "title", "is_read", "created_at")
+    list_filter = ("is_read", "created_at")
+    search_fields = ("user__username", "user__first_name", "user__last_name", "title", "text")
