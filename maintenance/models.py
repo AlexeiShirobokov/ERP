@@ -59,3 +59,4 @@ class MaintenanceTaskFact(models.Model):
 
     def __str__(self):
         return self.work_name[:80]
+
