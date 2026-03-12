@@ -29,6 +29,41 @@
 conda deactivate
 venv\Scripts\activate
 
+внести пользователей:
+from django.contrib.auth.models import User, Group
+
+user = User.objects.create_user(
+    username="afanasiev",
+    email="afanasiev@pskgold.ru",
+    password="YnMRTe3j",
+)
+
+user.is_staff = True
+user.save()
+
+groups = Group.objects.filter(name__in=["Геологи", "Снабжение", "Прочие"])
+user.groups.add(*groups)
+
+from django.contrib.auth.models import User, Group
+
+group = Group.objects.get(name="Геологи")
+
+user = User.objects.create_user(
+    username="afanasiev",
+    email="afanasiev@pskgold.ru",
+    password="YnMRTe3j",
+)
+
+user.is_staff = True
+user.first_name = "Алексей"
+user.last_name = "Афанасьев"
+user.save()
+
+user.groups.add(group)
+
+
+
+
 
 что еще сделать:
 
