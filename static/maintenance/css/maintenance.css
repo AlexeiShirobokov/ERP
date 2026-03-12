@@ -1,0 +1,36 @@
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+
+.top-links {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin: 12px 0 20px;
+}
+
+.top-links a {
+    text-decoration: none;
+    color: #1f4e79;
+}
+
+.top-links a:hover {
+    text-decoration: underline;
+}
+
+.records-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.records-table th,
+.records-table td {
+    border: 1px solid #ccc;
+    padding: 8px 10px;
+    text-align: left;
+}
+
+.records-table th {
+    background: #f3f3f3;
+}

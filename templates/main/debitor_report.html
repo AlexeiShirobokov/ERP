@@ -103,11 +103,6 @@
     <div class="meta">Всего строк: {{ rows_total }}</div>
 
     <div class="actions">
-        <form method="post" action="{% url 'debitor_sync' %}" class="inline">
-            {% csrf_token %}
-            <button type="submit">Обновить из Excel</button>
-        </form>
-
         <a href="{% url 'export_debitor_excel' %}">
             <button type="button">Сохранить файл в Excel</button>
         </a>
