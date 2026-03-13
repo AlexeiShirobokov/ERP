@@ -1,0 +1,802 @@
+[
+  {
+    "username": "SAD",
+    "email": "shirobokov@pskgold.ru",
+    "first_name": "Алексей",
+    "last_name": "Широбоков",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": true,
+    "password": "pbkdf2_sha256$1000000$DJbV62xWBOALKoFfvWQ6oj$AksiIOkOFA9hukWaaAEsSi+Y13p6rESXENqrPwfPUg8=",
+    "groups": []
+  },
+  {
+    "username": "kazdobin",
+    "email": "kazdobin@pskgold.ru",
+    "first_name": "Андрей",
+    "last_name": "Каздобин",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": true,
+    "password": "pbkdf2_sha256$1000000$V7Uo9Y0Q3Zf78jtt5USGFk$pCb4KCx8Rp6091lPOHwXPrDURs/H1wD0nlhCGIFnpo0=",
+    "groups": [
+      "Топ менеджмент"
+    ]
+  },
+  {
+    "username": "alekseev",
+    "email": "alekseev@pskgold.ru",
+    "first_name": "Алексеев",
+    "last_name": "Павел",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$K2Pj1wHlv3TO72wNgni4g8$lvEU5k2+eg8uKtVKsMG5w3LpUwougj0fuBjnaUstwW8=",
+    "groups": []
+  },
+  {
+    "username": "afanasiev",
+    "email": "afanasiev@pskgold.ru",
+    "first_name": "Евгений",
+    "last_name": "Афанасьев",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$Gh30lg0CRQ0PMkeFEuShTn$jCc9/hIv/0JCoTE8SRG1CRlUikeaM6ovVOg3Kyr5wzk=",
+    "groups": [
+      "Геологи"
+    ]
+  },
+  {
+    "username": "afanasieva",
+    "email": "afanasieva@pskgold.ru",
+    "first_name": "Наталья",
+    "last_name": "Афанасьева",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$ZwKceN9zmc33QptS7oRkmb$NSqk6TUvGVUj+FsdOQ3d3gCkrKaRioWB/zy6pSo5k9U=",
+    "groups": [
+      "Геологи"
+    ]
+  },
+  {
+    "username": "bardadym",
+    "email": "bardadym@pskgold.ru",
+    "first_name": "Никита",
+    "last_name": "Бардадым",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": true,
+    "password": "pbkdf2_sha256$1200000$3n8CNWgwamBO8u6OBepDs5$UYDUf6GUeKHglnhT6AtimEXeJAKoAdOn38vY+8OuPjc=",
+    "groups": [
+      "ИТО"
+    ]
+  },
+  {
+    "username": "borodkin",
+    "email": "borodkin@pskgold.ru",
+    "first_name": "Илья",
+    "last_name": "Бородкин",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$egoCIyuNRIYNpUcqOCz2CM$IAG6MRtDkA8SDA2/vmceJlPnD4WyIh9dMmfUEkU0VzE=",
+    "groups": [
+      "Юристы"
+    ]
+  },
+  {
+    "username": "boyarkina",
+    "email": "boyarkina@pskgold.ru",
+    "first_name": "Валерия",
+    "last_name": "Бояркина",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$Oj03cjLovHZTOwkv7DF3i8$6BsGsviKfMLYb57O93Y2rfcyyUMnJaW+JskGPb5el7E=",
+    "groups": [
+      "Маркшейдера"
+    ]
+  },
+  {
+    "username": "bronitsky",
+    "email": "bronitsky@pskgold.ru",
+    "first_name": "Виталий",
+    "last_name": "Броницкий",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$JsCZzTE1au8RwnfqOyADB7$Rc1FQL2we1oQG03wSjo3azPUSDLR+8UCGyS1xETE55c=",
+    "groups": [
+      "ПТО"
+    ]
+  },
+  {
+    "username": "bulgakov",
+    "email": "bulgakov@pskgold.ru",
+    "first_name": "Владимир",
+    "last_name": "Булгаков",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$kbeu6mSa6X7fmxQnkd5FVJ$o+JHdy5SS9BnbOlnJvzmrlE2iULnDCmcydgtAT1E3ow=",
+    "groups": [
+      "Юристы"
+    ]
+  },
+  {
+    "username": "vozhakova",
+    "email": "vozhakova@pskgold.ru",
+    "first_name": "Ирина",
+    "last_name": "Вожакова",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$9YGlbOf5JHlah7MeObL2GX$y50+oKh8OQo484GVtfegMr86Ag/p2EC4t3SQXXyG5w8=",
+    "groups": [
+      "Бухгалтерия"
+    ]
+  },
+  {
+    "username": "voronenko",
+    "email": "voronenko@pskgold.ru",
+    "first_name": "Дмитрий",
+    "last_name": "Вороненко",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$kH3msrOFribnVSUEIamDD2$lViC2IrcbE+kX3doUC71ZqHXnLLjwaNY0efp23NPZ1c=",
+    "groups": [
+      "Юристы"
+    ]
+  },
+  {
+    "username": "garnaga",
+    "email": "garnaga@pskgold.ru",
+    "first_name": "Виктор",
+    "last_name": "Гарнага",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$0ci2cM3yKyFShca25YDPig$Sm1DH62AYUL9/PQy+4EouRCs6VRxUVnq336uZD1sa20=",
+    "groups": [
+      "Механики"
+    ]
+  },
+  {
+    "username": "gerasimenko",
+    "email": "gerasimenko@pskgold.ru",
+    "first_name": "Василий",
+    "last_name": "Герасименко",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$ybBNxys80feIoonp5ifl6T$3+Zf9Zlwk9EZdgW8dqSsO/AE2e4azm+HJ6qc3tKqiRE=",
+    "groups": [
+      "ОГЭ"
+    ]
+  },
+  {
+    "username": "gonchar",
+    "email": "gonchar@pskgold.ru",
+    "first_name": "Александр",
+    "last_name": "Гончар",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$NF0ISxTD9RnYqd201oh6Yt$UutOglpqOl1Yv8G+Gsr4Czi138AswSVCHmksiuHZJfI=",
+    "groups": [
+      "ПТО"
+    ]
+  },
+  {
+    "username": "davidov",
+    "email": "davidov@pskgold.ru",
+    "first_name": "Максим",
+    "last_name": "Давыдов",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$bgd63Lr1hE5PCGJ7EY4qYN$qj29aIr2DdBc6vafiUu5/F1qswJmKkA1FD1899N4A1w=",
+    "groups": [
+      "Диспетчера"
+    ]
+  },
+  {
+    "username": "dragun",
+    "email": "dragun@pskgold.ru",
+    "first_name": "Антон",
+    "last_name": "Драгун",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$NPntvVQKuoIc6cNO7Uo1Xi$MmSzTD60t41QhriWmPrVb3vXc/qnnPAv9v12LaW20nM=",
+    "groups": [
+      "ПТО"
+    ]
+  },
+  {
+    "username": "sandal",
+    "email": "egorov@pskgold.ru",
+    "first_name": "Сандал",
+    "last_name": "Егоров",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$eUQMxKkLLOb2y6Exdibx0h$XJUq8hCO7f7YthJD2a2DOJYIoV9MhnRELH2vnmxUWpk=",
+    "groups": [
+      "ПТО"
+    ]
+  },
+  {
+    "username": "efimov",
+    "email": "efimov@pskgold.ru",
+    "first_name": "Сергей",
+    "last_name": "Ефимов",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$MwsANVDhP6gndbaBZ8zqcC$eKpPGm2kUTlGkTZJiVOahg/K/9pz7Sfz7WgJ0NOKbgg=",
+    "groups": [
+      "Маркшейдера"
+    ]
+  },
+  {
+    "username": "efimova",
+    "email": "efimova@pskgold.ru",
+    "first_name": "Анна",
+    "last_name": "Ефимова",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$xTojejhRktodT8X19Lq751$+0tI9yICTw9dGV5eY2naFY3dhCMop4GgFCdSnRy9Bh8=",
+    "groups": []
+  },
+  {
+    "username": "zemskova",
+    "email": "zemskova@pskgold.ru",
+    "first_name": "Мария",
+    "last_name": "Земскова",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$NgR0BD2K7ziv889uJSAHkv$aTpQpnq1OGWzRW2RDJ+1Bd7567vQEExov2RHoNXMa2M=",
+    "groups": [
+      "ПТО"
+    ]
+  },
+  {
+    "username": "ivanov",
+    "email": "ivanov@pskgold.ru",
+    "first_name": "Игорь",
+    "last_name": "Иванов",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$Js783rrM98PP6rOVeGG3ni$HZN6+yebOxiGciet68LNrgof1doo8eVQLLr6OtdnNBU=",
+    "groups": [
+      "Топ менеджмент"
+    ]
+  },
+  {
+    "username": "innoketkina",
+    "email": "innoketkina@pskgold.ru",
+    "first_name": "Любовь",
+    "last_name": "Иннокеткина",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$ZvYCmArzruxQZ2n7TKOgMs$bILlSVeSsq2+qt9vQRICl7spIrt4s1LvgxVgJ7EPqQo=",
+    "groups": [
+      "Бухгалтерия"
+    ]
+  },
+  {
+    "username": "m.kazdobin",
+    "email": "m.kazdobin@pskgold.ru",
+    "first_name": "Максим",
+    "last_name": "Каздобин",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$gXYpwWIu0ZZ2FCXRdmOaZ6$8SqfMJ8fH4lyi5RruO46yFt5QaDQk+KQWlR6FMaJUVs=",
+    "groups": [
+      "Топ менеджмент"
+    ]
+  },
+  {
+    "username": "kargapolcev",
+    "email": "kargapolcev@pskgold.ru",
+    "first_name": "Игорь",
+    "last_name": "Каргапольцев",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$Ci3WmCFP1rwgCHf36zQR3R$Nnw1+F46hK8EwOGPAtwHEZrRDwriAJ1/gG0D6kAReXg=",
+    "groups": [
+      "Топ менеджмент"
+    ]
+  },
+  {
+    "username": "kruglov",
+    "email": "kruglov@pskgold.ru",
+    "first_name": "Сергей",
+    "last_name": "Круглов",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$sVA2hdu3gKdeHTvQhwIhqx$uWh6y9rdUny85AhUUzGVKMqBZHnHxSwPMb4gnb0NSq4=",
+    "groups": [
+      "Механики"
+    ]
+  },
+  {
+    "username": "laxmanov",
+    "email": "dispetcher@pskgold.ru",
+    "first_name": "Александр",
+    "last_name": "Лахманов",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$DjvFQBnaM1cAS840XKBRvA$FPlVgpT/p/a+aX67pYETVSTIgyTWnRB8LUDsesPU/Us=",
+    "groups": [
+      "Диспетчера"
+    ]
+  },
+  {
+    "username": "makarova",
+    "email": "makarova@pskgold.ru",
+    "first_name": "Елена",
+    "last_name": "Макарова",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$HQGLK45t6tlVLNXdJzl4CG$gD5deQomCV0yfW0knCprX8vpayTuf5eNvgI9VofQGFU=",
+    "groups": [
+      "Бухгалтерия"
+    ]
+  },
+  {
+    "username": "marchenkov",
+    "email": "marchenkov@pskgold.ru",
+    "first_name": "Сергей",
+    "last_name": "Марченков",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$DTrVcaPkUWt9HI15FezuuS$gYC8fsnvd7uEVdF7xMPoYzBYX1nZ9xcuiLTsSREa3uQ=",
+    "groups": [
+      "Топ менеджмент"
+    ]
+  },
+  {
+    "username": "maslova",
+    "email": "maslova@pskgold.ru",
+    "first_name": "Анастасия",
+    "last_name": "Маслова",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$pF3SODEcGyjROFroTsUCMx$nxaZeIFuX/4GmhY6cXx1qAf3HaGxL/P/Jk3RbRXZSBc=",
+    "groups": [
+      "ПТО"
+    ]
+  },
+  {
+    "username": "muss",
+    "email": "muss@pskgold.ru",
+    "first_name": "Ольга",
+    "last_name": "Мусс",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$xwBgJ9N87nKVL3NrQVwYY4$6wMq9G3HKYkoRqPOiq6WsO4qGNhLV+gfS58YYsStAjE=",
+    "groups": [
+      "Экологический отдел"
+    ]
+  },
+  {
+    "username": "nikitin",
+    "email": "nikitin@pskgold.ru",
+    "first_name": "Тарас",
+    "last_name": "Никитин",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$ulG65sSIfqlzTme1LS7J7z$Y/k9IhJKIPJ3zjV83ews3nfStggOGPCxMIsuRMZpXKw=",
+    "groups": [
+      "Механики"
+    ]
+  },
+  {
+    "username": "nikiforov",
+    "email": "nikiforov@pskgold.ru",
+    "first_name": "Валерий",
+    "last_name": "Никифоров",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$FwO1SXMoxKPiPtgbGd06mS$6THqP9eLKQrH7MbpTH3YMLMSC4HklssZX8Zy83PwTSM=",
+    "groups": [
+      "ОТИПБ"
+    ]
+  },
+  {
+    "username": "orlov",
+    "email": "orlov@pskgold.ru",
+    "first_name": "Михаил",
+    "last_name": "Орлов",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$YWhzpbwpSV7tdwqRyJpmsS$5ILXoExePpmg0Qy9WzmVSIKOX/wM/zT82o1VK1+Jl7c=",
+    "groups": [
+      "Снабжение"
+    ]
+  },
+  {
+    "username": "pavlov",
+    "email": "pavlov@pskgold.ru",
+    "first_name": "Олег",
+    "last_name": "Павлов",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$JdaG2YIBEhLGEyPRbg4U8J$Jn2Rfjg+ulk/rZRb1SBy9xPQJtyliShVqF4pIgWv+9c=",
+    "groups": [
+      "Геологи"
+    ]
+  },
+  {
+    "username": "paramonov",
+    "email": "paramonov@pskgold.ru",
+    "first_name": "Вячеслав",
+    "last_name": "Парамонов",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$48mvdY6WFeJLPtobdf9iCl$/g/si2T4k0LzryQPqoWHBxgQzwFrssjEYrOXW68ytac=",
+    "groups": [
+      "Топ менеджмент"
+    ]
+  },
+  {
+    "username": "pivovarova",
+    "email": "pivovarova@pskgold.ru",
+    "first_name": "Светлана",
+    "last_name": "Пивоварова",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$N5RFUFgwtCJDO8bpdeR6Yv$MvdFKI9vUDvxQ3Cl4Yssttw5NlAg6fY3iwzDYbDjpqI=",
+    "groups": [
+      "Отдел Кадров"
+    ]
+  },
+  {
+    "username": "pokashevskii",
+    "email": "pokashevskii@pskgold.ru",
+    "first_name": "Евгений",
+    "last_name": "Покашевский",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$Gq5Mn3QrU8teXg2dT9jpfH$EdoUCk+QE1lsqFG5HhYcWj4vORvi9SWy+rJKX+iPEm8=",
+    "groups": [
+      "Транспортный цех"
+    ]
+  },
+  {
+    "username": "pomalejko",
+    "email": "pomalejko@pskgold.ru",
+    "first_name": "Артем",
+    "last_name": "Помалейко",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$eERDg38KajtZwAgl5UXcQH$Ys7jNiVtx5eZNZIlSqzfLKHWNC9LiZOaPozYr1ip2fU=",
+    "groups": [
+      "Геологи"
+    ]
+  },
+  {
+    "username": "raifugatinova",
+    "email": "raifugatinova@pskgold.ru",
+    "first_name": "Елена",
+    "last_name": "Райфугатинова",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$dFAkyShRe0V0VJLGQVtvJk$UW3XPMGcbKBQumhm8BOdISIAAtfr0ON9PToG3a+FJ0w=",
+    "groups": [
+      "Маркшейдера"
+    ]
+  },
+  {
+    "username": "rybakov",
+    "email": "rybakov@pskgold.ru",
+    "first_name": "Валерий",
+    "last_name": "Рыбаков",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$B7lvlJrUViEFZ7V0j9XMR4$4Y1h8oHyFdLoRnpw7p9oX+hITfvIJyskussz6Gqf6sQ=",
+    "groups": [
+      "Топ менеджмент"
+    ]
+  },
+  {
+    "username": "safin",
+    "email": "safin@pskgold.ru",
+    "first_name": "Рамиль",
+    "last_name": "Сафин",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$YPjIY5QXhXj9bIBJnvSyjx$J80eJsWsQ/HjDji2ZupwyHPz4kj8dStrHt42HmzgVeM=",
+    "groups": [
+      "Механики"
+    ]
+  },
+  {
+    "username": "serebryakov",
+    "email": "serebryakov@pskgold.ru",
+    "first_name": "Роман",
+    "last_name": "Серебряков",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$WAV5DPz4GOZ40KWPZbIUP9$1egJcUoIs6Mj9+ZRY2d7yfZlH6sdLc30NC4rLAQuT6Q=",
+    "groups": [
+      "Снабжение"
+    ]
+  },
+  {
+    "username": "seregin",
+    "email": "seregin@pskgold.ru",
+    "first_name": "Пётр",
+    "last_name": "Серёгин",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$8kRhA8WZ7wGsVBF4Aw3KMo$NKS2B3zSWgYfN9cML0PB5Ft9CjFsMNsryyqIgPK/+LA=",
+    "groups": [
+      "Склад"
+    ]
+  },
+  {
+    "username": "simakov",
+    "email": "simakov@pskgold.ru",
+    "first_name": "Роман",
+    "last_name": "Симаков",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$fZm8oKl8Q81292Y5cPiWs2$G+ae2Nv5ObdFKmamHXBq7d6vYx208+loEoVALQNPab0=",
+    "groups": [
+      "Механики"
+    ]
+  },
+  {
+    "username": "sobakin",
+    "email": "sobakin@pskgold.ru",
+    "first_name": "Вадим",
+    "last_name": "Собакин",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$MrH6VJwxsuBU5yFKA4LEWR$kDxX75vMPCR3qAtmFxn4oYFEhhPzN/tgV2xZo4CbLFg=",
+    "groups": [
+      "Маркшейдера"
+    ]
+  },
+  {
+    "username": "sorokin",
+    "email": "sorokin@pskgold.ru",
+    "first_name": "Виталий",
+    "last_name": "Сорокин",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$RwUhIsy7FBbHOQEftfwiHI$rFmb2tv1cm6Vf/ML0iI9gTv9rpmcgbgFK6DF+WYgMVU=",
+    "groups": [
+      "ОТИПБ"
+    ]
+  },
+  {
+    "username": "t.sorokina",
+    "email": "sorokina@pskgold.ru",
+    "first_name": "Татьяна",
+    "last_name": "Сорокина",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$44gtCYAj3dq6y5cG4vbBOf$N7c6TmRgbDqPoTLMAXpmMPUKds0coPtjoZv2LmYNdoc=",
+    "groups": [
+      "Бухгалтерия"
+    ]
+  },
+  {
+    "username": "syrbu",
+    "email": "syrbu@pskgold.ru",
+    "first_name": "Геннадий",
+    "last_name": "Сырбу",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$NPomMB9T5B08frQ1z804Xe$FNc33iOS+0XEbX6QRFEJQJs3nnzx8bVYnH5uuPBqgmE=",
+    "groups": [
+      "Отдел БВР"
+    ]
+  },
+  {
+    "username": "tomilov",
+    "email": "tomilov@pskgold.ru",
+    "first_name": "Андрей",
+    "last_name": "Томилов",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$6YAT5zjImrI7pFsrNfZjLZ$g7jYKmKLNXBtpwq6U25s+wowBq3LcZ4zgR1ziM05/hE=",
+    "groups": [
+      "Маркшейдера"
+    ]
+  },
+  {
+    "username": "trofimchuk",
+    "email": "trofimchuk@pskgold.ru",
+    "first_name": "Руслан",
+    "last_name": "Трофимчук",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$uL2shj2wRNGP8NU2hzoFWG$mzoQW77OcpIZ/KLMx5Lw7q8h4RrrH6v9dlIaVUJA/lw=",
+    "groups": [
+      "Топ менеджмент"
+    ]
+  },
+  {
+    "username": "turchinskas",
+    "email": "turchinskas@pskgold.ru",
+    "first_name": "Владимир",
+    "last_name": "Турчинскас",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$1DwJG5seAVPpxhQGYzIvQT$kmxUuQ4WaOYp0kinvAQkTF8gguQrlspuccvgQvQcWBM=",
+    "groups": [
+      "ПТО"
+    ]
+  },
+  {
+    "username": "drazhny",
+    "email": "drazhny@pskgold.ru",
+    "first_name": "Участок Дражный",
+    "last_name": "",
+    "is_active": true,
+    "is_staff": false,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$yC76WmkjCcES3Nxjggv1BV$olwKNA4VJG6h4NMV/CwdlKp6sy+cWz+8a3gn2MrhVoI=",
+    "groups": [
+      "Диспетчера"
+    ]
+  },
+  {
+    "username": "smorodina",
+    "email": "",
+    "first_name": "Участок Смородина",
+    "last_name": "",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$v0rxXjIN38iMTRVjtpTf2w$PbaXLR7Z9dE+L08iDjaysoUi7ifBr0l7vb2EloGggnM=",
+    "groups": [
+      "Диспетчера"
+    ]
+  },
+  {
+    "username": "haptagay-haya",
+    "email": "haptagay-haya@pskgold.ru",
+    "first_name": "Участок Хаптагай-Хая",
+    "last_name": "",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$cJclBDdF98agqTiYhrbR6c$b9oVVEWIpgPnh3pgLFZPweFaZJ/bXj7CP6JDkR/p27U=",
+    "groups": [
+      "Диспетчера"
+    ]
+  },
+  {
+    "username": "fedorenko",
+    "email": "fedorenko@pskgold.ru",
+    "first_name": "Николай",
+    "last_name": "Федоренко",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$XCpw4f5xrDfsScXnNBIpt6$KWLNAPNHSXiqwHt7xZXP98CkNfE1JI88AkW+9POMWXo=",
+    "groups": [
+      "ИТО"
+    ]
+  },
+  {
+    "username": "chernushenko",
+    "email": "chernushenko@pskgold.ru",
+    "first_name": "Вадим",
+    "last_name": "Чернушенко",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$w6LB2qkfIAPNxVmT2G65as$ejUcXv2CZWykQ/caSn7qVqgibIJ3Yw7iWxkgr3JCIto=",
+    "groups": [
+      "ФИНО"
+    ]
+  },
+  {
+    "username": "shekultir",
+    "email": "shekultirov@pskgold.ru",
+    "first_name": "Адам",
+    "last_name": "Шекультиров",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$QicX7RhuQxXZX927OzpuKw$gLoAiB32u5Yyk5Mojz/IZ6T5/BK0R287A4HnwIkKfUo=",
+    "groups": [
+      "Строительный отдел"
+    ]
+  },
+  {
+    "username": "shmelev",
+    "email": "shmelev@pskgold.ru",
+    "first_name": "Сергей",
+    "last_name": "Шмелев",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$gCWFzbTJBdtWDMnrPl3Oxl$TMBskf9s1Rk5uyOBrqHh9WhJ1isPa98mviu5yKlP+5E=",
+    "groups": [
+      "Топ менеджмент"
+    ]
+  },
+  {
+    "username": "shuvalov",
+    "email": "shuvalov@pskgold.ru",
+    "first_name": "Евгений",
+    "last_name": "Шувалов",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$dbsWpmdaMdCLdB12Kc1E1K$4pgYtquywwk6LHk/j5N1ASq14FbcZzkVcHRNtyVgJKU=",
+    "groups": [
+      "ОГЭ"
+    ]
+  },
+  {
+    "username": "shepochkin",
+    "email": "shepochkin@pskgold.ru",
+    "first_name": "Андрей",
+    "last_name": "Щепочкин",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$8jHCqYD2DgdE4fEHKBslbh$Wh64sZatSIKfqlgC+Gbfdp0I0g0PnHKKYRfLka2WeyI=",
+    "groups": [
+      "Топ менеджмент"
+    ]
+  },
+  {
+    "username": "yakubec",
+    "email": "yakubec@pskgold.ru",
+    "first_name": "Виктор",
+    "last_name": "Якубец",
+    "is_active": true,
+    "is_staff": true,
+    "is_superuser": false,
+    "password": "pbkdf2_sha256$1200000$tW8CbS1B0BtW2oUcf1YdJA$V9SAo7yn4oQISWrosXIyIypGdIRYow8vZjMZdSxALgc=",
+    "groups": [
+      "Механики"
+    ]
+  }
+]

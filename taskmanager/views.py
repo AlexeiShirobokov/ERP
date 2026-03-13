@@ -173,6 +173,7 @@ def task_list(request):
                 "Тема": t.title,
                 "Описание": t.description,
                 "Срок": t.deadline.strftime("%Y-%m-%d %H:%M") if t.deadline else "",
+                "Постановщик": t.creator.get_full_name() or t.creator.username,
                 "Ответственный": t.responsible.get_full_name() if t.responsible else "",
                 "Роль": get_user_role(request.user, t),
                 "Статус": "Завершена" if t.is_completed else "В работе",
@@ -794,3 +795,181 @@ def notification_read(request, pk):
     if notification.url:
         return redirect(notification.url)
     return redirect("taskmanager:notification_list")
+
+@login_required
+def director_dashboard(request):
+    now = timezone.now()
+    tasks = list(
+        Task.objects.select_related("creator", "responsible").all().order_by("-created_at")
+    )
+
+    def display_name(user):
+        if not user:
+            return "Не назначен"
+        full_name = (user.get_full_name() or "").strip()
+        return full_name or user.username
+
+    total_tasks = len(tasks)
+    completed_tasks = sum(1 for t in tasks if t.is_completed)
+    active_tasks = total_tasks - completed_tasks
+
+    overdue_tasks = sum(
+        1 for t in tasks
+        if not t.is_completed and t.deadline and t.deadline < now
+    )
+
+    due_soon_tasks = sum(
+        1 for t in tasks
+        if not t.is_completed and t.deadline and now <= t.deadline <= now + timedelta(days=3)
+    )
+
+    no_deadline_tasks = sum(
+        1 for t in tasks
+        if not t.is_completed and not t.deadline
+    )
+
+    in_work_tasks = sum(
+        1 for t in tasks
+        if not t.is_completed and t.deadline and t.deadline > now + timedelta(days=3)
+    )
+
+    delegated_tasks = sum(1 for t in tasks if t.is_delegated and not t.is_completed)
+
+    execution_rate = round((completed_tasks / total_tasks) * 100, 1) if total_tasks else 0
+
+    # 1. Структура задач
+    status_labels = ["Завершено", "Просрочено", "Срок до 3 дней", "В работе", "Без срока"]
+    status_values = [
+        completed_tasks,
+        overdue_tasks,
+        due_soon_tasks,
+        in_work_tasks,
+        no_deadline_tasks,
+    ]
+
+    # 2. По постановщикам
+    creator_map = {}
+    for t in tasks:
+        name = display_name(t.creator)
+        creator_map.setdefault(name, {"name": name, "total": 0, "overdue": 0})
+        creator_map[name]["total"] += 1
+        if not t.is_completed and t.deadline and t.deadline < now:
+            creator_map[name]["overdue"] += 1
+
+    creator_rows = sorted(
+        creator_map.values(),
+        key=lambda x: (-x["total"], -x["overdue"], x["name"])
+    )[:10]
+
+    creator_labels = [row["name"] for row in creator_rows]
+    creator_total = [row["total"] for row in creator_rows]
+    creator_overdue = [row["overdue"] for row in creator_rows]
+
+    # 3. По ответственным
+    responsible_map = {}
+    for t in tasks:
+        name = display_name(t.responsible)
+        responsible_map.setdefault(
+            name,
+            {"name": name, "total": 0, "overdue": 0, "completed": 0}
+        )
+        responsible_map[name]["total"] += 1
+        if t.is_completed:
+            responsible_map[name]["completed"] += 1
+        if not t.is_completed and t.deadline and t.deadline < now:
+            responsible_map[name]["overdue"] += 1
+
+    responsible_rows = sorted(
+        responsible_map.values(),
+        key=lambda x: (-x["total"], -x["overdue"], x["name"])
+    )[:10]
+
+    responsible_labels = [row["name"] for row in responsible_rows]
+    responsible_total = [row["total"] for row in responsible_rows]
+    responsible_overdue = [row["overdue"] for row in responsible_rows]
+    responsible_completed = [row["completed"] for row in responsible_rows]
+
+    # 4. Возраст просрочки
+    aging_map = {
+        "1–3 дня": 0,
+        "4–7 дней": 0,
+        "8–14 дней": 0,
+        "15+ дней": 0,
+    }
+
+    red_tasks = []
+
+    for t in tasks:
+        if not t.is_completed and t.deadline and t.deadline < now:
+            overdue_days = (now.date() - t.deadline.date()).days
+            overdue_days = max(overdue_days, 1)
+
+            if overdue_days <= 3:
+                aging_map["1–3 дня"] += 1
+            elif overdue_days <= 7:
+                aging_map["4–7 дней"] += 1
+            elif overdue_days <= 14:
+                aging_map["8–14 дней"] += 1
+            else:
+                aging_map["15+ дней"] += 1
+
+            red_tasks.append({
+                "id": t.id,
+                "title": t.title,
+                "creator_name": display_name(t.creator),
+                "responsible_name": display_name(t.responsible),
+                "deadline": t.deadline,
+                "overdue_days": overdue_days,
+            })
+
+    red_tasks = sorted(
+        red_tasks,
+        key=lambda x: (-x["overdue_days"], x["deadline"])
+    )[:15]
+
+    aging_labels = list(aging_map.keys())
+    aging_values = list(aging_map.values())
+
+    # 5. Создано задач за последние 30 дней
+    start_date = (now - timedelta(days=29)).date()
+    date_axis = [start_date + timedelta(days=i) for i in range(30)]
+    created_map = {d: 0 for d in date_axis}
+
+    for t in tasks:
+        created_date = t.created_at.date()
+        if created_date in created_map:
+            created_map[created_date] += 1
+
+    created_labels = [d.strftime("%d.%m") for d in date_axis]
+    created_values = [created_map[d] for d in date_axis]
+
+    context = {
+        "total_tasks": total_tasks,
+        "active_tasks": active_tasks,
+        "completed_tasks": completed_tasks,
+        "overdue_tasks": overdue_tasks,
+        "due_soon_tasks": due_soon_tasks,
+        "delegated_tasks": delegated_tasks,
+        "execution_rate": execution_rate,
+
+        "status_labels": status_labels,
+        "status_values": status_values,
+
+        "creator_labels": creator_labels,
+        "creator_total": creator_total,
+        "creator_overdue": creator_overdue,
+
+        "responsible_labels": responsible_labels,
+        "responsible_total": responsible_total,
+        "responsible_overdue": responsible_overdue,
+        "responsible_completed": responsible_completed,
+
+        "aging_labels": aging_labels,
+        "aging_values": aging_values,
+
+        "created_labels": created_labels,
+        "created_values": created_values,
+
+        "red_tasks": red_tasks,
+    }
+    return render(request, "taskmanager/tasks/director_dashboard.html", context)

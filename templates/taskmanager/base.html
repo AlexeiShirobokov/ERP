@@ -84,19 +84,6 @@
                   <i class="bi bi-bell"></i> Уведомления
                 </a>
               </li>
-              <li class="nav-item me-lg-3">
-                <a class="nav-link {% if request.resolver_match and request.resolver_match.url_name == 'project_list' %}active{% endif %}"
-                   href="{% url 'taskmanager:project_list' %}">
-                  <i class="bi bi-diagram-3"></i> Проекты
-                </a>
-              </li>
-
-              <li class="nav-item me-lg-3">
-                <a class="nav-link {% if request.resolver_match and request.resolver_match.url_name in 'bp_list bp_create bp_detail bp_board' %}{% endif %}"
-                   href="{% url 'taskmanager:bp_list' %}">
-                  <i class="bi bi-diagram-3"></i> Бизнес-процессы
-                </a>
-              </li>
 
               <li class="nav-item">
                 <div class="btn-group dropdown-hover">
@@ -113,18 +100,7 @@
                         <i class="bi bi-check2-square me-2"></i> Задача
                       </a>
                     </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                      <a class="dropdown-item" href="{% url 'taskmanager:project_create' %}">
-                        <i class="bi bi-diagram-3 me-2"></i> Проект
-                      </a>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                      <a class="dropdown-item" href="{% url 'taskmanager:bp_create' %}">
-                        <i class="bi bi-diagram-3 me-2"></i> Бизнес-процесс
-                      </a>
-                    </li>
+
                   </ul>
                 </div>
               </li>

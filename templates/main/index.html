@@ -112,15 +112,15 @@
                                     <span class="module-link-title">Менеджер задач</span>
                                 </a>
 
-                                <a class="module-link" href="{% url 'taskmanager:task_list' %}">
-                                    <span class="module-link-title">График задач</span>
+                                <a class="module-link" href="{% url 'taskmanager:director_dashboard' %}">
+                                    <span class="module-link-title">Контроль исполнения</span>
                                 </a>
 
-                                <a class="module-link" href="{% url 'taskmanager:task_list' %}">
+                                <a class="module-link" href="{% url 'taskmanager:task_list' %}?export=1">
                                     <span class="module-link-title">Выгрузить реестр задач</span>
                                 </a>
 
-                                <a class="module-link" href="{% url 'taskmanager:task_list' %}">
+                                <a class="module-link" href="{% url 'taskmanager:notification_list' %}">
                                     <span class="module-link-title">Уведомления</span>
                                 </a>
                             </div>
