@@ -15,23 +15,12 @@ def build_result_pv():
     #%% md
     # 1. Данный ноутбук позволяет планировать ТО на ближайшие 100 м/ч
     # 2. Контроль проведеного ТО
-    #%%
-
-
     warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
     current_dir=os.path.dirname(os.path.abspath("__file__"))
-    # df=pd.read_excel(r'\\192.168.91.92\maintenance\Агрегатный журнал сводный(Power Query).xlsx', "Реестр")
-    # df_agr=pd.read_excel(os.path.join(current_dir, 'Агрегатный журнал ОГМ 2024 (Эрел) (4).xlsx'), "Агрегатный журнал")
-    #%%
-    # df=df_agr.copy()
-    # дата с которой начинается планирование
-    #t='2026-03-10'
     t = pd.Timestamp.now().normalize() - pd.Timedelta(days=1)
     #%%
     directory = r'c:\Users\poisk-12\Documents\$Мониторинг\Агрегатный'
-    #directory = '/Users/alexei/Yandex.Disk.localized/Analisys/Excel/Агрегатный журнал'
     file_pattern = '*.xlsx'
-    #files2 = [item for item in glob.glob(f'{directory}\\{file_pattern}')]
     files2 = [item for item in glob.glob(f'{directory}/{file_pattern}')]
     files2 = [item for item in files2 if 'Агрегатный журнал' in item]
 
@@ -108,9 +97,7 @@ def build_result_pv():
     mask=df['Марка'].astype(str).isin(['Shantui SD22', 'Shantui SD23'])
     df.loc[mask, 'Марка'] = "SD22"
 
-    #%%
-    df
-    #%%
+   #%%
     s = pd.to_numeric(df['Инвентарный номер'], errors='coerce')
     s = s.round()                                          # или .floor() / .ceil()
     df['Инвентарный номер'] = s.astype('Int64')
@@ -127,8 +114,6 @@ def build_result_pv():
     df['Инвентарный номер'] = pd.to_numeric(s, errors='coerce').astype('Int64')
 
     #%%
-    df
-    #%%
     df_narabotka=df.copy()
     #%% md
     # ##### === считаем наработку ===
@@ -139,14 +124,9 @@ def build_result_pv():
 
                                  aggfunc={'Дата начала обслуживания': 'last'})
 
-
-
-
     pivot_table = pivot_table.round(2)
     pivot_table = pivot_table.fillna(0)
     pivot_table = pivot_table.reset_index()
-
-
     #%%
     keys = ['Подразделение','Марка', 'Модификация','Инвентарный номер']
     vals = ['Фактическая наработка в момент проведения ТО','Наработка машины']
@@ -169,8 +149,6 @@ def build_result_pv():
     # если нужно показывать только календарную дату без времени:
     # t['Последняя дата'] = t['Последняя дата'].dt.date
 
-    #%%
-    pivot_table
     #%%
     # 2) Индексы строк с последней датой по каждому инв. номеру
     idx = df.groupby('Инвентарный номер')['Дата начала обслуживания'].idxmax()
@@ -216,10 +194,6 @@ def build_result_pv():
     #%% md
     # ##### === определить какая техника дублируется по подразделениям ===
     #%%
-    pivot_table.groupby(['Марка', 'Модификация','Инвентарный номер' ]).count()
-    #%%
-    pivot_table
-    #%%
     import numbers
     # установка формата вывода
     pd.options.display.float_format = '{:,.0f}'.format
@@ -232,9 +206,6 @@ def build_result_pv():
     pivot_table = pivot_table.map(
         lambda x: '{:,.0f}'.format(x) if isinstance(x, numbers.Number) else x
     )
-
-    # print the updated pivot table
-    pivot_table
     #%%
     s = (pivot_table['Инвентарный номер']
            .astype(str)
@@ -259,12 +230,10 @@ def build_result_pv():
     out['__i'] = out.groupby(level=0).cumcount()
     out['Дата'] = out['Дата начала обслуживания'] + pd.to_timedelta(out['__i'], unit='D')
     out = out.drop(columns='__i')
-    out
     #%%
     new_df=out.copy()
     #%%
     new_df['Наработка машины'] = new_df['Наработка машины'].str.replace(',', '')
-
     #%%
     mask=new_df["Марка"].eq('\xa0 LIUGONG ')
     new_df = new_df.loc[~mask].copy()
@@ -275,18 +244,13 @@ def build_result_pv():
     #%%
     ##### === проверка как записана наработка в арегатном ===
     uniq=new_df['Планируемая наработка в момент проведения ТО'].unique()
-    print("\n".join(map(str, sorted(uniq))))
     #%%
     new_df['Планируемая наработка в момент проведения ТО'] = new_df['Планируемая наработка в момент проведения ТО'].fillna(0).astype(int)
     #%%
-    new_df
-    #%%
     bad_any = new_df[new_df.isna().any(axis=1)] #показать nan хотьв одном столбце
-    print(bad_any)
     #%%
     df2 = new_df.replace({'': pd.NA, 'None': pd.NA, 'nan': pd.NA, 'NaN': pd.NA})
     bad_any = df2[df2.isna().any(axis=1)]
-    bad_any
     #%%
     # Рассчитываем планируемую наработку
     new_df=new_df.reset_index()
@@ -40021,18 +39985,7 @@ def build_result_pv():
     #%%
     mask=new_df["Марка"]=='Shantui '
     new_df.loc[mask]
-    #%%
-    new_df.head(10)
-    #%%
-    # p=new_df.loc[
-    #            new_df['Марка']
-    #            .astype(str)
-    #            .str.contains('375', case=False, na=False),
-    #               ['Марка', 'Модификация','Инвентарный номер']
-    #            ].drop_duplicates()
-
     p=new_df[['Марка', 'Модификация']].drop_duplicates()
-    p
     #%%
     mask=(new_df['Марка']=='Насосная станция')&(new_df['Модификация']=='ДНС-СВ-32-22')
     new_df.loc[mask,'Модификация']='320-22'
@@ -40234,11 +40187,8 @@ def build_result_pv():
     new_df.loc[mask,'Марка']='PC 1250-8'
     #%%
     p=new_df[['Марка', 'Модификация']].drop_duplicates()
-    p
     #%% md
     # ##### === ставим первоначальную наработку ===
-    #%%
-    df_narabotka
     #%%
     df = df_narabotka.copy()
 
@@ -40257,8 +40207,6 @@ def build_result_pv():
           .reset_index(drop=True)
     )
     #%%
-    pivot_table
-    #%%
     svod_narabotka=new_df.copy()
     #%%
     new_df.info()
@@ -40274,8 +40222,6 @@ def build_result_pv():
     to_join['Инвентарный номер'] = pd.to_numeric(to_join['Инвентарный номер'], errors='coerce')
 
     result = new_df.merge(to_join, how='left', on='Инвентарный номер')
-    #%%
-    to_join
     #%%
     result.info()
     #%%
@@ -40325,19 +40271,7 @@ def build_result_pv():
     fit = result['Инвентарный номер'].isin([963,1357,919,1127,681,126,1005,811,1115,1203,595,1067,498,810,400,652,653,819,1007,684,918,830])
     result = result.loc[~fit | (work < 1000)].copy()
 
-
-    #%%
-    result.info()
-    #%% md
     # # === план по проведению ТО закончен ===
-    #%%
-    # === экспорт в ексель ===
-    #result.to_excel('result.xlsx',sheet_name='Расфасовка', index=False)
-    #%%
-    result
-    #%%
-    result.info()
-    #%%
     pivot_table = (
           df.sort_values(['Инвентарный номер','Дата начала обслуживания',
                         'Фактическая наработка в момент проведения ТО','Наработка машины'])
@@ -40354,4 +40288,37 @@ def build_result_pv():
                              )
     result_pv=result_pv.reset_index()
     #%%
+    df = build_result_pv().copy()
+
+    department_col = next((c for c in df.columns if "Подразделение" in str(c)), None)
+    brand_col = next((c for c in df.columns if "Марка" in str(c)), None)
+
+    departments = []
+    brands = []
+
+    if department_col:
+        departments = sorted(
+            df[department_col]
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .replace("", None)
+            .dropna()
+            .unique()
+            .tolist()
+        )
+
+    if brand_col:
+        brands = sorted(
+            df[brand_col]
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .replace("", None)
+            .dropna()
+            .unique()
+            .tolist()
+        )
+
     return result_pv
+

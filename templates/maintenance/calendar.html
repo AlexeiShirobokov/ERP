@@ -1,0 +1,208 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Календарь техобслуживания</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 24px;
+            background: #faf9f7;
+            color: #222;
+        }
+
+        h1 {
+            margin-bottom: 12px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 18px;
+            text-decoration: none;
+            color: #0d6efd;
+        }
+
+        .filters {
+            display: flex;
+            gap: 12px;
+            align-items: end;
+            flex-wrap: wrap;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+
+        .filters .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filters label {
+            font-size: 13px;
+            color: #555;
+        }
+
+        .filters select,
+        .filters button,
+        .filters a {
+            height: 36px;
+            padding: 0 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        .filters button {
+            cursor: pointer;
+            background: #0d6efd;
+            color: white;
+            border: none;
+        }
+
+        .filters a {
+            display: inline-flex;
+            align-items: center;
+            text-decoration: none;
+            color: #333;
+            background: #f3f4f6;
+        }
+
+        .meta {
+            margin-bottom: 12px;
+            color: #666;
+        }
+
+        .table-wrap {
+            overflow: auto;
+            max-height: 75vh;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+        }
+
+        table.calendar-table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: max-content;
+            min-width: 100%;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        table.calendar-table th,
+        table.calendar-table td {
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: center;
+            background: white;
+        }
+
+        table.calendar-table th {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: #eef3f8;
+            font-weight: 600;
+        }
+
+        table.calendar-table tr:nth-child(even) td {
+            background: #fafafa;
+        }
+
+        /* Закрепляем первые 4 колонки */
+        table.calendar-table th:nth-child(1),
+        table.calendar-table td:nth-child(1) {
+            position: sticky;
+            left: 0;
+            min-width: 180px;
+            max-width: 180px;
+            z-index: 10;
+            background: #f4f7fb;
+        }
+
+        table.calendar-table th:nth-child(2),
+        table.calendar-table td:nth-child(2) {
+            position: sticky;
+            left: 180px;
+            min-width: 160px;
+            max-width: 160px;
+            z-index: 10;
+            background: #f4f7fb;
+        }
+
+        table.calendar-table th:nth-child(3),
+        table.calendar-table td:nth-child(3) {
+            position: sticky;
+            left: 340px;
+            min-width: 180px;
+            max-width: 180px;
+            z-index: 10;
+            background: #f4f7fb;
+        }
+
+        table.calendar-table th:nth-child(4),
+        table.calendar-table td:nth-child(4) {
+            position: sticky;
+            left: 520px;
+            min-width: 140px;
+            max-width: 140px;
+            z-index: 10;
+            background: #f4f7fb;
+        }
+
+        /* Верхние закреплённые ячейки должны быть выше остальных */
+        table.calendar-table th:nth-child(1),
+        table.calendar-table th:nth-child(2),
+        table.calendar-table th:nth-child(3),
+        table.calendar-table th:nth-child(4) {
+            z-index: 30;
+            background: #dfeaf7;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← На главную</a>
+
+    <h1>Календарь техобслуживания</h1>
+
+    <form method="get" class="filters">
+        <div class="field">
+            <label for="department">Подразделение</label>
+            <select name="department" id="department">
+                <option value="">Все</option>
+                {% for item in departments %}
+                    <option value="{{ item }}" {% if item == selected_department %}selected{% endif %}>
+                        {{ item }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="brand">Марка техники</label>
+            <select name="brand" id="brand">
+                <option value="">Все</option>
+                {% for item in brands %}
+                    <option value="{{ item }}" {% if item == selected_brand %}selected{% endif %}>
+                        {{ item }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit">Применить</button>
+        <a href="{% url 'maintenance:calendar' %}">Сбросить</a>
+    </form>
+
+    <div class="meta">Строк: {{ rows_total }}</div>
+
+    <div class="table-wrap">
+        {{ table_html|safe }}
+    </div>
+</body>
+</html>
