@@ -1,0 +1,285 @@
+{% extends 'taskmanager/base.html' %}
+{% block title %}Панель контроля задач{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <div>
+      <h2 class="mb-1">Контроль исполнения поручений</h2>
+
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{% url 'taskmanager:task_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-list-task"></i> К задачам
+      </a>
+      <a href="{% url 'taskmanager:task_list' %}?export=1" class="btn btn-success">
+        <i class="bi bi-file-earmark-excel"></i> Скачать реестр
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-xl-2">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Всего задач</div>
+          <div class="fs-3 fw-bold">{{ total_tasks }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-xl-2">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">В работе</div>
+          <div class="fs-3 fw-bold">{{ active_tasks }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-xl-2">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Просрочено</div>
+          <div class="fs-3 fw-bold text-danger">{{ overdue_tasks }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-xl-2">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">До 3 дней</div>
+          <div class="fs-3 fw-bold text-warning">{{ due_soon_tasks }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-xl-2">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Завершено</div>
+          <div class="fs-3 fw-bold text-success">{{ completed_tasks }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-xl-2">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted small">Исполнение, %</div>
+          <div class="fs-3 fw-bold">{{ execution_rate }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="mb-3">Структура задач</h5>
+          <div id="statusChart" style="height: 360px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="mb-3">Просрочка по возрасту</h5>
+          <div id="agingChart" style="height: 360px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="mb-3">Постановщики задач</h5>
+          <div id="creatorChart" style="height: 420px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="mb-3">Ответственные</h5>
+          <div id="responsibleChart" style="height: 420px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="mb-3">Создано задач за последние 30 дней</h5>
+          <div id="createdChart" style="height: 360px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Красная зона</h5>
+        <span class="text-muted small">Самые проблемные просроченные задачи</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>Задача</th>
+              <th>Постановщик</th>
+              <th>Ответственный</th>
+              <th>Срок</th>
+              <th>Просрочка, дн.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in red_tasks %}
+              <tr>
+                <td>
+                  <a href="{% url 'taskmanager:task_detail' t.id %}" class="text-decoration-none">
+                    {{ t.title }}
+                  </a>
+                </td>
+                <td>{{ t.creator_name }}</td>
+                <td>{{ t.responsible_name }}</td>
+                <td>{{ t.deadline|date:"d.m.Y H:i" }}</td>
+                <td><span class="badge bg-danger">{{ t.overdue_days }}</span></td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">Просроченных задач нет</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ status_labels|json_script:"status-labels" }}
+{{ status_values|json_script:"status-values" }}
+
+{{ creator_labels|json_script:"creator-labels" }}
+{{ creator_total|json_script:"creator-total" }}
+{{ creator_overdue|json_script:"creator-overdue" }}
+
+{{ responsible_labels|json_script:"responsible-labels" }}
+{{ responsible_total|json_script:"responsible-total" }}
+{{ responsible_overdue|json_script:"responsible-overdue" }}
+{{ responsible_completed|json_script:"responsible-completed" }}
+
+{{ aging_labels|json_script:"aging-labels" }}
+{{ aging_values|json_script:"aging-values" }}
+
+{{ created_labels|json_script:"created-labels" }}
+{{ created_values|json_script:"created-values" }}
+
+<script>
+  const statusLabels = JSON.parse(document.getElementById("status-labels").textContent);
+  const statusValues = JSON.parse(document.getElementById("status-values").textContent);
+
+  const creatorLabels = JSON.parse(document.getElementById("creator-labels").textContent);
+  const creatorTotal = JSON.parse(document.getElementById("creator-total").textContent);
+  const creatorOverdue = JSON.parse(document.getElementById("creator-overdue").textContent);
+
+  const responsibleLabels = JSON.parse(document.getElementById("responsible-labels").textContent);
+  const responsibleTotal = JSON.parse(document.getElementById("responsible-total").textContent);
+  const responsibleOverdue = JSON.parse(document.getElementById("responsible-overdue").textContent);
+  const responsibleCompleted = JSON.parse(document.getElementById("responsible-completed").textContent);
+
+  const agingLabels = JSON.parse(document.getElementById("aging-labels").textContent);
+  const agingValues = JSON.parse(document.getElementById("aging-values").textContent);
+
+  const createdLabels = JSON.parse(document.getElementById("created-labels").textContent);
+  const createdValues = JSON.parse(document.getElementById("created-values").textContent);
+
+  Plotly.newPlot("statusChart", [
+    {
+      labels: statusLabels,
+      values: statusValues,
+      type: "pie",
+      hole: 0.45
+    }
+  ], {
+    margin: {t: 10, r: 10, b: 10, l: 10},
+    legend: {orientation: "h"}
+  }, {responsive: true});
+
+  Plotly.newPlot("agingChart", [
+    {
+      x: agingLabels,
+      y: agingValues,
+      type: "bar"
+    }
+  ], {
+    margin: {t: 10, r: 10, b: 50, l: 40}
+  }, {responsive: true});
+
+  Plotly.newPlot("creatorChart", [
+    {
+      x: creatorLabels,
+      y: creatorTotal,
+      type: "bar",
+      name: "Всего"
+    },
+    {
+      x: creatorLabels,
+      y: creatorOverdue,
+      type: "bar",
+      name: "Просрочено"
+    }
+  ], {
+    barmode: "group",
+    margin: {t: 10, r: 10, b: 100, l: 40}
+  }, {responsive: true});
+
+  Plotly.newPlot("responsibleChart", [
+    {
+      x: responsibleLabels,
+      y: responsibleTotal,
+      type: "bar",
+      name: "Всего"
+    },
+    {
+      x: responsibleLabels,
+      y: responsibleCompleted,
+      type: "bar",
+      name: "Завершено"
+    },
+    {
+      x: responsibleLabels,
+      y: responsibleOverdue,
+      type: "bar",
+      name: "Просрочено"
+    }
+  ], {
+    barmode: "group",
+    margin: {t: 10, r: 10, b: 100, l: 40}
+  }, {responsive: true});
+
+  Plotly.newPlot("createdChart", [
+    {
+      x: createdLabels,
+      y: createdValues,
+      type: "scatter",
+      mode: "lines+markers",
+      name: "Создано"
+    }
+  ], {
+    margin: {t: 10, r: 10, b: 40, l: 40}
+  }, {responsive: true});
+</script>
+{% endblock %}

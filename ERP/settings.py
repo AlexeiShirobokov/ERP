@@ -25,9 +25,17 @@ SECRET_KEY = "django-insecure-@ou1z7gv15d@n^u(t2$6oh8jdt=0ru#aw#rqf=84ifb99y4p37
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "185.20.226.122",
+    "185-20-226-122.cloudvps.regruhosting.ru",
+    "127.0.0.1",
+    "localhost",
+]
 
-
+CSRF_TRUSTED_ORIGINS = [
+    "http://185.20.226.122",
+    "http://185-20-226-122.cloudvps.regruhosting.ru",
+]
 # Application definition
 
 INSTALLED_APPS = [
@@ -76,12 +84,26 @@ WSGI_APPLICATION = "ERP.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if DEBUG:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'django_project_db',
+            'USER': 'django',
+            'PASSWORD': 'uu4aiChuucho',
+            'HOST': 'localhost',
+            'PORT': '5432',
+        }
+    }
+
+
 
 
 # Password validation
@@ -118,8 +140,29 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "index"
 LOGOUT_REDIRECT_URL = "login"
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+EMAIL_HOST = "smtp.yandex.com"
+EMAIL_PORT = 465
+EMAIL_HOST_USER = "shirobokov@pskgold.ru"
+EMAIL_HOST_PASSWORD = "Leo1+Vlad2"
+EMAIL_USE_SSL = True
+EMAIL_USE_TLS = False
+
+DEFAULT_FROM_EMAIL = "shirobokov@pskgold.ru"
+SERVER_EMAIL = "shirobokov@pskgold.ru"
+EMAIL_TIMEOUT = 20
+
+APP_BASE_URL = "http://127.0.0.1:8000"

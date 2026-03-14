@@ -42,10 +42,12 @@ from .models import (
     BPMessage,
     BPFile,
     PurchaseRequest,
+    Notification,
     BP_ROLES,
     BP_STAGES,
 )
 from .notifications import (
+    notify_task_created,
     notify_task_updated,
     notify_task_completed,
     notify_task_delegated,
@@ -53,7 +55,6 @@ from .notifications import (
     notify_bp_item_moved,
     notify_bp_message,
 )
-
 # =========================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # =========================
@@ -172,6 +173,7 @@ def task_list(request):
                 "Тема": t.title,
                 "Описание": t.description,
                 "Срок": t.deadline.strftime("%Y-%m-%d %H:%M") if t.deadline else "",
+                "Постановщик": t.creator.get_full_name() or t.creator.username,
                 "Ответственный": t.responsible.get_full_name() if t.responsible else "",
                 "Роль": get_user_role(request.user, t),
                 "Статус": "Завершена" if t.is_completed else "В работе",
@@ -234,11 +236,9 @@ def task_create(request):
                 if user_id:
                     TaskParticipant.objects.create(task=task, user_id=user_id, role=role)
 
-            # файлы
-            for f in request.FILES.getlist("files"):
-                TaskFile.objects.create(task=task, file=f, uploaded_by=request.user)
+            notify_task_created(task, changed_by=request.user)
 
-            return redirect("task_detail", pk=task.pk)
+            return redirect("taskmanager:task_detail", pk=task.pk)
     else:
         form = TaskForm()
     return render(request, "taskmanager/tasks/task_form.html", {"form": form, "users": users})
@@ -268,13 +268,13 @@ def task_detail(request, pk):
             for f in request.FILES.getlist("files"):
                 TaskFile.objects.create(task=task, file=f, uploaded_by=request.user)
             messages.success(request, "Файлы загружены")
-            return redirect("task_detail", pk=pk)
+            return redirect("taskmanager:task_detail", pk=pk)
 
         # сообщение
         content = request.POST.get("content")
         if content:
             TaskMessage.objects.create(task=task, sender=request.user, content=content)
-            return redirect("task_detail", pk=pk)
+            return redirect("taskmanager:task_detail", pk=pk)
 
     participants = TaskParticipant.objects.filter(task=task)
     task_messages = task.messages.all().order_by("timestamp")
@@ -320,7 +320,7 @@ def edit_task(request, pk):
             notify_task_updated(task, changed_by=request.user)
 
             messages.success(request, "Задача успешно обновлена")
-            return redirect("task_detail", pk=task.pk)
+            return redirect("taskmanager:task_detail", pk=task.pk)
     else:
         form = TaskForm(instance=task)
 
@@ -362,7 +362,7 @@ def delegate_task(request, pk):
                 content=f"Задача делегирована от {old_resp.get_full_name() if old_resp else request.user.get_full_name()} к {new_resp.get_full_name()}",
             )
             messages.success(request, f"Задача успешно делегирована {new_resp.get_full_name()}")
-            return redirect("task_detail", pk=task.pk)
+            return redirect("taskmanager:task_detail", pk=task.pk)
 
     return render(request, "taskmanager/tasks/delegate_task.html", {"task": task, "users": users})
 
@@ -377,7 +377,7 @@ def complete_task(request, pk):
         task.save()
         notify_task_completed(task, changed_by=request.user)
         messages.success(request, "Задача отмечена как завершенная")
-    return redirect("task_list")
+    return redirect("taskmanager:task_list")
 
 
 @login_required
@@ -389,7 +389,7 @@ def upload_files(request, pk):
         for f in request.FILES.getlist("files"):
             TaskFile.objects.create(task=task, file=f, uploaded_by=request.user)
         messages.success(request, "Файлы загружены")
-    return redirect("task_detail", pk=task.pk)
+    return redirect("taskmanager:task_detail", pk=task.pk)
 
 
 @login_required
@@ -465,7 +465,7 @@ def project_create(request):
             notify_project_updated(project, changed_by=request.user)
 
             messages.success(request, "Проект создан")
-            return redirect("project_detail", pk=project.pk)
+            return redirect("taskmanager:project_detail", pk=project.pk)
     else:
         form = ProjectForm()
         formset = ProjectItemFormSet(instance=Project())
@@ -513,7 +513,7 @@ def project_edit(request, pk):
             notify_project_updated(project, changed_by=request.user)
 
             messages.success(request, "Проект обновлён")
-            return redirect("project_detail", pk=project.pk)
+            return redirect("taskmanager:project_detail", pk=project.pk)
     else:
         form = ProjectForm(instance=project)
         formset = ProjectItemFormSet(instance=project)
@@ -542,7 +542,7 @@ def project_detail(request, pk):
             msg = ProjectMessage.objects.create(project=project, sender=request.user, content=text)
             # уведомим участников проекта о новом сообщении/изменении
             notify_project_updated(project, changed_by=request.user)
-            return redirect("project_detail", pk=pk)
+            return redirect("taskmanager:project_detail", pk=pk)
 
     items = project.items.prefetch_related("assignees")
     members = project.members.select_related("user")
@@ -576,7 +576,7 @@ def project_upload_files(request, pk):
         # можно тоже оповещать об изменении файла проекта:
         notify_project_updated(project, changed_by=request.user)
         messages.success(request, "Файлы загружены")
-    return redirect("project_detail", pk=pk)
+    return redirect("taskmanager:project_detail", pk=pk)
 
 
 @login_required
@@ -634,7 +634,7 @@ def bp_create(request):
                 )
 
             messages.success(request, "Бизнес-процесс создан")
-            return redirect("bp_detail", pk=bp.pk)
+            return redirect("taskmanager:bp_detail", pk=bp.pk)
         else:
             messages.error(request, "Проверьте форму — есть ошибки.")
     else:
@@ -657,7 +657,7 @@ def bp_detail(request, pk):
         if msg:
             message = BPMessage.objects.create(process=bp, sender=request.user, content=msg)
             notify_bp_message(bp, message)
-            return redirect("bp_detail", pk=pk)
+            return redirect("taskmanager:bp_detail", pk=pk)
 
         # Загрузка файлов на процесс
         if request.FILES.getlist("files"):
@@ -668,7 +668,7 @@ def bp_detail(request, pk):
             # оповещение об изменении процесса при загрузке файлов — опционально:
             notify_bp_message(bp, BPMessage(process=bp, sender=request.user, content="Загружены файлы"))
             messages.success(request, f"Загружено файлов: {uploaded}")
-            return redirect("bp_detail", pk=pk)
+            return redirect("taskmanager:bp_detail", pk=pk)
 
     members = bp.members.select_related("user").all().order_by("role", "user__first_name", "user__last_name")
     items = bp.purchases.prefetch_related("assignees").order_by("stage", "order", "id")
@@ -774,3 +774,202 @@ def bp_add_comment(request, item_id):
 def bp_upload_file(request, item_id):
     # Заглушка — если будете грузить файлы на карточку отдельно
     return JsonResponse({"ok": True, "msg": "Файл загружен (заглушка)"})
+
+@login_required
+def notification_list(request):
+    notifications = request.user.task_notifications.all()
+    return render(
+        request,
+        "taskmanager/notifications/list.html",
+        {"notifications": notifications},
+    )
+
+
+@login_required
+@require_POST
+def notification_read(request, pk):
+    notification = get_object_or_404(Notification, pk=pk, user=request.user)
+    notification.is_read = True
+    notification.save(update_fields=["is_read"])
+
+    if notification.url:
+        return redirect(notification.url)
+    return redirect("taskmanager:notification_list")
+
+@login_required
+def director_dashboard(request):
+    now = timezone.now()
+    tasks = list(
+        Task.objects.select_related("creator", "responsible").all().order_by("-created_at")
+    )
+
+    def display_name(user):
+        if not user:
+            return "Не назначен"
+        full_name = (user.get_full_name() or "").strip()
+        return full_name or user.username
+
+    total_tasks = len(tasks)
+    completed_tasks = sum(1 for t in tasks if t.is_completed)
+    active_tasks = total_tasks - completed_tasks
+
+    overdue_tasks = sum(
+        1 for t in tasks
+        if not t.is_completed and t.deadline and t.deadline < now
+    )
+
+    due_soon_tasks = sum(
+        1 for t in tasks
+        if not t.is_completed and t.deadline and now <= t.deadline <= now + timedelta(days=3)
+    )
+
+    no_deadline_tasks = sum(
+        1 for t in tasks
+        if not t.is_completed and not t.deadline
+    )
+
+    in_work_tasks = sum(
+        1 for t in tasks
+        if not t.is_completed and t.deadline and t.deadline > now + timedelta(days=3)
+    )
+
+    delegated_tasks = sum(1 for t in tasks if t.is_delegated and not t.is_completed)
+
+    execution_rate = round((completed_tasks / total_tasks) * 100, 1) if total_tasks else 0
+
+    # 1. Структура задач
+    status_labels = ["Завершено", "Просрочено", "Срок до 3 дней", "В работе", "Без срока"]
+    status_values = [
+        completed_tasks,
+        overdue_tasks,
+        due_soon_tasks,
+        in_work_tasks,
+        no_deadline_tasks,
+    ]
+
+    # 2. По постановщикам
+    creator_map = {}
+    for t in tasks:
+        name = display_name(t.creator)
+        creator_map.setdefault(name, {"name": name, "total": 0, "overdue": 0})
+        creator_map[name]["total"] += 1
+        if not t.is_completed and t.deadline and t.deadline < now:
+            creator_map[name]["overdue"] += 1
+
+    creator_rows = sorted(
+        creator_map.values(),
+        key=lambda x: (-x["total"], -x["overdue"], x["name"])
+    )[:10]
+
+    creator_labels = [row["name"] for row in creator_rows]
+    creator_total = [row["total"] for row in creator_rows]
+    creator_overdue = [row["overdue"] for row in creator_rows]
+
+    # 3. По ответственным
+    responsible_map = {}
+    for t in tasks:
+        name = display_name(t.responsible)
+        responsible_map.setdefault(
+            name,
+            {"name": name, "total": 0, "overdue": 0, "completed": 0}
+        )
+        responsible_map[name]["total"] += 1
+        if t.is_completed:
+            responsible_map[name]["completed"] += 1
+        if not t.is_completed and t.deadline and t.deadline < now:
+            responsible_map[name]["overdue"] += 1
+
+    responsible_rows = sorted(
+        responsible_map.values(),
+        key=lambda x: (-x["total"], -x["overdue"], x["name"])
+    )[:10]
+
+    responsible_labels = [row["name"] for row in responsible_rows]
+    responsible_total = [row["total"] for row in responsible_rows]
+    responsible_overdue = [row["overdue"] for row in responsible_rows]
+    responsible_completed = [row["completed"] for row in responsible_rows]
+
+    # 4. Возраст просрочки
+    aging_map = {
+        "1–3 дня": 0,
+        "4–7 дней": 0,
+        "8–14 дней": 0,
+        "15+ дней": 0,
+    }
+
+    red_tasks = []
+
+    for t in tasks:
+        if not t.is_completed and t.deadline and t.deadline < now:
+            overdue_days = (now.date() - t.deadline.date()).days
+            overdue_days = max(overdue_days, 1)
+
+            if overdue_days <= 3:
+                aging_map["1–3 дня"] += 1
+            elif overdue_days <= 7:
+                aging_map["4–7 дней"] += 1
+            elif overdue_days <= 14:
+                aging_map["8–14 дней"] += 1
+            else:
+                aging_map["15+ дней"] += 1
+
+            red_tasks.append({
+                "id": t.id,
+                "title": t.title,
+                "creator_name": display_name(t.creator),
+                "responsible_name": display_name(t.responsible),
+                "deadline": t.deadline,
+                "overdue_days": overdue_days,
+            })
+
+    red_tasks = sorted(
+        red_tasks,
+        key=lambda x: (-x["overdue_days"], x["deadline"])
+    )[:15]
+
+    aging_labels = list(aging_map.keys())
+    aging_values = list(aging_map.values())
+
+    # 5. Создано задач за последние 30 дней
+    start_date = (now - timedelta(days=29)).date()
+    date_axis = [start_date + timedelta(days=i) for i in range(30)]
+    created_map = {d: 0 for d in date_axis}
+
+    for t in tasks:
+        created_date = t.created_at.date()
+        if created_date in created_map:
+            created_map[created_date] += 1
+
+    created_labels = [d.strftime("%d.%m") for d in date_axis]
+    created_values = [created_map[d] for d in date_axis]
+
+    context = {
+        "total_tasks": total_tasks,
+        "active_tasks": active_tasks,
+        "completed_tasks": completed_tasks,
+        "overdue_tasks": overdue_tasks,
+        "due_soon_tasks": due_soon_tasks,
+        "delegated_tasks": delegated_tasks,
+        "execution_rate": execution_rate,
+
+        "status_labels": status_labels,
+        "status_values": status_values,
+
+        "creator_labels": creator_labels,
+        "creator_total": creator_total,
+        "creator_overdue": creator_overdue,
+
+        "responsible_labels": responsible_labels,
+        "responsible_total": responsible_total,
+        "responsible_overdue": responsible_overdue,
+        "responsible_completed": responsible_completed,
+
+        "aging_labels": aging_labels,
+        "aging_values": aging_values,
+
+        "created_labels": created_labels,
+        "created_values": created_values,
+
+        "red_tasks": red_tasks,
+    }
+    return render(request, "taskmanager/tasks/director_dashboard.html", context)

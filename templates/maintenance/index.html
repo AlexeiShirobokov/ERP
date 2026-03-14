@@ -3,13 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <title>Техническое обслуживание</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'maintenance/css/maintenance.css' %}">
+    <script src="{% static 'maintenance/js/maintenance.js' %}" defer></script>
 </head>
 <body>
     <h1>Техническое обслуживание</h1>
 
-    <p>
+    <div class="top-links">
         <a href="{% url 'maintenance:create_record' %}">Создать новое ТО</a>
-    </p>
+        <a href="{% url 'index' %}">← На главную</a>
+    </div>
 
     <h2>Последние документы</h2>
 

@@ -1,0 +1,42 @@
+{% extends 'taskmanager/base.html' %}
+{% block title %}Уведомления{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <h2 class="mb-4">Уведомления</h2>
+
+    {% if notifications %}
+        <div class="vstack gap-3">
+            {% for n in notifications %}
+                <div class="card shadow-sm border-0 rounded-3 {% if not n.is_read %}border-start border-primary border-4{% endif %}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div>
+                                <h5 class="mb-1">{{ n.title }}</h5>
+                                <div class="text-muted small mb-2">{{ n.created_at|date:"d.m.Y H:i" }}</div>
+                                <div>{{ n.text }}</div>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                {% if n.url %}
+                                    <a href="{{ n.url }}" class="btn btn-outline-secondary btn-sm">Открыть</a>
+                                {% endif %}
+                                {% if not n.is_read %}
+                                    <form method="post" action="{% url 'taskmanager:notification_read' n.pk %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-primary btn-sm">Прочитано</button>
+                                    </form>
+                                {% else %}
+                                    <span class="badge bg-success">Прочитано</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">Уведомлений пока нет.</p>
+    {% endif %}
+</div>
+{% endblock %}

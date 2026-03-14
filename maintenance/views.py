@@ -4,11 +4,38 @@ from django.shortcuts import get_object_or_404, redirect, render
 from .forms import MaintenanceCreateForm, MaintenanceTaskFactInputForm
 from .models import MaintenanceRecord, MaintenanceTaskFact, Department
 from .services import MaintenanceExcelService
-
+from Services.PlanTO_2025 import build_result_pv
 
 def index(request):
-    records = MaintenanceRecord.objects.select_related("department").all()[:30]
-    return render(request, "maintenance/index.html", {"records": records})
+    df = build_result_pv()
+
+    # если колонки MultiIndex после pivot_table
+    if hasattr(df.columns, "to_flat_index"):
+        flat_cols = []
+        for col in df.columns.to_flat_index():
+            if isinstance(col, tuple):
+                parts = [str(x) for x in col if x not in ("", None)]
+                flat_cols.append(" / ".join(parts))
+            else:
+                flat_cols.append(str(col))
+        df.columns = flat_cols
+
+    df = df.reset_index(drop=True).fillna("")
+
+    table_html = df.to_html(
+        index=False,
+        classes="table table-bordered table-sm table-striped",
+        escape=False,
+    )
+
+    return render(
+        request,
+        "maintenance/index.html",
+        {
+            "table_html": table_html,
+            "rows_total": len(df),
+        },
+    )
 
 
 def create_record(request):
@@ -145,3 +172,33 @@ def _to_float_or_none(value):
         return float(value)
     except Exception:
         return None
+
+def calendar_view(request):
+    df = build_result_pv()
+
+    if hasattr(df.columns, "to_flat_index"):
+        flat_cols = []
+        for col in df.columns.to_flat_index():
+            if isinstance(col, tuple):
+                parts = [str(x) for x in col if x not in ("", None)]
+                flat_cols.append(" / ".join(parts))
+            else:
+                flat_cols.append(str(col))
+        df.columns = flat_cols
+
+    df = df.reset_index(drop=True).fillna("")
+
+    table_html = df.to_html(
+        index=False,
+        classes="table table-bordered table-sm table-striped",
+        escape=False,
+    )
+
+    return render(
+        request,
+        "maintenance/calendar.html",
+        {
+            "table_html": table_html,
+            "rows_total": len(df),
+        },
+    )

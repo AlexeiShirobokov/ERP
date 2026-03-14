@@ -1,5 +1,5 @@
 {% extends 'taskmanager/base.html' %}
-{% block title %}Дашборд{% endblock %}
+{% block title %}Менеджер задач{% endblock %}
 
 {% block content %}
 <div class="container my-4">
@@ -54,7 +54,7 @@
         {% for t in current_tasks %}
           <tr class="{% cycle '' 'table-light' %}">
             <td style="width:22%;">
-              <a href="{% url 'task_detail' t.id %}" class="fw-semibold text-decoration-none">{{ t.title }}</a>
+              <a href="{% url 'taskmanager:task_detail' t.id %}" class="fw-semibold text-decoration-none">{{ t.title }}</a>
               <div class="small text-muted">#{{ t.id }}</div>
             </td>
 
@@ -80,7 +80,7 @@
             <td class="text-center" style="width:10%;">
               {% if t.files_count > 0 %}
                 <i class="bi bi-paperclip"></i>
-                <a href="{% url 'task_detail' t.id %}">{{ t.files_count }} файл(ов)</a>
+                <a href="{% url 'taskmanager:task_detail' t.id %}">{{ t.files_count }} файл(ов)</a>
               {% else %}—{% endif %}
             </td>
 
@@ -93,7 +93,7 @@
             </td>
 
             <td class="text-end" style="width:10%;">
-              <a class="btn btn-sm btn-outline-secondary" href="{% url 'task_detail' t.id %}">Открыть</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'taskmanager:task_detail' t.id %}">Открыть</a>
             </td>
           </tr>
         {% empty %}

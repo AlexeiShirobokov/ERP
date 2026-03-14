@@ -1,0 +1,57 @@
+body {
+    min-height: 100vh;
+}
+
+.hero-section {
+    background: linear-gradient(135deg, #16355c 0%, #234a78 100%);
+}
+
+.hero-badge {
+    background-color: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-weight: 600;
+    padding: 0.55rem 0.95rem;
+}
+
+.dashboard-card {
+    border-radius: 1.25rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 1rem 2rem rgba(15, 23, 42, 0.12) !important;
+}
+
+.section-title-link {
+    color: #16355c;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.section-title-link:hover {
+    color: #234a78;
+}
+
+.module-link {
+    display: block;
+    padding: 1rem 1.1rem;
+    border: 1px solid #e9ecef;
+    border-radius: 1rem;
+    background: #f8fafc;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.module-link:hover {
+    background: #eef4ff;
+    border-color: #b8cff3;
+    transform: translateX(2px);
+}
+
+.module-link-title {
+    display: block;
+    color: #1f2937;
+    font-weight: 600;
+    line-height: 1.4;
+}
