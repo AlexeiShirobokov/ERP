@@ -71,6 +71,12 @@
             background: #f3f4f6;
         }
 
+        .filters .export-btn {
+            background: #198754;
+            color: white;
+            border: none;
+        }
+
         .meta {
             margin-bottom: 12px;
             color: #666;
@@ -90,16 +96,16 @@
             width: max-content;
             min-width: 100%;
             font-size: 13px;
-            white-space: nowrap;
         }
 
         table.calendar-table th,
         table.calendar-table td {
             border-right: 1px solid #ddd;
             border-bottom: 1px solid #ddd;
-            padding: 6px 8px;
+            padding: 8px 10px;
             text-align: center;
             background: white;
+            vertical-align: middle;
         }
 
         table.calendar-table th {
@@ -108,19 +114,25 @@
             z-index: 20;
             background: #eef3f8;
             font-weight: 600;
+            white-space: normal;
+            word-break: break-word;
+            line-height: 1.25;
+        }
+
+        table.calendar-table td {
+            white-space: nowrap;
         }
 
         table.calendar-table tr:nth-child(even) td {
             background: #fafafa;
         }
 
-        /* Закрепляем первые 4 колонки */
         table.calendar-table th:nth-child(1),
         table.calendar-table td:nth-child(1) {
             position: sticky;
             left: 0;
-            min-width: 180px;
-            max-width: 180px;
+            min-width: 230px;
+            max-width: 230px;
             z-index: 10;
             background: #f4f7fb;
         }
@@ -128,9 +140,9 @@
         table.calendar-table th:nth-child(2),
         table.calendar-table td:nth-child(2) {
             position: sticky;
-            left: 180px;
-            min-width: 160px;
-            max-width: 160px;
+            left: 230px;
+            min-width: 220px;
+            max-width: 220px;
             z-index: 10;
             background: #f4f7fb;
         }
@@ -138,9 +150,9 @@
         table.calendar-table th:nth-child(3),
         table.calendar-table td:nth-child(3) {
             position: sticky;
-            left: 340px;
-            min-width: 180px;
-            max-width: 180px;
+            left: 450px;
+            min-width: 220px;
+            max-width: 220px;
             z-index: 10;
             background: #f4f7fb;
         }
@@ -148,20 +160,24 @@
         table.calendar-table th:nth-child(4),
         table.calendar-table td:nth-child(4) {
             position: sticky;
-            left: 520px;
-            min-width: 140px;
-            max-width: 140px;
+            left: 670px;
+            min-width: 360px;
+            max-width: 360px;
             z-index: 10;
             background: #f4f7fb;
         }
 
-        /* Верхние закреплённые ячейки должны быть выше остальных */
         table.calendar-table th:nth-child(1),
         table.calendar-table th:nth-child(2),
         table.calendar-table th:nth-child(3),
         table.calendar-table th:nth-child(4) {
             z-index: 30;
             background: #dfeaf7;
+        }
+
+        table.calendar-table th:nth-child(n+5),
+        table.calendar-table td:nth-child(n+5) {
+            min-width: 110px;
         }
     </style>
 </head>
@@ -175,7 +191,7 @@
             <label for="department">Подразделение</label>
             <select name="department" id="department">
                 <option value="">Все</option>
-                {% for item in departments %}
+                {% for item in department_choices %}
                     <option value="{{ item }}" {% if item == selected_department %}selected{% endif %}>
                         {{ item }}
                     </option>
@@ -184,11 +200,11 @@
         </div>
 
         <div class="field">
-            <label for="brand">Марка техники</label>
-            <select name="brand" id="brand">
+            <label for="machine_brand">Марка техники</label>
+            <select name="machine_brand" id="machine_brand">
                 <option value="">Все</option>
-                {% for item in brands %}
-                    <option value="{{ item }}" {% if item == selected_brand %}selected{% endif %}>
+                {% for item in machine_brand_choices %}
+                    <option value="{{ item }}" {% if item == selected_machine_brand %}selected{% endif %}>
                         {{ item }}
                     </option>
                 {% endfor %}
@@ -197,6 +213,13 @@
 
         <button type="submit">Применить</button>
         <a href="{% url 'maintenance:calendar' %}">Сбросить</a>
+
+        <a
+            class="export-btn"
+            href="{% url 'maintenance:calendar_export_excel' %}?department={{ selected_department|urlencode }}&machine_brand={{ selected_machine_brand|urlencode }}"
+        >
+            Выгрузить в Excel
+        </a>
     </form>
 
     <div class="meta">Строк: {{ rows_total }}</div>

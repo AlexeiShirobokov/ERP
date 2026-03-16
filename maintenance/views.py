@@ -1,26 +1,108 @@
+from io import BytesIO
+
+import pandas as pd
 from django.forms import formset_factory
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import MaintenanceCreateForm, MaintenanceTaskFactInputForm
-from .models import MaintenanceRecord, MaintenanceTaskFact, Department
+from .models import Department, MaintenanceRecord, MaintenanceTaskFact
 from .services import MaintenanceExcelService
 from Services.PlanTO_2025 import build_result_pv
 
-def index(request):
-    df = build_result_pv()
 
-    # если колонки MultiIndex после pivot_table
+def _prepare_dataframe(df):
     if hasattr(df.columns, "to_flat_index"):
-        flat_cols = []
+        normalized_columns = []
+
         for col in df.columns.to_flat_index():
             if isinstance(col, tuple):
-                parts = [str(x) for x in col if x not in ("", None)]
-                flat_cols.append(" / ".join(parts))
-            else:
-                flat_cols.append(str(col))
-        df.columns = flat_cols
+                left = col[0]
+                right = col[1] if len(col) > 1 else None
 
-    df = df.reset_index(drop=True).fillna("")
+                left_str = "" if pd.isna(left) else str(left).strip()
+
+                if pd.isna(right):
+                    normalized_columns.append(left_str)
+                else:
+                    right_ts = pd.to_datetime(right, errors="coerce")
+                    if pd.notna(right_ts):
+                        normalized_columns.append(right_ts.strftime("%d.%m.%Y"))
+                    else:
+                        normalized_columns.append(left_str)
+            else:
+                normalized_columns.append(str(col).strip())
+
+        df.columns = normalized_columns
+
+    return df.reset_index(drop=True).fillna("")
+
+
+def _to_float_or_none(value):
+    if value in ("", None):
+        return None
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def _get_calendar_data(request):
+    df = build_result_pv()
+    df = _prepare_dataframe(df)
+
+    selected_department = request.GET.get("department", "").strip()
+    selected_machine_brand = request.GET.get("machine_brand", "").strip()
+
+    department_choices = []
+    machine_brand_choices = []
+
+    if "Подразделение" in df.columns:
+        department_choices = sorted(
+            df["Подразделение"]
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .unique()
+            .tolist()
+        )
+
+    if "Марка" in df.columns:
+        machine_brand_choices = sorted(
+            df["Марка"]
+            .astype(str)
+            .str.strip()
+            .replace("", pd.NA)
+            .dropna()
+            .unique()
+            .tolist()
+        )
+
+    filtered_df = df.copy()
+
+    if selected_department and "Подразделение" in filtered_df.columns:
+        filtered_df = filtered_df[
+            filtered_df["Подразделение"].astype(str).str.strip() == selected_department
+        ]
+
+    if selected_machine_brand and "Марка" in filtered_df.columns:
+        filtered_df = filtered_df[
+            filtered_df["Марка"].astype(str).str.strip() == selected_machine_brand
+        ]
+
+    return {
+        "df": filtered_df,
+        "department_choices": department_choices,
+        "machine_brand_choices": machine_brand_choices,
+        "selected_department": selected_department,
+        "selected_machine_brand": selected_machine_brand,
+    }
+
+
+def index(request):
+    df = build_result_pv()
+    df = _prepare_dataframe(df)
 
     table_html = df.to_html(
         index=False,
@@ -40,6 +122,7 @@ def index(request):
 
 def create_record(request):
     service = MaintenanceExcelService()
+
     brand_choices = [(x, x) for x in service.get_machine_brands()]
     maintenance_number_choices = [(x, x) for x in service.get_maintenance_types()]
 
@@ -49,7 +132,6 @@ def create_record(request):
             machine_brand_choices=brand_choices,
             maintenance_number_choices=maintenance_number_choices,
         )
-
         if form.is_valid():
             machine_brand = form.cleaned_data["machine_brand"]
             maintenance_type = form.cleaned_data["maintenance_number"]
@@ -69,11 +151,10 @@ def create_record(request):
                     "maintenance_date": form.cleaned_data["maintenance_date"].isoformat(),
                     "responsible_fio": form.cleaned_data["responsible_fio"],
                     "machine_hours": form.cleaned_data["machine_hours"],
-                    "maintenance_number": form.cleaned_data["maintenance_number"],  # здесь у тебя выбранный вид ТО
+                    "maintenance_number": form.cleaned_data["maintenance_number"],
                     "maintenance_type": maintenance_type,
                 }
                 request.session["maintenance_tasks"] = tasks
-
                 return redirect("maintenance:fill_tasks")
     else:
         form = MaintenanceCreateForm(
@@ -102,19 +183,20 @@ def fill_tasks(request):
 
     initial_data = []
     for task in tasks:
-        initial_data.append({
-            "work_name": task.get("work_name", ""),
-            "detail_group": task.get("detail_group", ""),
-            "item_name": task.get("item_name", ""),
-            "catalog_number": task.get("catalog_number", ""),
-            "unit": task.get("unit", ""),
-            "qty_plan": task.get("qty_plan", ""),
-            "qty_fact": task.get("qty_plan", "") if task.get("qty_plan", "") != "" else None,
-        })
+        initial_data.append(
+            {
+                "work_name": task.get("work_name", ""),
+                "detail_group": task.get("detail_group", ""),
+                "item_name": task.get("item_name", ""),
+                "catalog_number": task.get("catalog_number", ""),
+                "unit": task.get("unit", ""),
+                "qty_plan": task.get("qty_plan", ""),
+                "qty_fact": task.get("qty_plan", "") if task.get("qty_plan", "") != "" else None,
+            }
+        )
 
     if request.method == "POST":
         formset = TaskFormSet(request.POST)
-
         if formset.is_valid():
             department = get_object_or_404(Department, pk=header["department_id"])
 
@@ -160,37 +242,18 @@ def fill_tasks(request):
 def detail(request, pk):
     record = get_object_or_404(
         MaintenanceRecord.objects.select_related("department").prefetch_related("tasks"),
-        pk=pk
+        pk=pk,
     )
     return render(request, "maintenance/detail.html", {"record": record})
 
 
-def _to_float_or_none(value):
-    if value in ("", None):
-        return None
-    try:
-        return float(value)
-    except Exception:
-        return None
-
 def calendar_view(request):
-    df = build_result_pv()
+    data = _get_calendar_data(request)
+    filtered_df = data["df"]
 
-    if hasattr(df.columns, "to_flat_index"):
-        flat_cols = []
-        for col in df.columns.to_flat_index():
-            if isinstance(col, tuple):
-                parts = [str(x) for x in col if x not in ("", None)]
-                flat_cols.append(" / ".join(parts))
-            else:
-                flat_cols.append(str(col))
-        df.columns = flat_cols
-
-    df = df.reset_index(drop=True).fillna("")
-
-    table_html = df.to_html(
+    table_html = filtered_df.to_html(
         index=False,
-        classes="table table-bordered table-sm table-striped",
+        classes="calendar-table",
         escape=False,
     )
 
@@ -199,6 +262,28 @@ def calendar_view(request):
         "maintenance/calendar.html",
         {
             "table_html": table_html,
-            "rows_total": len(df),
+            "rows_total": len(filtered_df),
+            "department_choices": data["department_choices"],
+            "machine_brand_choices": data["machine_brand_choices"],
+            "selected_department": data["selected_department"],
+            "selected_machine_brand": data["selected_machine_brand"],
         },
     )
+
+
+def calendar_export_excel(request):
+    data = _get_calendar_data(request)
+    df = data["df"].copy()
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="Календарь ТО", index=False)
+
+    output.seek(0)
+
+    response = HttpResponse(
+        output.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="calendar_to.xlsx"'
+    return response

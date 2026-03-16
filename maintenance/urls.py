@@ -6,6 +6,7 @@ app_name = "maintenance"
 urlpatterns = [
     path("", views.index, name="index"),
     path("calendar/", views.calendar_view, name="calendar"),
+    path("calendar/export/", views.calendar_export_excel, name="calendar_export_excel"),
     path("create/", views.create_record, name="create_record"),
     path("fill-tasks/", views.fill_tasks, name="fill_tasks"),
     path("<int:pk>/", views.detail, name="detail"),
