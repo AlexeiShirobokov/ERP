@@ -17,6 +17,9 @@
     cd /home/django/ERP
     source /home/django/django_venv/bin/activate
     python3 manage.py shell
+
+git switch master
+
 ####################################################
 Перезапустить сервер
     под root
