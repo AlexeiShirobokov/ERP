@@ -11,5 +11,6 @@ urlpatterns = [
     path("maintenance/", include("maintenance.urls")),
     path("", include("main.urls")),
     path("taskmanager/", include("taskmanager.urls")),
+    path("logistics/", include("logistics.urls")),
 
 ]

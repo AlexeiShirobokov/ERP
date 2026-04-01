@@ -77,3 +77,10 @@ user.groups.add(group)
 
 
 
+###деактивация и переустановка вирт окружения ###
+deactivate
+Remove-Item -Recurse -Force venv
+py -3.13 -m venv venv
+.\venv\Scripts\activate
+python -m pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt

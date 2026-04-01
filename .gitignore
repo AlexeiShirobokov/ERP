@@ -8,3 +8,6 @@ venv/
 .idea/db.sqlite3
 __pycache__/
 *.pyc
+*.json
+exports_users.py
+import_users.py
