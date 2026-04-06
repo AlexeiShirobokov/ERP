@@ -5,6 +5,8 @@ from .models import DebitorCase, DebitorSnapshot
 class DebitorSnapshotInline(admin.TabularInline):
     model = DebitorSnapshot
     extra = 0
+    can_delete = False
+    show_change_link = True
     readonly_fields = (
         "report_date",
         "date",
@@ -18,7 +20,6 @@ class DebitorSnapshotInline(admin.TabularInline):
         "responsible_department_excel",
         "created_at",
     )
-    can_delete = False
 
 
 @admin.register(DebitorCase)
@@ -27,6 +28,7 @@ class DebitorCaseAdmin(admin.ModelAdmin):
         "account",
         "subkonto1",
         "subkonto2",
+        "subkonto3",
         "last_report_date",
         "stage",
         "responsible_person",
@@ -48,6 +50,7 @@ class DebitorCaseAdmin(admin.ModelAdmin):
         "last_report_date",
         "updated_at",
     )
+    ordering = ("-updated_at", "-id")
     inlines = [DebitorSnapshotInline]
 
 
@@ -75,3 +78,5 @@ class DebitorSnapshotAdmin(admin.ModelAdmin):
         "debt_period",
         "created_at",
     )
+    ordering = ("-report_date", "-id")
+    list_select_related = ("case",)

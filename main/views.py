@@ -1,17 +1,21 @@
 from io import BytesIO
+from collections import defaultdict
 
 import pandas as pd
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required, permission_required
+from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
-from collections import defaultdict
-from django.db.models import Sum
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
 
 from .models import DebitorCase, DebitorSnapshot
 from Services.debitor import Upload
+
+
+DEBITOR_VIEW_PERMISSION = f"{DebitorCase._meta.app_label}.view_{DebitorCase._meta.model_name}"
+DEBITOR_CHANGE_PERMISSION = f"{DebitorCase._meta.app_label}.change_{DebitorCase._meta.model_name}"
+
 
 @login_required
 def index(request):
@@ -168,12 +172,17 @@ def _sync_cases_from_excel():
             ]
         )
 
+
+@login_required
+@permission_required(DEBITOR_CHANGE_PERMISSION, raise_exception=True)
 def debitor_sync(request):
     _sync_cases_from_excel()
     messages.success(request, "Данные из Excel обновлены.")
     return redirect("debitor_report")
 
 
+@login_required
+@permission_required(DEBITOR_VIEW_PERMISSION, raise_exception=True)
 def debitor_report(request):
     report_date_filter = request.GET.get("report_date", "").strip()
 
@@ -221,6 +230,8 @@ def debitor_report(request):
     return render(request, "main/debitor_report.html", context)
 
 
+@login_required
+@permission_required(DEBITOR_VIEW_PERMISSION, raise_exception=True)
 def debitor_case(request):
     account = request.GET.get("account", "")
     subkonto1 = request.GET.get("subkonto1", "")
@@ -264,6 +275,9 @@ def debitor_case(request):
     }
 
     if request.method == "POST":
+        if not request.user.has_perm(DEBITOR_CHANGE_PERMISSION):
+            raise PermissionDenied("У вас нет прав на изменение карточки дебиторской задолженности")
+
         action = request.POST.get("action", "save")
 
         case_obj.debt_reason = request.POST.get("debt_reason", "").strip()
@@ -299,6 +313,8 @@ def debitor_case(request):
     return render(request, "main/debitor_case.html", context)
 
 
+@login_required
+@permission_required(DEBITOR_VIEW_PERMISSION, raise_exception=True)
 def export_debitor_excel(request):
     snapshots = DebitorSnapshot.objects.select_related("case").all().order_by("-report_date", "id")
 
@@ -337,6 +353,8 @@ def export_debitor_excel(request):
 
 
 @require_POST
+@login_required
+@permission_required(DEBITOR_CHANGE_PERMISSION, raise_exception=True)
 def move_debitor_case(request):
     case_id = request.POST.get("case_id")
     new_stage = request.POST.get("new_stage")
@@ -357,11 +375,12 @@ def move_debitor_case(request):
     })
 
 
+@login_required
+@permission_required(DEBITOR_VIEW_PERMISSION, raise_exception=True)
 def debitor_board(request):
     cases = DebitorCase.objects.filter(is_active=True).order_by("stage", "subkonto1")
     return render(request, "main/debitor_board.html", {"cases": cases})
 
-### === для debitor_aging ===
 
 PERIOD_ORDER = [
     "0-30",
@@ -390,6 +409,8 @@ def _format_number(value):
         return str(value)
 
 
+@login_required
+@permission_required(DEBITOR_VIEW_PERMISSION, raise_exception=True)
 def debitor_aging(request):
     date_from = request.GET.get("date_from", "").strip()
     date_to = request.GET.get("date_to", "").strip()
@@ -446,9 +467,6 @@ def debitor_aging(request):
             "worsened_counterparties": [],
         }
         return render(request, "main/debitor_aging.html", context)
-
-    # ---------- блок по периодам ----------
-    from collections import defaultdict
 
     matrix = defaultdict(lambda: defaultdict(float))
     totals_by_date = defaultdict(float)
@@ -522,7 +540,6 @@ def debitor_aging(request):
             "data": [round(matrix[period].get(dt, 0), 2) for dt in report_dates],
         })
 
-    # ---------- блок по контрагентам ----------
     top_counterparties, growth_counterparties, worsened_counterparties = _build_counterparty_analytics(snapshots)
 
     context = {
@@ -544,7 +561,7 @@ def debitor_aging(request):
     }
     return render(request, "main/debitor_aging.html", context)
 
-### === helper функции ===
+
 def _period_rank(period):
     order_map = {
         "0-30": 1,
@@ -572,15 +589,6 @@ def _case_url(case_obj, report_date=""):
 
 
 def _build_counterparty_analytics(snapshots):
-    """
-    Для каждого case берем:
-    - первый snapshot в диапазоне
-    - последний snapshot в диапазоне
-    И строим:
-    1. top_counterparties
-    2. growth_counterparties
-    3. worsened_counterparties
-    """
     grouped = {}
 
     for snap in snapshots:

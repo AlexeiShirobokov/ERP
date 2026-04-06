@@ -10,7 +10,8 @@ urlpatterns = [
 
     path("maintenance/", include("maintenance.urls")),
     path("", include("main.urls")),
+    path("", include("main.debitor_urls")),
     path("taskmanager/", include("taskmanager.urls")),
-    path("logistics/", include("logistics.urls")),
+    #path("logistics/", include("logistics.urls")),
 
 ]
