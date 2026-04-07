@@ -1,0 +1,263 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Операционная аналитика</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <style>
+        body {
+            background: #f6f8fb;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #27548a, #1f6fb2);
+            color: white;
+        }
+
+        .page-card {
+            border: 0;
+            border-radius: 18px;
+            box-shadow: 0 8px 30px rgba(23, 40, 64, 0.08);
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .meta-box {
+            font-size: 0.95rem;
+            color: #5f6b7a;
+        }
+
+        .chart-box {
+            background: #fff;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 16px rgba(23, 40, 64, 0.06);
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #eef3f8 !important;
+        }
+
+        .empty-block {
+            border: 2px dashed #d7dfe8;
+            border-radius: 16px;
+            background: #fff;
+            padding: 40px 24px;
+            text-align: center;
+            color: #68768a;
+        }
+    </style>
+</head>
+<body>
+
+<header class="hero py-4 mb-4">
+    <div class="container">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+                <div class="small text-white-50 mb-2">ERP / Operate</div>
+                <h1 class="h2 mb-1">Операционная аналитика</h1>
+                <div class="text-white-50">Динамика объёмов, производительность и план/факт</div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'index' %}" class="btn btn-light btn-sm">На главную</a>
+<!--                <a href="/admin/operate/operatedatafile/" class="btn btn-outline-light btn-sm">Файлы аналитики</a>-->
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="container pb-5">
+
+    {% if error %}
+        <div class="alert alert-danger shadow-sm" role="alert">
+            <strong>Ошибка:</strong> {{ error }}
+        </div>
+    {% endif %}
+
+    <div class="card page-card mb-4">
+        <div class="card-body p-4">
+            <div class="row g-4 align-items-end">
+                <div class="col-12 col-lg-7">
+                    <div class="section-title">Параметры отчёта</div>
+
+                    <form method="get" class="row g-3">
+                        <div class="col-12 col-md-8">
+                            <label for="subdivision" class="form-label">Подразделение</label>
+                            <select name="subdivision" id="subdivision" class="form-select">
+                                {% for sub in subdivisions %}
+                                    <option value="{{ sub }}" {% if sub == selected_subdivision %}selected{% endif %}>
+                                        {{ sub }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">Показать</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="col-12 col-lg-5">
+                    <div class="section-title">Источник данных</div>
+                    {% if data_file %}
+                        <div class="meta-box">
+                            <div><strong>Файл:</strong> {{ data_file.title|default:data_file.file.name }}</div>
+                            <div><strong>Загружен:</strong> {{ data_file.uploaded_at|date:"d.m.Y H:i" }}</div>
+                            <div><strong>Путь:</strong> {{ data_file.file.name }}</div>
+                        </div>
+                    {% else %}
+                        <div class="meta-box text-danger">
+                            Активный файл аналитики не загружен.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if not data_file %}
+        <div class="empty-block">
+            <h3 class="h5 mb-3">Нет файла для анализа</h3>
+            <p class="mb-3">Загрузите файл через админ-панель и отметьте его как активный.</p>
+            <a href="/admin/operate/operatedatafile/" class="btn btn-primary btn-sm">Открыть админку</a>
+        </div>
+    {% else %}
+
+        {% if fig1_html or fig2_html %}
+            <div class="row g-4 mb-4">
+                {% if fig1_html %}
+                    <div class="col-12">
+                        <div class="chart-box">
+                            <div class="section-title">Динамика объёмов по годам</div>
+                            {{ fig1_html|safe }}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if fig2_html %}
+                    <div class="col-12">
+                        <div class="chart-box">
+                            <div class="section-title">План / факт 2026</div>
+                            {{ fig2_html|safe }}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% if productivity_year_table %}
+            <div class="card page-card mb-4">
+                <div class="card-body p-4">
+                    <div class="section-title">Среднесменная производительность по годам</div>
+                    <div class="table-wrap">
+                        <table class="table table-bordered table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    {% for key in productivity_year_table.0.keys %}
+                                        <th>{{ key }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in productivity_year_table %}
+                                    <tr>
+                                        {% for value in row.values %}
+                                            <td>{{ value }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if productivity_pf_table %}
+            <div class="card page-card mb-4">
+                <div class="card-body p-4">
+                    <div class="section-title">Среднесменная производительность: план / факт</div>
+                    <div class="table-wrap">
+                        <table class="table table-bordered table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    {% for key in productivity_pf_table.0.keys %}
+                                        <th>{{ key }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in productivity_pf_table %}
+                                    <tr>
+                                        {% for value in row.values %}
+                                            <td>{{ value }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if plan_fact_table %}
+            <div class="card page-card mb-4">
+                <div class="card-body p-4">
+                    <div class="section-title">План / факт по блокам и переделам</div>
+                    <div class="table-wrap">
+                        <table class="table table-bordered table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    {% for key in plan_fact_table.0.keys %}
+                                        <th>{{ key }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in plan_fact_table %}
+                                    <tr>
+                                        {% for value in row.values %}
+                                            <td>{{ value }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if not fig1_html and not fig2_html and not productivity_year_table and not productivity_pf_table and not plan_fact_table %}
+            <div class="empty-block">
+                <h3 class="h5 mb-3">Пока нет данных для отображения</h3>
+                <p class="mb-0">Проверь активный файл, имя листа и то, что view передаёт таблицы и графики в шаблон.</p>
+            </div>
+        {% endif %}
+    {% endif %}
+</main>
+
+</body>
+</html>

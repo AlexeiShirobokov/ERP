@@ -112,7 +112,7 @@ def index(request):
 
     return render(
         request,
-        "maintenance/index.html",
+        "maintenance/operate_index.html",
         {
             "table_html": table_html,
             "rows_total": len(df),
