@@ -26,6 +26,8 @@ SECRET_KEY = "django-insecure-@ou1z7gv15d@n^u(t2$6oh8jdt=0ru#aw#rqf=84ifb99y4p37
 DEBUG = True
 
 ALLOWED_HOSTS = [
+    "pskgold.pro",
+    "www.pskgold.pro",
     "185.20.226.122",
     "185-20-226-122.cloudvps.regruhosting.ru",
     "127.0.0.1",
@@ -38,6 +40,8 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 # Application definition
 
+SITE_URL = "https://pskgold.pro"
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -48,7 +52,6 @@ INSTALLED_APPS = [
     "main.apps.MainConfig",
     "maintenance.apps.MaintenanceConfig",
     "taskmanager.apps.TaskmanagerConfig",
-    "logistics.apps.LogisticsConfig",
 ]
 
 MIDDLEWARE = [
@@ -157,13 +160,23 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 EMAIL_HOST = "smtp.yandex.com"
 EMAIL_PORT = 465
-EMAIL_HOST_USER = "shirobokov@pskgold.ru"
-EMAIL_HOST_PASSWORD = "Leo1+Vlad2"
+EMAIL_HOST_USER = "noreply@pskgold.ru"
+EMAIL_HOST_PASSWORD = "OyocyUHP6BpZyUWy0YoW"
 EMAIL_USE_SSL = True
 EMAIL_USE_TLS = False
 
-DEFAULT_FROM_EMAIL = "shirobokov@pskgold.ru"
-SERVER_EMAIL = "shirobokov@pskgold.ru"
+DEFAULT_FROM_EMAIL = "noreply@pskgold.ru"
+SERVER_EMAIL = "noreply@pskgold.ru"
 EMAIL_TIMEOUT = 20
 
-APP_BASE_URL = "http://127.0.0.1:8000"
+APP_BASE_URL = "https://pskgold.pro"
+
+#УСИЛЕНИЕ БЕЗОПАСНОСТИ SSL
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDER_PROTO", "https")
+
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+#SECURE_SSL_REDIRECT = True
+
+
