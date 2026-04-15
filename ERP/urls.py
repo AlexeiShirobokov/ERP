@@ -15,7 +15,8 @@ urlpatterns = [
     path("", include("main.debitor_urls")),
     path("taskmanager/", include("taskmanager.urls")),
     #path("logistics/", include("logistics.urls")),
-    path("operate/", include("operate.urls")),
+    #path("operate/", include("operate.urls")),
+    path("personnel/", include("personnel.urls")),
 
 ]
 

@@ -20,7 +20,6 @@
                 <div class="col-lg-8">
                     <span class="badge rounded-pill hero-badge mb-3">ERP-система</span>
                     <h1 class="display-5 fw-bold mb-3">Главная страница</h1>
-
                 </div>
             </div>
         </div>
@@ -100,7 +99,6 @@
                                     <a class="section-title-link" href="{% url 'taskmanager:task_list' %}">
                                         Менеджер задач
                                     </a>
-
                                 </h2>
                                 <span class="badge text-bg-warning-subtle text-warning-emphasis rounded-pill px-3 py-2">
                                     Управление
@@ -127,6 +125,8 @@
                         </div>
                     </div>
                 </div>
+
+                {% comment %}
                 <div class="col-12 col-lg-6">
                     <div class="card dashboard-card h-100 border-0 shadow-sm">
                         <div class="card-body p-4">
@@ -145,38 +145,67 @@
                                 <a class="module-link" href="{% url 'operate:operate_index' %}">
                                     <span class="module-link-title">Динамика объемов</span>
                                 </a>
-
-
                             </div>
                         </div>
                     </div>
                 </div>
-<!--                <div class="col-12 col-lg-6">-->
-<!--                    <div class="card dashboard-card h-100 border-0 shadow-sm">-->
-<!--                        <div class="card-body p-4">-->
-<!--                            <div class="d-flex justify-content-between align-items-start mb-4 gap-3">-->
-<!--                                <h2 class="h3 mb-0">-->
-<!--                                    <a class="section-title-link" href="#">-->
-<!--                                        Склад-->
-<!--                                    </a>-->
-<!--                                </h2>-->
-<!--                                <span class="badge text-bg-secondary-subtle text-secondary-emphasis rounded-pill px-3 py-2">-->
-<!--                                    Материалы-->
-<!--                                </span>-->
-<!--                            </div>-->
+                {% endcomment %}
 
-<!--                            <div class="d-grid gap-3">-->
-<!--                                <a class="module-link" href="#">-->
-<!--                                    <span class="module-link-title">текущие остатки</span>-->
-<!--                                </a>-->
+                <div class="col-12 col-lg-6">
+                    <div class="card dashboard-card h-100 border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-4 gap-3">
+                                <h2 class="h3 mb-0">
+                                    <a class="section-title-link" href="{% url 'personnel:record_list' %}">
+                                        Персонал
+                                    </a>
+                                </h2>
+                                <span class="badge text-bg-danger-subtle text-danger-emphasis rounded-pill px-3 py-2">
+                                    HR
+                                </span>
+                            </div>
 
-<!--                                <a class="module-link" href="#">-->
-<!--                                    <span class="module-link-title">движение склада за вчерашний день</span>-->
-<!--                                </a>-->
-<!--                            </div>-->
-<!--                        </div>-->
+                            <div class="d-grid gap-3">
+                                <a class="module-link" href="{% url 'personnel:record_list' %}">
+                                    <span class="module-link-title">Реестр персонала</span>
+                                </a>
+
+                                <a class="module-link" href="{% url 'personnel:record_create' %}">
+                                    <span class="module-link-title">Новая кадровая карточка</span>
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                {% comment %}
+                <div class="col-12 col-lg-6">
+                    <div class="card dashboard-card h-100 border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-4 gap-3">
+                                <h2 class="h3 mb-0">
+                                    <a class="section-title-link" href="#">
+                                        Склад
+                                    </a>
+                                </h2>
+                                <span class="badge text-bg-secondary-subtle text-secondary-emphasis rounded-pill px-3 py-2">
+                                    Материалы
+                                </span>
+                            </div>
+
+                            <div class="d-grid gap-3">
+                                <a class="module-link" href="#">
+                                    <span class="module-link-title">Текущие остатки</span>
+                                </a>
+
+                                <a class="module-link" href="#">
+                                    <span class="module-link-title">Движение склада за вчерашний день</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endcomment %}
 
             </div>
         </div>
@@ -188,8 +217,6 @@
         </div>
     </footer>
 
-    <script
-        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

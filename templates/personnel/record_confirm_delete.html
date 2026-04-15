@@ -1,0 +1,28 @@
+{% extends "personnel/base.html" %}
+
+{% block title %}Удаление карточки{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-danger">
+            <div class="card-body">
+                <h1 class="h4 text-danger mb-3">Удаление кадровой карточки</h1>
+                <p>
+                    Ты действительно хочешь удалить карточку
+                    <strong>«{{ record.full_name }}»</strong>?
+                </p>
+                <p class="text-muted">
+                    Связанные документы перестанут быть доступны из интерфейса.
+                </p>
+
+                <form method="post" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Да, удалить</button>
+                    <a href="{% url 'personnel:record_detail' record.pk %}" class="btn btn-outline-secondary">Отмена</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,234 @@
+{% extends "personnel/base.html" %}
+
+{% block title %}{{ record.full_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">{{ record.full_name }}</h1>
+        <div class="text-muted">{{ record.position_name }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'personnel:record_update' record.pk %}" class="btn btn-primary">Редактировать</a>
+        <a href="{% url 'personnel:record_list' %}" class="btn btn-outline-secondary">Назад</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <strong>Карточка</strong>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="field-label">№</div>
+                        <div class="field-value">{{ record.id }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="field-label">Дата</div>
+                        <div class="field-value">{{ record.date|date:"d.m.Y" }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="field-label">Год рождения</div>
+                        <div class="field-value">{{ record.birth_year|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="field-label">ФИО</div>
+                        <div class="field-value">{{ record.full_name }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="field-label">Соискатель по вакансии на hh.ru</div>
+                        <div class="field-value">{{ record.hh_candidate|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="field-label">Должность (название в Поиск золото)</div>
+                        <div class="field-value">{{ record.position_name }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="field-label">Контакты</div>
+                        <div class="field-value">{{ record.contacts|default:"—"|linebreaksbr }}</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="field-label">Мед комиссия</div>
+                        <div class="field-value">{{ record.medical_commission|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="field-label">Направление на МО</div>
+                        <div class="field-value">{{ record.referral_to_mo|default:"—" }}</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="field-label">Билет</div>
+                        <div class="field-value">{{ record.ticket|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="field-label">Расчетная дата приезда</div>
+                        <div class="field-value">
+                            {{ record.estimated_arrival_date|date:"d.m.Y"|default:"—" }}
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="field-label">Комментарий</div>
+                        <div class="field-value">{{ record.comment|default:"—"|linebreaksbr }}</div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="field-label">Квалификация, наличие удостоверения на сайте</div>
+                        <div class="field-value">{{ record.qualification|default:"—"|linebreaksbr }}</div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="field-label">Примечание</div>
+                        <div class="field-value">{{ record.note|default:"—"|linebreaksbr }}</div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="field-label">Примечание или причина отказа</div>
+                        <div class="field-value">{{ record.refusal_reason|default:"—"|linebreaksbr }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong>Документы</strong>
+                <span class="badge text-bg-secondary">{{ documents|length }}</span>
+            </div>
+            <div class="card-body">
+                <form
+                    method="post"
+                    action="{% url 'personnel:document_upload' record.pk %}"
+                    enctype="multipart/form-data"
+                    class="row g-3 mb-4"
+                >
+                    {% csrf_token %}
+
+                    <div class="col-md-4">
+                        <label class="form-label">{{ document_form.title.label }}</label>
+                        {{ document_form.title }}
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">{{ document_form.file.label }}</label>
+                        {{ document_form.file }}
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">{{ document_form.comment.label }}</label>
+                        {{ document_form.comment }}
+                    </div>
+
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-success">Загрузить документ</button>
+                    </div>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Название</th>
+                                <th>Комментарий</th>
+                                <th>Загрузил</th>
+                                <th>Дата</th>
+                                <th style="width: 220px;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in documents %}
+                                <tr>
+                                    <td>{{ doc.title }}</td>
+                                    <td>{{ doc.comment|default:"—"|linebreaksbr }}</td>
+                                    <td>
+                                        {% if doc.uploaded_by %}
+                                            {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ doc.uploaded_at|date:"d.m.Y H:i" }}</td>
+                                    <td>
+                                        <div class="d-flex gap-2">
+                                            <a href="{% url 'personnel:document_download' doc.pk %}" class="btn btn-sm btn-outline-primary">
+                                                Скачать
+                                            </a>
+                                            <form method="post" action="{% url 'personnel:document_delete' doc.pk %}">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    Удалить
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        Документов пока нет
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <strong>Служебная информация</strong>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">
+                    <strong>Создал:</strong><br>
+                    {% if record.created_by %}
+                        {{ record.created_by.get_full_name|default:record.created_by.username }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </p>
+
+                <p class="mb-2">
+                    <strong>Последний редактор:</strong><br>
+                    {% if record.updated_by %}
+                        {{ record.updated_by.get_full_name|default:record.updated_by.username }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </p>
+
+                <p class="mb-2">
+                    <strong>Создано:</strong><br>
+                    {{ record.created_at|date:"d.m.Y H:i" }}
+                </p>
+
+                <p class="mb-0">
+                    <strong>Изменено:</strong><br>
+                    {{ record.updated_at|date:"d.m.Y H:i" }}
+                </p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4 border-danger">
+            <div class="card-body">
+                <h2 class="h6 text-danger">Опасная зона</h2>
+                <p class="text-muted small mb-3">
+                    Удаление карточки удалит и связанные с ней записи о документах.
+                </p>
+                <a href="{% url 'personnel:record_delete' record.pk %}" class="btn btn-outline-danger w-100">
+                    Удалить карточку
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends "personnel/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">{{ page_title }}</h1>
+    <a href="{% url 'personnel:record_list' %}" class="btn btn-outline-secondary">Назад</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">{{ form.date.label }}</label>
+                    {{ form.date }}
+                    {{ form.date.errors }}
+                </div>
+
+                <div class="col-md-9">
+                    <label class="form-label">{{ form.full_name.label }}</label>
+                    {{ form.full_name }}
+                    {{ form.full_name.errors }}
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.hh_candidate.label }}</label>
+                    {{ form.hh_candidate }}
+                    {{ form.hh_candidate.errors }}
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.position_name.label }}</label>
+                    {{ form.position_name }}
+                    {{ form.position_name.errors }}
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.contacts.label }}</label>
+                    {{ form.contacts }}
+                    {{ form.contacts.errors }}
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.medical_commission.label }}</label>
+                    {{ form.medical_commission }}
+                    {{ form.medical_commission.errors }}
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.birth_year.label }}</label>
+                    {{ form.birth_year }}
+                    {{ form.birth_year.errors }}
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.referral_to_mo.label }}</label>
+                    {{ form.referral_to_mo }}
+                    {{ form.referral_to_mo.errors }}
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.ticket.label }}</label>
+                    {{ form.ticket }}
+                    {{ form.ticket.errors }}
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.estimated_arrival_date.label }}</label>
+                    {{ form.estimated_arrival_date }}
+                    {{ form.estimated_arrival_date.errors }}
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.comment.label }}</label>
+                    {{ form.comment }}
+                    {{ form.comment.errors }}
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.qualification.label }}</label>
+                    {{ form.qualification }}
+                    {{ form.qualification.errors }}
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.note.label }}</label>
+                    {{ form.note }}
+                    {{ form.note.errors }}
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">{{ form.refusal_reason.label }}</label>
+                    {{ form.refusal_reason }}
+                    {{ form.refusal_reason.errors }}
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">{{ submit_text }}</button>
+
+                {% if record %}
+                    <a href="{% url 'personnel:record_detail' record.pk %}" class="btn btn-outline-secondary">Отмена</a>
+                {% else %}
+                    <a href="{% url 'personnel:record_list' %}" class="btn btn-outline-secondary">Отмена</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

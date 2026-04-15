@@ -1,0 +1,115 @@
+{% extends "personnel/base.html" %}
+
+{% block title %}Персонал{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Реестр персонала</h1>
+        <div class="text-muted">Кадровые карточки и документы</div>
+    </div>
+    <a href="{% url 'personnel:record_create' %}" class="btn btn-primary">Новая карточка</a>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-10">
+                <input
+                    type="text"
+                    name="q"
+                    value="{{ q }}"
+                    class="form-control"
+                    placeholder="Поиск по ФИО, вакансии hh.ru, должности, контактам, медкомиссии..."
+                >
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-outline-primary">Найти</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>№</th>
+                        <th>Дата</th>
+                        <th>ФИО</th>
+                        <th>Соискатель по вакансии на hh.ru</th>
+                        <th>Должность (название в Поиск золото)</th>
+                        <th>Контакты</th>
+                        <th>Мед комиссия</th>
+                        <th>Комментарий</th>
+                        <th>Год рождения</th>
+                        <th>Квалификация, наличие удостоверения на сайте</th>
+                        <th>Примечание</th>
+                        <th>Направление на МО</th>
+                        <th>Примечание или причина отказа</th>
+                        <th>Билет</th>
+                        <th>Расчетная дата приезда</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'personnel:record_detail' record.pk %}">
+                                    {{ record.id }}
+                                </a>
+                            </td>
+                            <td>{{ record.date|date:"d.m.Y" }}</td>
+                            <td>{{ record.full_name }}</td>
+                            <td>{{ record.hh_candidate|default:"—" }}</td>
+                            <td>{{ record.position_name }}</td>
+                            <td>{{ record.contacts|default:"—"|linebreaksbr }}</td>
+                            <td>{{ record.medical_commission|default:"—" }}</td>
+                            <td>{{ record.comment|default:"—"|linebreaksbr }}</td>
+                            <td>{{ record.birth_year|default:"—" }}</td>
+                            <td>{{ record.qualification|default:"—"|linebreaksbr }}</td>
+                            <td>{{ record.note|default:"—"|linebreaksbr }}</td>
+                            <td>{{ record.referral_to_mo|default:"—" }}</td>
+                            <td>{{ record.refusal_reason|default:"—"|linebreaksbr }}</td>
+                            <td>{{ record.ticket|default:"—" }}</td>
+                            <td>{{ record.estimated_arrival_date|date:"d.m.Y"|default:"—" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="15" class="text-center text-muted py-4">
+                                Записей пока нет
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.paginator.num_pages > 1 %}
+            <nav class="mt-3">
+                <ul class="pagination mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?q={{ q }}&page={{ page_obj.previous_page_number }}">Назад</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?q={{ q }}&page={{ page_obj.next_page_number }}">Вперёд</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
