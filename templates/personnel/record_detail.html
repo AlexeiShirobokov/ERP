@@ -43,7 +43,10 @@
                         <div class="field-label">Соискатель по вакансии на hh.ru</div>
                         <div class="field-value">{{ record.hh_candidate|default:"—" }}</div>
                     </div>
-
+                    <div class="col-md-6">
+                        <div class="field-label">Откуда узнали о Нас</div>
+                        <div class="field-value">{{ record.hh_candidate|default:"—" }}</div>
+                    </div>
                     <div class="col-md-6">
                         <div class="field-label">Должность (название в Поиск золото)</div>
                         <div class="field-value">{{ record.position_name }}</div>
@@ -57,10 +60,10 @@
                         <div class="field-label">Мед комиссия</div>
                         <div class="field-value">{{ record.medical_commission|default:"—" }}</div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="field-label">Направление на МО</div>
-                        <div class="field-value">{{ record.referral_to_mo|default:"—" }}</div>
-                    </div>
+<!--                    <div class="col-md-6">-->
+<!--                        <div class="field-label">Направление на МО</div>-->
+<!--                        <div class="field-value">{{ record.referral_to_mo|default:"—" }}</div>-->
+<!--                    </div>-->
 
                     <div class="col-md-6">
                         <div class="field-label">Билет</div>
@@ -220,7 +223,6 @@
 
         <div class="card shadow-sm mt-4 border-danger">
             <div class="card-body">
-                <h2 class="h6 text-danger">Опасная зона</h2>
                 <p class="text-muted small mb-3">
                     Удаление карточки удалит и связанные с ней записи о документах.
                 </p>

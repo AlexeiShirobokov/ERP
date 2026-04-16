@@ -156,8 +156,8 @@
                         <div class="card-body p-4">
                             <div class="d-flex justify-content-between align-items-start mb-4 gap-3">
                                 <h2 class="h3 mb-0">
-                                    <a class="section-title-link" href="{% url 'personnel:record_list' %}">
-                                        Персонал
+                                    <a class="section-title-link" href="{% url 'personnel:resume_candidate_list' %}">
+                                        Подбор персонала
                                     </a>
                                 </h2>
                                 <span class="badge text-bg-danger-subtle text-danger-emphasis rounded-pill px-3 py-2">
@@ -166,12 +166,16 @@
                             </div>
 
                             <div class="d-grid gap-3">
-                                <a class="module-link" href="{% url 'personnel:record_list' %}">
-                                    <span class="module-link-title">Реестр персонала</span>
+                                <a class="module-link" href="{% url 'personnel:resume_candidate_list' %}">
+                                    <span class="module-link-title">Список кандидатов</span>
                                 </a>
 
-                                <a class="module-link" href="{% url 'personnel:record_create' %}">
-                                    <span class="module-link-title">Новая кадровая карточка</span>
+                                <a class="module-link" href="{% url 'personnel:resume_candidate_kanban' %}">
+                                    <span class="module-link-title">Канбан кандидатов</span>
+                                </a>
+
+                                <a class="module-link" href="{% url 'personnel:resume_candidate_add' %}">
+                                    <span class="module-link-title">Добавить кандидата</span>
                                 </a>
                             </div>
                         </div>

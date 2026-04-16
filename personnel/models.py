@@ -1,100 +1,80 @@
-import os
-
-from django.conf import settings
 from django.db import models
-from django.urls import reverse
+from django.db.models import Max
 from django.utils import timezone
 
 
-class PersonnelRecord(models.Model):
-    date = models.DateField("Дата", default=timezone.now)
-    full_name = models.CharField("ФИО", max_length=255)
-    hh_candidate = models.CharField(
-        "Соискатель по вакансии на hh.ru",
-        max_length=255,
-        blank=True,
-    )
-    position_name = models.CharField(
-        "Должность (название в Поиск золото)",
-        max_length=255,
-    )
-    contacts = models.TextField("Контакты", blank=True)
-    medical_commission = models.CharField("Мед комиссия", max_length=255, blank=True)
-    comment = models.TextField("Комментарий", blank=True)
-    birth_year = models.PositiveSmallIntegerField("Год рождения", null=True, blank=True)
-    qualification = models.TextField(
-        "Квалификация, наличие удостоверения на сайте",
-        blank=True,
-    )
-    note = models.TextField("Примечание", blank=True)
-    referral_to_mo = models.CharField("Направление на МО", max_length=255, blank=True)
-    refusal_reason = models.TextField("Примечание или причина отказа", blank=True)
-    ticket = models.CharField("Билет", max_length=255, blank=True)
-    estimated_arrival_date = models.DateField(
-        "Расчетная дата приезда",
-        null=True,
-        blank=True,
-    )
+class ResumeCandidate(models.Model):
+    MEDICAL_CHOICES = [
+        ('pending', 'Ожидает'),
+        ('passed', 'Пройдена'),
+        ('failed', 'Не пройдена'),
+    ]
 
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="personnel_records_created",
-        verbose_name="Создал",
+    STAGE_CHOICES = [
+        ('cold_search', 'Холодный поиск'),
+        ('response', 'Отклик'),
+        ('phone_interview', 'Тел. интервью'),
+        ('interview', 'Собеседование'),
+        ('medical', 'Медкомиссия'),
+        ('ticket', 'Билет'),
+        ('hired', 'Трудоустроен'),
+        ('rejected', 'Отказ'),
+    ]
+    hh_resume_id = models.CharField('HH resume id', max_length=100, blank=True, db_index=True)
+    hh_resume_link = models.URLField('Ссылка на резюме HH', blank=True)
+    hh_vacancy_id = models.CharField('HH vacancy id', max_length=100, blank=True, db_index=True)
+    hh_source = models.CharField('Источник HH', max_length=100, blank=True)
+    hh_last_sync_at = models.DateTimeField('Последняя синхронизация HH', null=True, blank=True)
+
+    number = models.PositiveIntegerField('№', unique=True, blank=True, null=True)
+    date = models.DateField('Дата', default=timezone.localdate)
+    full_name = models.CharField('ФИО', max_length=255)
+    hh_vacancy = models.CharField('Соискатель по вакансии на hh.ru', max_length=255, blank=True)
+    position = models.CharField('Должность', max_length=255, blank=True)
+    contacts = models.CharField('Контакты', max_length=255, blank=True)
+    medical_commission = models.CharField(
+        'Мед комиссия',
+        max_length=20,
+        choices=MEDICAL_CHOICES,
+        default='pending',
+        blank=True
     )
-    updated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="personnel_records_updated",
-        verbose_name="Последний редактор",
+    comment = models.TextField('Комментарий', blank=True)
+    birth_year = models.PositiveIntegerField('Год рождения', null=True, blank=True)
+    qualification = models.TextField('Квалификация, наличие удостоверения на сайте', blank=True)
+    note = models.TextField('Примечание', blank=True)
+    medical_referral = models.CharField('Направление на МО', max_length=255, blank=True)
+    refusal_reason = models.TextField('Примечание или причина отказа', blank=True)
+    ticket = models.CharField('Билет', max_length=255, blank=True)
+
+    stage = models.CharField(
+        'Этап',
+        max_length=30,
+        choices=STAGE_CHOICES,
+        default='cold_search'
     )
-    created_at = models.DateTimeField("Создано", auto_now_add=True)
-    updated_at = models.DateTimeField("Изменено", auto_now=True)
+    sort_order = models.PositiveIntegerField('Порядок', default=0)
+
+    created_at = models.DateTimeField('Создано', auto_now_add=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
 
     class Meta:
-        verbose_name = "Кадровая карточка"
-        verbose_name_plural = "Кадровые карточки"
-        ordering = ["-date", "full_name", "-id"]
+        verbose_name = 'Кандидат'
+        verbose_name_plural = 'Кандидаты'
+        ordering = ['stage', 'sort_order', '-date', '-id']
 
     def __str__(self):
-        return f"{self.full_name} — {self.position_name}"
+        return f'{self.full_name} ({self.position})'
 
-    def get_absolute_url(self):
-        return reverse("personnel:record_detail", kwargs={"pk": self.pk})
+    def save(self, *args, **kwargs):
+        if not self.number:
+            max_number = ResumeCandidate.objects.aggregate(max_num=Max('number'))['max_num'] or 0
+            self.number = max_number + 1
 
+        if not self.sort_order:
+            max_sort = ResumeCandidate.objects.filter(stage=self.stage).aggregate(
+                max_sort=models.Max('sort_order')
+            )['max_sort'] or 0
+            self.sort_order = max_sort + 1
 
-class PersonnelDocument(models.Model):
-    record = models.ForeignKey(
-        PersonnelRecord,
-        on_delete=models.CASCADE,
-        related_name="documents",
-        verbose_name="Кадровая карточка",
-    )
-    title = models.CharField("Название документа", max_length=255)
-    file = models.FileField("Файл", upload_to="personnel/%Y/%m/%d/")
-    comment = models.TextField("Комментарий", blank=True)
-    uploaded_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="personnel_documents_uploaded",
-        verbose_name="Загрузил",
-    )
-    uploaded_at = models.DateTimeField("Загружено", auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Документ кадровой карточки"
-        verbose_name_plural = "Документы кадровых карточек"
-        ordering = ["-uploaded_at", "-id"]
-
-    def __str__(self):
-        return self.title
-
-    @property
-    def filename(self):
-        return os.path.basename(self.file.name)
+        super().save(*args, **kwargs)

@@ -1,0 +1,5 @@
+2026/04/16-18:33:43.602 d7b60 Creating DB C:\Users\poisk-12\PycharmProjects\ERP\hh_profile\Default\Local Storage\leveldb since it was missing.
+2026/04/16-18:33:43.632 d7b60 Reusing MANIFEST C:\Users\poisk-12\PycharmProjects\ERP\hh_profile\Default\Local Storage\leveldb/MANIFEST-000001
+2026/04/16-18:34:16.121 d7c08 Level-0 table #5: started
+2026/04/16-18:34:16.130 d7c08 Level-0 table #5: 237763 bytes OK
+2026/04/16-18:34:16.136 d7c08 Delete type=0 #3

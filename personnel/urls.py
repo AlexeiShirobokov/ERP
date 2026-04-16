@@ -1,17 +1,29 @@
 from django.urls import path
+from .views import (
+    ResumeCandidateListView,
+    ResumeCandidateKanbanView,
+    ResumeCandidateCreateView,
+    ResumeCandidateUpdateView,
+    ResumeCandidateDeleteView,
+    ResumeCandidateStageUpdateView,
+    ResumeCandidateKanbanReorderView,
+)
 
-from . import views
-
-app_name = "personnel"
+app_name = 'personnel'
 
 urlpatterns = [
-    path("", views.record_list, name="record_list"),
-    path("create/", views.record_create, name="record_create"),
-    path("<int:pk>/", views.record_detail, name="record_detail"),
-    path("<int:pk>/edit/", views.record_update, name="record_update"),
-    path("<int:pk>/delete/", views.record_delete, name="record_delete"),
+    # Новый модуль "Резюме / Подбор персонала"
+    path('resume/', ResumeCandidateListView.as_view(), name='resume_candidate_list'),
+    path('resume/kanban/', ResumeCandidateKanbanView.as_view(), name='resume_candidate_kanban'),
+    path('resume/add/', ResumeCandidateCreateView.as_view(), name='resume_candidate_add'),
+    path('resume/<int:pk>/edit/', ResumeCandidateUpdateView.as_view(), name='resume_candidate_edit'),
+    path('resume/<int:pk>/delete/', ResumeCandidateDeleteView.as_view(), name='resume_candidate_delete'),
+    path('resume/<int:pk>/stage/<str:stage>/', ResumeCandidateStageUpdateView.as_view(), name='resume_candidate_stage'),
 
-    path("<int:record_id>/documents/upload/", views.document_upload, name="document_upload"),
-    path("documents/<int:pk>/download/", views.document_download, name="document_download"),
-    path("documents/<int:pk>/delete/", views.document_delete, name="document_delete"),
+    # Новый AJAX endpoint для drag-and-drop
+    path('resume/kanban/reorder/', ResumeCandidateKanbanReorderView.as_view(), name='resume_candidate_kanban_reorder'),
+
+    # Алиасы для совместимости со старыми ссылками
+    path('records/', ResumeCandidateListView.as_view(), name='record_list'),
+    path('records/add/', ResumeCandidateCreateView.as_view(), name='record_create'),
 ]
