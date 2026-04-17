@@ -1,14 +1,16 @@
 import json
+import os
+
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Q
-from django.http import JsonResponse
+from django.db.models import Q, Max
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views import View
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView, TemplateView
 
-from .forms import ResumeCandidateForm
-from .models import ResumeCandidate
+from .forms import ResumeCandidateForm, ResumeCandidateDocumentForm
+from .models import ResumeCandidate, ResumeCandidateDocument
 
 
 class ResumeCandidateListView(LoginRequiredMixin, ListView):
@@ -18,7 +20,7 @@ class ResumeCandidateListView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        queryset = ResumeCandidate.objects.all().order_by('-date', '-id')
+        queryset = ResumeCandidate.objects.all().prefetch_related('documents').order_by('-date', '-id')
 
         q = self.request.GET.get('q', '').strip()
         stage = self.request.GET.get('stage', '').strip()
@@ -71,11 +73,50 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, TemplateView):
         return context
 
 
+class ResumeCandidateDetailView(LoginRequiredMixin, DetailView):
+    model = ResumeCandidate
+    template_name = 'personnel/resume_candidate_detail.html'
+    context_object_name = 'record'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['documents'] = self.object.documents.all()
+        context['document_form'] = ResumeCandidateDocumentForm()
+        return context
+
+
 class ResumeCandidateCreateView(LoginRequiredMixin, CreateView):
     model = ResumeCandidate
     form_class = ResumeCandidateForm
     template_name = 'personnel/resume_candidate_form.html'
-    success_url = reverse_lazy('personnel:resume_candidate_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['documents'] = []
+        context['document_form'] = None
+        context['is_create'] = True
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+
+        document_file = form.cleaned_data.get('document_file')
+        document_title = form.cleaned_data.get('document_title')
+        document_comment = form.cleaned_data.get('document_comment')
+
+        if document_file:
+            ResumeCandidateDocument.objects.create(
+                record=self.object,
+                title=document_title or document_file.name,
+                file=document_file,
+                comment=document_comment or '',
+                uploaded_by=self.request.user if self.request.user.is_authenticated else None,
+            )
+
+        return response
+
+    def get_success_url(self):
+        return reverse_lazy('personnel:resume_candidate_edit', kwargs={'pk': self.object.pk})
 
 
 class ResumeCandidateUpdateView(LoginRequiredMixin, UpdateView):
@@ -83,6 +124,13 @@ class ResumeCandidateUpdateView(LoginRequiredMixin, UpdateView):
     form_class = ResumeCandidateForm
     template_name = 'personnel/resume_candidate_form.html'
     success_url = reverse_lazy('personnel:resume_candidate_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['documents'] = self.object.documents.all()
+        context['document_form'] = ResumeCandidateDocumentForm()
+        context['is_create'] = False
+        return context
 
 
 class ResumeCandidateDeleteView(LoginRequiredMixin, DeleteView):
@@ -100,18 +148,17 @@ class ResumeCandidateStageUpdateView(LoginRequiredMixin, View):
             return JsonResponse({'status': 'error', 'message': 'Некорректный этап'}, status=400)
 
         candidate.stage = stage
-        max_sort = ResumeCandidate.objects.filter(stage=stage).aggregate(
-            max_sort=Q()
-        )
-
-        last_sort = ResumeCandidate.objects.filter(stage=stage).order_by('-sort_order').first()
-        candidate.sort_order = (last_sort.sort_order + 1) if last_sort else 1
+        last_sort = ResumeCandidate.objects.filter(stage=stage).aggregate(
+            max_sort=Max('sort_order')
+        )['max_sort'] or 0
+        candidate.sort_order = last_sort + 1
         candidate.save()
 
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'status': 'ok'})
 
         return redirect('personnel:resume_candidate_kanban')
+
 
 class ResumeCandidateKanbanReorderView(LoginRequiredMixin, View):
     def post(self, request):
@@ -132,7 +179,6 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, View):
             candidate.stage = new_stage
             candidate.save()
 
-            # Обновляем порядок карточек в целевой колонке
             for index, item_id in enumerate(ordered_ids, start=1):
                 ResumeCandidate.objects.filter(pk=item_id).update(
                     stage=new_stage,
@@ -143,3 +189,50 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, View):
 
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+class ResumeCandidateDocumentUploadView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        record = get_object_or_404(ResumeCandidate, pk=pk)
+        form = ResumeCandidateDocumentForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            document = form.save(commit=False)
+            document.record = record
+            document.uploaded_by = request.user
+            document.save()
+
+        next_url = request.POST.get('next')
+        if next_url:
+            return redirect(next_url)
+
+        return redirect('personnel:resume_candidate_edit', pk=record.pk)
+
+
+class ResumeCandidateDocumentDownloadView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        document = get_object_or_404(ResumeCandidateDocument, pk=pk)
+
+        if not document.file:
+            raise Http404('Файл не найден')
+
+        file_handle = document.file.open('rb')
+        filename = os.path.basename(document.file.name)
+        return FileResponse(file_handle, as_attachment=True, filename=filename)
+
+
+class ResumeCandidateDocumentDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        document = get_object_or_404(ResumeCandidateDocument, pk=pk)
+        record_pk = document.record.pk
+
+        if document.file:
+            document.file.delete(save=False)
+
+        document.delete()
+
+        next_url = request.POST.get('next')
+        if next_url:
+            return redirect(next_url)
+
+        return redirect('personnel:resume_candidate_edit', pk=record_pk)

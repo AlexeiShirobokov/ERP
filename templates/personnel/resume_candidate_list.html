@@ -75,34 +75,38 @@
                         <th>Год рождения</th>
                         <th>Квалификация</th>
                         <th>Примечание</th>
-                        <!--                        <th>Направление на МО</th>-->
+                        <th>Направление на МО</th>
                         <th>Причина отказа</th>
                         <th>Билет</th>
                         <th>Этап</th>
+                        <th>Документы</th>
                         <th>Действия</th>
                     </tr>
                     </thead>
                     <tbody>
                     {% for item in candidates %}
                         <tr>
-                            <td>{{ item.number }}</td>
+                            <td>{{ item.number|default:item.id }}</td>
                             <td>{{ item.date|date:"d.m.Y" }}</td>
                             <td>{{ item.full_name }}</td>
                             <td>{{ item.hh_vacancy|default:"-" }}</td>
                             <td>{{ item.position|default:"-" }}</td>
                             <td>{{ item.contacts|default:"-" }}</td>
                             <td>{{ item.get_medical_commission_display }}</td>
-                            <td>{{ item.comment|default:"-" }}</td>
+                            <td>{{ item.comment|default:"-"|truncatechars:80 }}</td>
                             <td>{{ item.birth_year|default:"-" }}</td>
-                            <td>{{ item.qualification|default:"-" }}</td>
-                            <td>{{ item.note|default:"-" }}</td>
-
-<!--                            <td>{{ item.medical_referral|default:"-" }}</td>-->
-                            <td>{{ item.refusal_reason|default:"-" }}</td>
+                            <td>{{ item.qualification|default:"-"|truncatechars:80 }}</td>
+                            <td>{{ item.note|default:"-"|truncatechars:80 }}</td>
+                            <td>{{ item.medical_referral|default:"-" }}</td>
+                            <td>{{ item.refusal_reason|default:"-"|truncatechars:80 }}</td>
                             <td>{{ item.ticket|default:"-" }}</td>
                             <td>{{ item.get_stage_display }}</td>
                             <td>
+                                <span class="badge text-bg-secondary">{{ item.documents.count }}</span>
+                            </td>
+                            <td>
                                 <div class="d-flex flex-column gap-1">
+                                    <a href="{% url 'personnel:resume_candidate_detail' item.pk %}" class="btn btn-sm btn-outline-primary">Открыть</a>
                                     <a href="{% url 'personnel:resume_candidate_edit' item.pk %}" class="btn btn-sm btn-warning">Изменить</a>
                                     <a href="{% url 'personnel:resume_candidate_delete' item.pk %}" class="btn btn-sm btn-danger">Удалить</a>
                                 </div>
@@ -110,7 +114,7 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="16" class="text-center py-4">Записей пока нет</td>
+                            <td colspan="17" class="text-center py-4">Записей пока нет</td>
                         </tr>
                     {% endfor %}
                     </tbody>

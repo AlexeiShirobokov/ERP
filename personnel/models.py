@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models import Max
 from django.utils import timezone
+from django.conf import settings
 
 
 class ResumeCandidate(models.Model):
@@ -81,3 +82,30 @@ class ResumeCandidate(models.Model):
             self.sort_order = max_sort + 1
 
         super().save(*args, **kwargs)
+
+class ResumeCandidateDocument(models.Model):
+    record = models.ForeignKey(
+        'ResumeCandidate',
+        on_delete=models.CASCADE,
+        related_name='documents',
+        verbose_name='Кандидат'
+    )
+    title = models.CharField('Название', max_length=255)
+    file = models.FileField('Файл', upload_to='personnel/candidate_documents/%Y/%m/')
+    comment = models.TextField('Комментарий', blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Загрузил'
+    )
+    uploaded_at = models.DateTimeField('Дата загрузки', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Документ кандидата'
+        verbose_name_plural = 'Документы кандидатов'
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return self.title

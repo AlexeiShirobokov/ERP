@@ -79,10 +79,7 @@
                             <div class="field-value">{{ record.get_stage_display }}</div>
                         </div>
 
-                        <div class="col-md-6">
-                            <div class="field-label">Направление на МО</div>
-                            <div class="field-value">{{ record.medical_referral|default:"—" }}</div>
-                        </div>
+
                         <div class="col-md-6">
                             <div class="field-label">Билет</div>
                             <div class="field-value">{{ record.ticket|default:"—" }}</div>
@@ -124,6 +121,7 @@
                         class="row g-3 mb-4"
                     >
                         {% csrf_token %}
+                        <input type="hidden" name="next" value="{% url 'personnel:resume_candidate_detail' record.pk %}">
 
                         <div class="col-md-4">
                             <label class="form-label">{{ document_form.title.label }}</label>
@@ -146,7 +144,7 @@
                     </form>
 
                     <div class="table-responsive">
-                        <table class="table table-bordered align-middle">
+                        <table class="table table-bordered align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
                                     <th>Название</th>
@@ -176,6 +174,7 @@
                                                 </a>
                                                 <form method="post" action="{% url 'personnel:document_delete' doc.pk %}">
                                                     {% csrf_token %}
+                                                    <input type="hidden" name="next" value="{% url 'personnel:resume_candidate_detail' record.pk %}">
                                                     <button type="submit" class="btn btn-sm btn-outline-danger">
                                                         Удалить
                                                     </button>
@@ -204,6 +203,24 @@
                 </div>
                 <div class="card-body">
                     <p class="mb-2">
+                        <strong>Создал:</strong><br>
+                        {% if record.created_by %}
+                            {{ record.created_by.get_full_name|default:record.created_by.username }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </p>
+
+                    <p class="mb-2">
+                        <strong>Последний редактор:</strong><br>
+                        {% if record.updated_by %}
+                            {{ record.updated_by.get_full_name|default:record.updated_by.username }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </p>
+
+                    <p class="mb-2">
                         <strong>Создано:</strong><br>
                         {% if record.created_at %}
                             {{ record.created_at|date:"d.m.Y H:i" }}
@@ -212,18 +229,13 @@
                         {% endif %}
                     </p>
 
-                    <p class="mb-2">
+                    <p class="mb-0">
                         <strong>Изменено:</strong><br>
                         {% if record.updated_at %}
                             {{ record.updated_at|date:"d.m.Y H:i" }}
                         {% else %}
                             —
                         {% endif %}
-                    </p>
-
-                    <p class="mb-0">
-                        <strong>ID записи:</strong><br>
-                        {{ record.id }}
                     </p>
                 </div>
             </div>
