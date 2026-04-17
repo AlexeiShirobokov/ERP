@@ -75,7 +75,7 @@
                         <th>Год рождения</th>
                         <th>Квалификация</th>
                         <th>Примечание</th>
-                        <th>Направление на МО</th>
+                        <!--                        <th>Направление на МО</th>-->
                         <th>Причина отказа</th>
                         <th>Билет</th>
                         <th>Этап</th>
@@ -96,7 +96,8 @@
                             <td>{{ item.birth_year|default:"-" }}</td>
                             <td>{{ item.qualification|default:"-" }}</td>
                             <td>{{ item.note|default:"-" }}</td>
-                            <td>{{ item.medical_referral|default:"-" }}</td>
+
+<!--                            <td>{{ item.medical_referral|default:"-" }}</td>-->
                             <td>{{ item.refusal_reason|default:"-" }}</td>
                             <td>{{ item.ticket|default:"-" }}</td>
                             <td>{{ item.get_stage_display }}</td>

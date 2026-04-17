@@ -16,8 +16,10 @@ class ResumeCandidateForm(forms.ModelForm):
             'birth_year',
             'qualification',
             'note',
-            'medical_referral',
+            #'medical_referral',
+            'otipb',
             'refusal_reason',
+
             'ticket',
             'stage',
         ]
@@ -27,6 +29,7 @@ class ResumeCandidateForm(forms.ModelForm):
             'qualification': forms.Textarea(attrs={'rows': 2}),
             'note': forms.Textarea(attrs={'rows': 2}),
             'refusal_reason': forms.Textarea(attrs={'rows': 2}),
+            'hz': forms.Textarea(attrs={'rows': 2}),
         }
 
     def __init__(self, *args, **kwargs):

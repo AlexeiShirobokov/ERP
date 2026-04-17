@@ -11,14 +11,16 @@ class ResumeCandidate(models.Model):
     ]
 
     STAGE_CHOICES = [
-        ('cold_search', 'Холодный поиск'),
+        #('cold_search', 'Холодный поиск'),
         ('response', 'Отклик'),
         ('phone_interview', 'Тел. интервью'),
-        ('interview', 'Собеседование'),
-        ('medical', 'Медкомиссия'),
-        ('ticket', 'Билет'),
+        #('interview', 'Собеседование'),
+        ('otipb', 'ОТИПБ'),
+        #('medical', 'Медкомиссия'),
+        ('hr_department', 'Отдел кадров'),
+        ('ticket', 'Требуется покупка билетов'),
         ('hired', 'Трудоустроен'),
-        ('rejected', 'Отказ'),
+
     ]
     hh_resume_id = models.CharField('HH resume id', max_length=100, blank=True, db_index=True)
     hh_resume_link = models.URLField('Ссылка на резюме HH', blank=True)
@@ -43,7 +45,8 @@ class ResumeCandidate(models.Model):
     birth_year = models.PositiveIntegerField('Год рождения', null=True, blank=True)
     qualification = models.TextField('Квалификация, наличие удостоверения на сайте', blank=True)
     note = models.TextField('Примечание', blank=True)
-    medical_referral = models.CharField('Направление на МО', max_length=255, blank=True)
+    otipb = models.CharField('ОТИПБ', max_length=255, blank=True)
+    #medical_referral = models.CharField('Направление на МО', max_length=255, blank=True)
     refusal_reason = models.TextField('Примечание или причина отказа', blank=True)
     ticket = models.CharField('Билет', max_length=255, blank=True)
 
@@ -51,7 +54,7 @@ class ResumeCandidate(models.Model):
         'Этап',
         max_length=30,
         choices=STAGE_CHOICES,
-        default='cold_search'
+        default='response'
     )
     sort_order = models.PositiveIntegerField('Порядок', default=0)
 
