@@ -1,7 +1,7 @@
 import json
 import os
 
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db.models import Q, Max
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -13,11 +13,13 @@ from .forms import ResumeCandidateForm, ResumeCandidateDocumentForm
 from .models import ResumeCandidate, ResumeCandidateDocument
 
 
-class ResumeCandidateListView(LoginRequiredMixin, ListView):
+class ResumeCandidateListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = ResumeCandidate
     template_name = 'personnel/resume_candidate_list.html'
     context_object_name = 'candidates'
     paginate_by = 50
+    permission_required = 'personnel.view_resumecandidate'
+    raise_exception = True
 
     def get_queryset(self):
         queryset = ResumeCandidate.objects.all().prefetch_related('documents').order_by('-date', '-id')
@@ -53,8 +55,10 @@ class ResumeCandidateListView(LoginRequiredMixin, ListView):
         return context
 
 
-class ResumeCandidateKanbanView(LoginRequiredMixin, TemplateView):
+class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'personnel/resume_candidate_kanban.html'
+    permission_required = 'personnel.view_resumecandidate'
+    raise_exception = True
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -73,10 +77,12 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class ResumeCandidateDetailView(LoginRequiredMixin, DetailView):
+class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = ResumeCandidate
     template_name = 'personnel/resume_candidate_detail.html'
     context_object_name = 'record'
+    permission_required = 'personnel.view_resumecandidate'
+    raise_exception = True
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -85,10 +91,12 @@ class ResumeCandidateDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class ResumeCandidateCreateView(LoginRequiredMixin, CreateView):
+class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = ResumeCandidate
     form_class = ResumeCandidateForm
     template_name = 'personnel/resume_candidate_form.html'
+    permission_required = 'personnel.add_resumecandidate'
+    raise_exception = True
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -119,11 +127,13 @@ class ResumeCandidateCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy('personnel:resume_candidate_edit', kwargs={'pk': self.object.pk})
 
 
-class ResumeCandidateUpdateView(LoginRequiredMixin, UpdateView):
+class ResumeCandidateUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = ResumeCandidate
     form_class = ResumeCandidateForm
     template_name = 'personnel/resume_candidate_form.html'
     success_url = reverse_lazy('personnel:resume_candidate_list')
+    permission_required = 'personnel.change_resumecandidate'
+    raise_exception = True
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -133,13 +143,18 @@ class ResumeCandidateUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
 
-class ResumeCandidateDeleteView(LoginRequiredMixin, DeleteView):
+class ResumeCandidateDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = ResumeCandidate
     template_name = 'personnel/resume_candidate_confirm_delete.html'
     success_url = reverse_lazy('personnel:resume_candidate_list')
+    permission_required = 'personnel.delete_resumecandidate'
+    raise_exception = True
 
 
-class ResumeCandidateStageUpdateView(LoginRequiredMixin, View):
+class ResumeCandidateStageUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'personnel.change_resumecandidate'
+    raise_exception = True
+
     def post(self, request, pk, stage):
         candidate = get_object_or_404(ResumeCandidate, pk=pk)
         valid_stages = [item[0] for item in ResumeCandidate.STAGE_CHOICES]
@@ -160,7 +175,10 @@ class ResumeCandidateStageUpdateView(LoginRequiredMixin, View):
         return redirect('personnel:resume_candidate_kanban')
 
 
-class ResumeCandidateKanbanReorderView(LoginRequiredMixin, View):
+class ResumeCandidateKanbanReorderView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'personnel.change_resumecandidate'
+    raise_exception = True
+
     def post(self, request):
         try:
             data = json.loads(request.body)
@@ -191,7 +209,10 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, View):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
-class ResumeCandidateDocumentUploadView(LoginRequiredMixin, View):
+class ResumeCandidateDocumentUploadView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'personnel.change_resumecandidate'
+    raise_exception = True
+
     def post(self, request, pk):
         record = get_object_or_404(ResumeCandidate, pk=pk)
         form = ResumeCandidateDocumentForm(request.POST, request.FILES)
@@ -209,7 +230,10 @@ class ResumeCandidateDocumentUploadView(LoginRequiredMixin, View):
         return redirect('personnel:resume_candidate_edit', pk=record.pk)
 
 
-class ResumeCandidateDocumentDownloadView(LoginRequiredMixin, View):
+class ResumeCandidateDocumentDownloadView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'personnel.view_resumecandidate'
+    raise_exception = True
+
     def get(self, request, pk):
         document = get_object_or_404(ResumeCandidateDocument, pk=pk)
 
@@ -221,7 +245,10 @@ class ResumeCandidateDocumentDownloadView(LoginRequiredMixin, View):
         return FileResponse(file_handle, as_attachment=True, filename=filename)
 
 
-class ResumeCandidateDocumentDeleteView(LoginRequiredMixin, View):
+class ResumeCandidateDocumentDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'personnel.change_resumecandidate'
+    raise_exception = True
+
     def post(self, request, pk):
         document = get_object_or_404(ResumeCandidateDocument, pk=pk)
         record_pk = document.record.pk
