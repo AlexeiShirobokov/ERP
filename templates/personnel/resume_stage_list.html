@@ -1,0 +1,90 @@
+{% extends "personnel/base.html" %}
+
+{% block title %}Этапы подбора{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h2 mb-1">Этапы подбора</h1>
+        <p class="text-muted mb-0">Пользователь может сам добавлять новые подразделения и ответственных.</p>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'personnel:resume_candidate_kanban' %}" class="btn btn-outline-primary">Канбан</a>
+        <a href="{% url 'personnel:resume_candidate_list' %}" class="btn btn-outline-secondary">Список кандидатов</a>
+        {% if perms.personnel.add_resumestage %}
+            <a href="{% url 'personnel:resume_stage_add' %}" class="btn btn-primary">Добавить этап</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Порядок</th>
+                        <th>Название</th>
+                        <th>Код</th>
+                        <th>Активен</th>
+                        <th>Ответственный</th>
+                        <th>Email уведомлений</th>
+                        <th style="width: 220px;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in stages %}
+                        <tr>
+                            <td>{{ item.sort_order }}</td>
+                            <td>{{ item.name }}</td>
+                            <td><code>{{ item.code }}</code></td>
+                            <td>{% if item.is_active %}Да{% else %}Нет{% endif %}</td>
+                            <td>
+                                {% if item.responsible_user %}
+                                    {{ item.responsible_user.get_full_name|default:item.responsible_user.username }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.notify_email %}
+                                    {{ item.notify_email }}
+                                {% elif item.responsible_user and item.responsible_user.email %}
+                                    {{ item.responsible_user.email }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    {% if perms.personnel.change_resumestage %}
+                                        <a href="{% url 'personnel:resume_stage_edit' item.pk %}" class="btn btn-sm btn-outline-primary">
+                                            Изменить
+                                        </a>
+                                    {% endif %}
+                                    {% if perms.personnel.delete_resumestage %}
+                                        <a href="{% url 'personnel:resume_stage_delete' item.pk %}" class="btn btn-sm btn-outline-danger">
+                                            Удалить
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                Пользовательские этапы пока не добавлены.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="alert alert-info mt-4 mb-0">
+            Базовые этапы из системы продолжают работать. Здесь можно добавлять свои новые подразделения и согласующих.
+        </div>
+    </div>
+</div>
+{% endblock %}

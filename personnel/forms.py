@@ -1,6 +1,7 @@
 from django import forms
+from django.utils.text import slugify
 
-from .models import ResumeCandidate, ResumeCandidateDocument
+from .models import ResumeCandidate, ResumeCandidateDocument, ResumeStage
 
 
 CANDIDATE_FIELD_ORDER = [
@@ -15,9 +16,6 @@ CANDIDATE_FIELD_ORDER = [
     'qualification',
     'note',
     'otipb',
-    'medical_referral',
-    'referral_to_mo',
-    'estimated_arrival_date',
     'refusal_reason',
     'ticket',
     'stage',
@@ -35,9 +33,6 @@ def candidate_widgets():
     if 'date' in existing_candidate_fields():
         widgets['date'] = forms.DateInput(attrs={'type': 'date'})
 
-    if 'estimated_arrival_date' in existing_candidate_fields():
-        widgets['estimated_arrival_date'] = forms.DateInput(attrs={'type': 'date'})
-
     for field_name in ['comment', 'qualification', 'note', 'refusal_reason']:
         if field_name in existing_candidate_fields():
             widgets[field_name] = forms.Textarea(attrs={'rows': 2})
@@ -49,16 +44,16 @@ class ResumeCandidateForm(forms.ModelForm):
     document_title = forms.CharField(
         label='Название документа',
         max_length=255,
-        required=False
+        required=False,
     )
     document_file = forms.FileField(
         label='Файл',
-        required=False
+        required=False,
     )
     document_comment = forms.CharField(
         label='Комментарий к документу',
         required=False,
-        widget=forms.Textarea(attrs={'rows': 2})
+        widget=forms.Textarea(attrs={'rows': 2}),
     )
 
     class Meta:
@@ -68,7 +63,6 @@ class ResumeCandidateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         for _, field in self.fields.items():
             css_class = 'form-select' if isinstance(field.widget, forms.Select) else 'form-control'
             current = field.widget.attrs.get('class', '')
@@ -90,13 +84,55 @@ class ResumeCandidateDocumentForm(forms.ModelForm):
         model = ResumeCandidateDocument
         fields = ['title', 'file', 'comment']
         widgets = {
-            'comment': forms.TextInput(attrs={'placeholder': 'Комментаррий'}),
+            'comment': forms.TextInput(attrs={'placeholder': 'Комментарий'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        for _, field in self.fields.items():
+            current = field.widget.attrs.get('class', '')
+            field.widget.attrs['class'] = f'{current} form-control'.strip()
+
+
+class ResumeStageForm(forms.ModelForm):
+    class Meta:
+        model = ResumeStage
+        fields = ['name', 'code', 'sort_order', 'is_active', 'responsible_user', 'notify_email']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields['code'].required = False
+        self.fields['code'].help_text = 'Если оставить пустым, код будет создан автоматически.'
+        self.fields['notify_email'].required = False
+        self.fields['responsible_user'].required = False
 
         for _, field in self.fields.items():
-            css_class = 'form-control'
+            if isinstance(field.widget, forms.CheckboxInput):
+                continue
+
+            css_class = 'form-select' if isinstance(field.widget, forms.Select) else 'form-control'
             current = field.widget.attrs.get('class', '')
             field.widget.attrs['class'] = f'{current} {css_class}'.strip()
+
+        current = self.fields['is_active'].widget.attrs.get('class', '')
+        self.fields['is_active'].widget.attrs['class'] = f'{current} form-check-input'.strip()
+
+    def clean_code(self):
+        code = (self.cleaned_data.get('code') or '').strip()
+        name = (self.cleaned_data.get('name') or '').strip()
+
+        if not code:
+            code = slugify(name)
+
+        if not code:
+            raise forms.ValidationError('Не удалось сформировать код этапа.')
+
+        qs = ResumeStage.objects.filter(code=code)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+
+        if qs.exists():
+            raise forms.ValidationError('Этап с таким кодом уже существует.')
+
+        return code

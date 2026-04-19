@@ -1,15 +1,16 @@
 import json
 import logging
 import os
-
-from django.http import FileResponse, Http404, JsonResponse, HttpResponse
 from itertools import zip_longest
-from openpyxl import Workbook
+from types import SimpleNamespace
+
+from django import forms
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.mail import send_mail
 from django.db.models import Max, Q
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views import View
@@ -21,25 +22,64 @@ from django.views.generic import (
     TemplateView,
     UpdateView,
 )
+from openpyxl import Workbook
 
-from .forms import ResumeCandidateDocumentForm, ResumeCandidateForm
-from .models import ResumeCandidate, ResumeCandidateDocument
+from .forms import ResumeCandidateDocumentForm, ResumeCandidateForm, ResumeStageForm
+from .models import (
+    DEFAULT_STAGE_DEFINITIONS,
+    ResumeCandidate,
+    ResumeCandidateDocument,
+    ResumeStage,
+)
 
 
 logger = logging.getLogger(__name__)
 
-STAGE_NOTIFICATION_EMAILS = {
-    'otipb': ['shirobokov@pskgold.ru'],
-    'hr_department': ['alexeimvc@gmail.com'],
-}
+
+def get_stage_items(include_codes=None):
+    include_codes = set(filter(None, include_codes or []))
+
+    stage_map = {}
+    for item in DEFAULT_STAGE_DEFINITIONS:
+        stage_map[item['code']] = {
+            'code': item['code'],
+            'name': item['label'],
+            'sort_order': item.get('sort_order', 100),
+            'is_active': True,
+            'notify_email': (item.get('emails') or [''])[0] if item.get('emails') else '',
+            'responsible_user': None,
+        }
+
+    db_stages = ResumeStage.objects.select_related('responsible_user').all().order_by('sort_order', 'id')
+    for stage in db_stages:
+        stage_map[stage.code] = {
+            'code': stage.code,
+            'name': stage.name,
+            'sort_order': stage.sort_order,
+            'is_active': stage.is_active,
+            'notify_email': stage.notify_email,
+            'responsible_user': stage.responsible_user,
+        }
+
+    stages = [
+        SimpleNamespace(**data)
+        for data in stage_map.values()
+        if data['is_active'] or data['code'] in include_codes
+    ]
+    stages.sort(key=lambda item: (item.sort_order, item.name.lower()))
+    return stages
+
+
+def get_stage_choices(include_codes=None):
+    return [(item.code, item.name) for item in get_stage_items(include_codes=include_codes)]
 
 
 def send_stage_notification(candidate, stage_code, moved_by):
-    recipients = STAGE_NOTIFICATION_EMAILS.get(stage_code)
+    recipients = ResumeCandidate.get_stage_notification_emails(stage_code)
     if not recipients:
         return
 
-    stage_name = dict(ResumeCandidate.STAGE_CHOICES).get(stage_code, stage_code)
+    stage_name = ResumeCandidate.get_stage_label(stage_code)
 
     moved_by_name = ''
     if moved_by:
@@ -77,6 +117,7 @@ def send_stage_notification(candidate, stage_code, moved_by):
             stage_code,
         )
 
+
 def get_resume_candidates_queryset(request):
     queryset = ResumeCandidate.objects.all().prefetch_related('documents').order_by('-date', '-id')
 
@@ -110,6 +151,55 @@ def get_resume_candidates_queryset(request):
     return queryset
 
 
+class ResumeStageListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    model = ResumeStage
+    template_name = 'personnel/resume_stage_list.html'
+    context_object_name = 'stages'
+    permission_required = 'personnel.view_resumestage'
+    raise_exception = True
+
+    def get_queryset(self):
+        return ResumeStage.objects.select_related('responsible_user').order_by('sort_order', 'id')
+
+
+class ResumeStageCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
+    model = ResumeStage
+    form_class = ResumeStageForm
+    template_name = 'personnel/resume_stage_form.html'
+    success_url = reverse_lazy('personnel:resume_stage_list')
+    permission_required = 'personnel.add_resumestage'
+    raise_exception = True
+
+
+class ResumeStageUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+    model = ResumeStage
+    form_class = ResumeStageForm
+    template_name = 'personnel/resume_stage_form.html'
+    success_url = reverse_lazy('personnel:resume_stage_list')
+    permission_required = 'personnel.change_resumestage'
+    raise_exception = True
+
+
+class ResumeStageDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
+    model = ResumeStage
+    template_name = 'personnel/resume_stage_confirm_delete.html'
+    success_url = reverse_lazy('personnel:resume_stage_list')
+    permission_required = 'personnel.delete_resumestage'
+    raise_exception = True
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        if ResumeCandidate.objects.filter(stage=self.object.code).exists():
+            messages.error(
+                request,
+                'Нельзя удалить этап, который используется в карточках кандидатов.',
+            )
+            return redirect('personnel:resume_stage_list')
+
+        return super().post(request, *args, **kwargs)
+
+
 class ResumeCandidateListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = ResumeCandidate
     template_name = 'personnel/resume_candidate_list.html'
@@ -128,9 +218,10 @@ class ResumeCandidateListView(LoginRequiredMixin, PermissionRequiredMixin, ListV
         context['medical'] = self.request.GET.get('medical', '')
         context['date_from'] = self.request.GET.get('date_from', '')
         context['date_to'] = self.request.GET.get('date_to', '')
-        context['stage_choices'] = ResumeCandidate.STAGE_CHOICES
+        context['stages'] = get_stage_items()
         context['medical_choices'] = ResumeCandidate.MEDICAL_CHOICES
         return context
+
 
 class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'personnel.view_resumecandidate'
@@ -176,10 +267,10 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
                 item.birth_year or '',
                 item.qualification or '',
                 item.note or '',
-                getattr(item, 'otipb', '') or '',
+                item.otipb or '',
                 item.refusal_reason or '',
                 item.ticket or '',
-                item.get_stage_display() if item.stage else '',
+                item.stage_name,
                 item.documents.count(),
             ])
 
@@ -196,9 +287,9 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
         response['Content-Disposition'] = 'attachment; filename="resume_candidates.xlsx"'
-
         workbook.save(response)
         return response
+
 
 class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'personnel/resume_candidate_kanban.html'
@@ -209,11 +300,11 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
         context = super().get_context_data(**kwargs)
 
         columns = []
-        for stage_code, stage_name in ResumeCandidate.STAGE_CHOICES:
-            items = ResumeCandidate.objects.filter(stage=stage_code).order_by('sort_order', '-date', '-id')
+        for stage_item in get_stage_items():
+            items = ResumeCandidate.objects.filter(stage=stage_item.code).order_by('sort_order', '-date', '-id')
             columns.append({
-                'code': stage_code,
-                'name': stage_name,
+                'code': stage_item.code,
+                'name': stage_item.name,
                 'items': items,
                 'count': items.count(),
             })
@@ -242,6 +333,14 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
     template_name = 'personnel/resume_candidate_form.html'
     permission_required = 'personnel.add_resumecandidate'
     raise_exception = True
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if 'stage' in form.fields:
+            choices = get_stage_choices()
+            form.fields['stage'].widget = forms.Select(choices=choices)
+            form.fields['stage'].choices = choices
+        return form
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -283,6 +382,18 @@ class ResumeCandidateUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upd
     permission_required = 'personnel.change_resumecandidate'
     raise_exception = True
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if 'stage' in form.fields:
+            current_stage = getattr(self.object, 'stage', '')
+            choices = get_stage_choices(include_codes=[current_stage] if current_stage else None)
+            if current_stage and current_stage not in {code for code, _ in choices}:
+                choices.append((current_stage, ResumeCandidate.get_stage_label(current_stage)))
+
+            form.fields['stage'].widget = forms.Select(choices=choices)
+            form.fields['stage'].choices = choices
+        return form
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['documents'] = self.object.documents.all()
@@ -305,7 +416,7 @@ class ResumeCandidateStageUpdateView(LoginRequiredMixin, PermissionRequiredMixin
 
     def post(self, request, pk, stage):
         candidate = get_object_or_404(ResumeCandidate, pk=pk)
-        valid_stages = [item[0] for item in ResumeCandidate.STAGE_CHOICES]
+        valid_stages = {item.code for item in get_stage_items(include_codes=[candidate.stage])}
 
         if stage not in valid_stages:
             return JsonResponse({'status': 'error', 'message': 'Некорректный этап'}, status=400)
@@ -341,7 +452,7 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, PermissionRequiredMix
             if not candidate_id or not new_stage or not isinstance(ordered_ids, list):
                 return JsonResponse({'status': 'error', 'message': 'Некорректные данные'}, status=400)
 
-            valid_stages = [item[0] for item in ResumeCandidate.STAGE_CHOICES]
+            valid_stages = {item.code for item in get_stage_items()}
             if new_stage not in valid_stages:
                 return JsonResponse({'status': 'error', 'message': 'Некорректный этап'}, status=400)
 
@@ -420,4 +531,3 @@ class ResumeCandidateDocumentDeleteView(LoginRequiredMixin, PermissionRequiredMi
             return redirect(next_url)
 
         return redirect('personnel:resume_candidate_edit', pk=record_pk)
-
