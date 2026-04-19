@@ -53,5 +53,28 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const addBtn = document.getElementById('add-document-row');
+    const rowsContainer = document.getElementById('document-rows');
+    const template = document.getElementById('document-row-template');
+
+    if (addBtn && rowsContainer && template) {
+        addBtn.addEventListener('click', function () {
+            const clone = template.content.cloneNode(true);
+            rowsContainer.appendChild(clone);
+        });
+
+        rowsContainer.addEventListener('click', function (event) {
+            if (event.target.classList.contains('remove-document-row')) {
+                const rows = rowsContainer.querySelectorAll('.document-row');
+                if (rows.length > 1) {
+                    event.target.closest('.document-row').remove();
+                }
+            }
+        });
+    }
+});
+</script>
 </body>
 </html>

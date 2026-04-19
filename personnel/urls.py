@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     ResumeCandidateListView,
+    ResumeCandidateExportExcelView,
     ResumeCandidateKanbanView,
     ResumeCandidateDetailView,
     ResumeCandidateCreateView,
@@ -29,6 +30,8 @@ urlpatterns = [
     path('resume/<int:pk>/documents/upload/', ResumeCandidateDocumentUploadView.as_view(), name='document_upload'),
     path('resume/documents/<int:pk>/download/', ResumeCandidateDocumentDownloadView.as_view(), name='document_download'),
     path('resume/documents/<int:pk>/delete/', ResumeCandidateDocumentDeleteView.as_view(), name='document_delete'),
+    path('resume/export/excel/', ResumeCandidateExportExcelView.as_view(), name='resume_candidate_export_excel'),
+
 
     # алиасы совместимости
     path('records/', ResumeCandidateListView.as_view(), name='record_list'),

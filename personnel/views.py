@@ -1,16 +1,113 @@
 import json
+import logging
 import os
 
+from django.http import FileResponse, Http404, JsonResponse, HttpResponse
+from itertools import zip_longest
+from openpyxl import Workbook
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.db.models import Q, Max
+from django.core.mail import send_mail
+from django.db.models import Max, Q
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views import View
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView, TemplateView
+from django.views.generic import (
+    CreateView,
+    DeleteView,
+    DetailView,
+    ListView,
+    TemplateView,
+    UpdateView,
+)
 
-from .forms import ResumeCandidateForm, ResumeCandidateDocumentForm
+from .forms import ResumeCandidateDocumentForm, ResumeCandidateForm
 from .models import ResumeCandidate, ResumeCandidateDocument
+
+
+logger = logging.getLogger(__name__)
+
+STAGE_NOTIFICATION_EMAILS = {
+    'otipb': ['shirobokov@pskgold.ru'],
+    'hr_department': ['alexeimvc@gmail.com'],
+}
+
+
+def send_stage_notification(candidate, stage_code, moved_by):
+    recipients = STAGE_NOTIFICATION_EMAILS.get(stage_code)
+    if not recipients:
+        return
+
+    stage_name = dict(ResumeCandidate.STAGE_CHOICES).get(stage_code, stage_code)
+
+    moved_by_name = ''
+    if moved_by:
+        moved_by_name = (moved_by.get_full_name() or '').strip() or getattr(moved_by, 'username', '')
+    if not moved_by_name:
+        moved_by_name = 'Система'
+
+    subject = f'Кандидат переведен на этап: {stage_name}'
+    message = (
+        f'Кандидат: {candidate.full_name}\n'
+        f'Должность: {candidate.position or "-"}\n'
+        f'Новый этап: {stage_name}\n'
+        f'Переместил: {moved_by_name}\n'
+        f'ID кандидата: {candidate.pk}\n'
+    )
+
+    from_email = (
+        getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+        or getattr(settings, 'EMAIL_HOST_USER', None)
+        or 'noreply@localhost'
+    )
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=from_email,
+            recipient_list=recipients,
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception(
+            'Ошибка отправки уведомления по кандидату %s на этап %s',
+            candidate.pk,
+            stage_code,
+        )
+
+def get_resume_candidates_queryset(request):
+    queryset = ResumeCandidate.objects.all().prefetch_related('documents').order_by('-date', '-id')
+
+    q = request.GET.get('q', '').strip()
+    stage = request.GET.get('stage', '').strip()
+    medical = request.GET.get('medical', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+
+    if q:
+        queryset = queryset.filter(
+            Q(full_name__icontains=q)
+            | Q(hh_vacancy__icontains=q)
+            | Q(position__icontains=q)
+            | Q(contacts__icontains=q)
+            | Q(ticket__icontains=q)
+        )
+
+    if stage:
+        queryset = queryset.filter(stage=stage)
+
+    if medical:
+        queryset = queryset.filter(medical_commission=medical)
+
+    if date_from:
+        queryset = queryset.filter(date__gte=date_from)
+
+    if date_to:
+        queryset = queryset.filter(date__lte=date_to)
+
+    return queryset
 
 
 class ResumeCandidateListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -22,38 +119,86 @@ class ResumeCandidateListView(LoginRequiredMixin, PermissionRequiredMixin, ListV
     raise_exception = True
 
     def get_queryset(self):
-        queryset = ResumeCandidate.objects.all().prefetch_related('documents').order_by('-date', '-id')
-
-        q = self.request.GET.get('q', '').strip()
-        stage = self.request.GET.get('stage', '').strip()
-        medical = self.request.GET.get('medical', '').strip()
-
-        if q:
-            queryset = queryset.filter(
-                Q(full_name__icontains=q) |
-                Q(hh_vacancy__icontains=q) |
-                Q(position__icontains=q) |
-                Q(contacts__icontains=q) |
-                Q(ticket__icontains=q)
-            )
-
-        if stage:
-            queryset = queryset.filter(stage=stage)
-
-        if medical:
-            queryset = queryset.filter(medical_commission=medical)
-
-        return queryset
+        return get_resume_candidates_queryset(self.request)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['q'] = self.request.GET.get('q', '')
         context['stage'] = self.request.GET.get('stage', '')
         context['medical'] = self.request.GET.get('medical', '')
+        context['date_from'] = self.request.GET.get('date_from', '')
+        context['date_to'] = self.request.GET.get('date_to', '')
         context['stage_choices'] = ResumeCandidate.STAGE_CHOICES
         context['medical_choices'] = ResumeCandidate.MEDICAL_CHOICES
         return context
 
+class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'personnel.view_resumecandidate'
+    raise_exception = True
+
+    def get(self, request, *args, **kwargs):
+        queryset = get_resume_candidates_queryset(request)
+
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = 'Кандидаты'
+
+        headers = [
+            '№',
+            'Дата',
+            'ФИО',
+            'Соискатель по вакансии на hh.ru',
+            'Должность',
+            'Контакты',
+            'Мед комиссия',
+            'Комментарий',
+            'Год рождения',
+            'Квалификация',
+            'Примечание',
+            'ОТИПБ',
+            'Причина отказа',
+            'Билет',
+            'Этап',
+            'Документы',
+        ]
+        sheet.append(headers)
+
+        for item in queryset:
+            sheet.append([
+                item.number or item.id,
+                item.date.strftime('%d.%m.%Y') if item.date else '',
+                item.full_name or '',
+                item.hh_vacancy or '',
+                item.position or '',
+                item.contacts or '',
+                item.get_medical_commission_display() if item.medical_commission else '',
+                item.comment or '',
+                item.birth_year or '',
+                item.qualification or '',
+                item.note or '',
+                getattr(item, 'otipb', '') or '',
+                item.refusal_reason or '',
+                item.ticket or '',
+                item.get_stage_display() if item.stage else '',
+                item.documents.count(),
+            ])
+
+        for column_cells in sheet.columns:
+            max_length = 0
+            column_letter = column_cells[0].column_letter
+            for cell in column_cells:
+                value = '' if cell.value is None else str(cell.value)
+                if len(value) > max_length:
+                    max_length = len(value)
+            sheet.column_dimensions[column_letter].width = min(max_length + 2, 40)
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename="resume_candidates.xlsx"'
+
+        workbook.save(response)
+        return response
 
 class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'personnel/resume_candidate_kanban.html'
@@ -108,16 +253,19 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
     def form_valid(self, form):
         response = super().form_valid(form)
 
-        document_file = form.cleaned_data.get('document_file')
-        document_title = form.cleaned_data.get('document_title')
-        document_comment = form.cleaned_data.get('document_comment')
+        titles = self.request.POST.getlist('create_document_titles')
+        comments = self.request.POST.getlist('create_document_comments')
+        files = self.request.FILES.getlist('create_document_files')
 
-        if document_file:
+        for title, comment, uploaded_file in zip_longest(titles, comments, files, fillvalue=None):
+            if not uploaded_file:
+                continue
+
             ResumeCandidateDocument.objects.create(
                 record=self.object,
-                title=document_title or document_file.name,
-                file=document_file,
-                comment=document_comment or '',
+                title=(title or '').strip() or uploaded_file.name,
+                file=uploaded_file,
+                comment=(comment or '').strip(),
                 uploaded_by=self.request.user if self.request.user.is_authenticated else None,
             )
 
@@ -162,12 +310,16 @@ class ResumeCandidateStageUpdateView(LoginRequiredMixin, PermissionRequiredMixin
         if stage not in valid_stages:
             return JsonResponse({'status': 'error', 'message': 'Некорректный этап'}, status=400)
 
+        old_stage = candidate.stage
         candidate.stage = stage
         last_sort = ResumeCandidate.objects.filter(stage=stage).aggregate(
             max_sort=Max('sort_order')
         )['max_sort'] or 0
         candidate.sort_order = last_sort + 1
         candidate.save()
+
+        if old_stage != stage:
+            send_stage_notification(candidate, stage, request.user)
 
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'status': 'ok'})
@@ -194,14 +346,19 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, PermissionRequiredMix
                 return JsonResponse({'status': 'error', 'message': 'Некорректный этап'}, status=400)
 
             candidate = get_object_or_404(ResumeCandidate, pk=candidate_id)
+            old_stage = candidate.stage
+
             candidate.stage = new_stage
             candidate.save()
 
             for index, item_id in enumerate(ordered_ids, start=1):
                 ResumeCandidate.objects.filter(pk=item_id).update(
                     stage=new_stage,
-                    sort_order=index
+                    sort_order=index,
                 )
+
+            if old_stage != new_stage:
+                send_stage_notification(candidate, new_stage, request.user)
 
             return JsonResponse({'status': 'ok'})
 
@@ -263,3 +420,4 @@ class ResumeCandidateDocumentDeleteView(LoginRequiredMixin, PermissionRequiredMi
             return redirect(next_url)
 
         return redirect('personnel:resume_candidate_edit', pk=record_pk)
+

@@ -20,39 +20,87 @@
             <a href="{% url 'personnel:resume_candidate_add' %}" class="btn btn-primary">Добавить кандидата</a>
         </div>
     </div>
+<!--    <div class="col-md-2">-->
+<!--        <label class="form-label">Дата с</label>-->
+<!--        <input type="date" name="date_from" value="{{ date_from }}" class="form-control">-->
+<!--    </div>-->
 
+<!--    <div class="col-md-2">-->
+<!--        <label class="form-label">Дата по</label>-->
+<!--        <input type="date" name="date_to" value="{{ date_to }}" class="form-control">-->
+<!--    </div>-->
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
-            <form method="get" class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Поиск</label>
-                    <input type="text" name="q" value="{{ q }}" class="form-control"
-                           placeholder="ФИО, вакансия, должность, контакты, билет">
-                </div>
+            <form method="get" class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <div class="row g-3 align-items-end">
 
-                <div class="col-md-3">
-                    <label class="form-label">Этап</label>
-                    <select name="stage" class="form-select">
-                        <option value="">Все этапы</option>
-                        {% for value, label in stage_choices %}
-                            <option value="{{ value }}" {% if stage == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                        <div class="col-xl-3 col-lg-6">
+                            <label class="form-label">Поиск</label>
+                            <input
+                                type="text"
+                                name="q"
+                                value="{{ q }}"
+                                class="form-control"
+                                placeholder="ФИО, вакансия, должность, контакты, билет"
+                            >
+                        </div>
 
-                <div class="col-md-3">
-                    <label class="form-label">Медкомиссия</label>
-                    <select name="medical" class="form-select">
-                        <option value="">Все статусы</option>
-                        {% for value, label in medical_choices %}
-                            <option value="{{ value }}" {% if medical == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                        <div class="col-xl-2 col-lg-6">
+                            <label class="form-label">Этап</label>
+                            <select name="stage" class="form-select">
+                                <option value="">Все этапы</option>
+                                {% for value, label in stage_choices %}
+                                    <option value="{{ value }}" {% if stage == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
 
-                <div class="col-md-2 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-secondary w-100">Фильтр</button>
-                    <a href="{% url 'personnel:resume_candidate_list' %}" class="btn btn-outline-secondary w-100">Сброс</a>
+                        <div class="col-xl-2 col-lg-6">
+                            <label class="form-label">Медкомиссия</label>
+                            <select name="medical" class="form-select">
+                                <option value="">Все статусы</option>
+                                {% for value, label in medical_choices %}
+                                    <option value="{{ value }}" {% if medical == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-xl-1 col-lg-3 d-grid">
+                            <button type="submit" class="btn btn-secondary">Фильтр</button>
+                        </div>
+
+                        <div class="col-xl-1 col-lg-3 d-grid">
+                            <button
+                                type="submit"
+                                formaction="{% url 'personnel:resume_candidate_export_excel' %}"
+                                class="btn btn-success"
+                            >
+                                Excel
+                            </button>
+                        </div>
+
+                        <div class="col-xl-1 col-lg-3 d-grid">
+                            <a href="{% url 'personnel:resume_candidate_list' %}" class="btn btn-outline-secondary">
+                                Сброс
+                            </a>
+                        </div>
+
+                        <div class="col-xl-1 col-lg-3">
+                            <label class="form-label">Дата с</label>
+                            <input type="date" name="date_from" value="{{ date_from }}" class="form-control">
+                        </div>
+
+                        <div class="col-xl-1 col-lg-3">
+                            <label class="form-label">Дата по</label>
+                            <input type="date" name="date_to" value="{{ date_to }}" class="form-control">
+                        </div>
+
+                    </div>
                 </div>
             </form>
         </div>
@@ -127,7 +175,7 @@
                         {% if page_obj.has_previous %}
                             <li class="page-item">
                                 <a class="page-link"
-                                   href="?q={{ q }}&stage={{ stage }}&medical={{ medical }}&page={{ page_obj.previous_page_number }}">
+                                   href="?q={{ q }}&stage={{ stage }}&medical={{ medical }}&date_from={{ date_from }}&date_to={{ date_to }}&page={{ page_obj.previous_page_number }}">
                                     Назад
                                 </a>
                             </li>
