@@ -12,9 +12,7 @@
                 {% if object %}Редактировать кандидата{% else %}Добавить кандидата{% endif %}
             </h1>
 
-            {% if perms.personnel.view_resumestage %}
-                <a href="{% url 'personnel:resume_stage_list' %}" class="btn btn-sm btn-outline-dark">Этапы</a>
-            {% endif %}
+
         </div>
 
         <div class="card-body">

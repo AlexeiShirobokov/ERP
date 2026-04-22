@@ -24,3 +24,9 @@ kill -9 PID
 kill -9 1443
 
 одной командой lsof -ti:8000 | xargs kill -9
+
+
+# git
+удалить виртуальное окружение
+Remove-Item -Recurse -Force .\venv
+
