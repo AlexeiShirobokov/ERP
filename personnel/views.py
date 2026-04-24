@@ -3,7 +3,7 @@ import logging
 import os
 from itertools import zip_longest
 from types import SimpleNamespace
-
+from django.urls import reverse, reverse_lazy
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -74,7 +74,7 @@ def get_stage_choices(include_codes=None):
     return [(item.code, item.name) for item in get_stage_items(include_codes=include_codes)]
 
 
-def send_stage_notification(candidate, stage_code, moved_by):
+def send_stage_notification(candidate, stage_code, moved_by, request=None):
     recipients = ResumeCandidate.get_stage_notification_emails(stage_code)
     if not recipients:
         return
@@ -87,6 +87,17 @@ def send_stage_notification(candidate, stage_code, moved_by):
     if not moved_by_name:
         moved_by_name = 'Система'
 
+    candidate_url = ''
+    try:
+        relative_url = reverse('personnel:resume_candidate_edit', kwargs={'pk': candidate.pk})
+        if request is not None:
+            candidate_url = request.build_absolute_uri(relative_url)
+        else:
+            site_url = getattr(settings, 'SITE_URL', '').rstrip('/')
+            candidate_url = f'{site_url}{relative_url}' if site_url else relative_url
+    except Exception:
+        candidate_url = ''
+
     subject = f'Кандидат переведен на этап: {stage_name}'
     message = (
         f'Кандидат: {candidate.full_name}\n'
@@ -95,6 +106,9 @@ def send_stage_notification(candidate, stage_code, moved_by):
         f'Переместил: {moved_by_name}\n'
         f'ID кандидата: {candidate.pk}\n'
     )
+
+    if candidate_url:
+        message += f'Ссылка на карточку: {candidate_url}\n'
 
     from_email = (
         getattr(settings, 'DEFAULT_FROM_EMAIL', None)
@@ -240,6 +254,7 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
             'ФИО',
             'Соискатель по вакансии на hh.ru',
             'Должность',
+            'Опыт работы',
             'Контакты',
             'Мед комиссия',
             'Комментарий',
@@ -266,6 +281,7 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
                 item.comment or '',
                 item.birth_year or '',
                 item.qualification or '',
+                item.work_experience or '',
                 item.note or '',
                 item.otipb or '',
                 item.refusal_reason or '',
@@ -430,7 +446,7 @@ class ResumeCandidateStageUpdateView(LoginRequiredMixin, PermissionRequiredMixin
         candidate.save()
 
         if old_stage != stage:
-            send_stage_notification(candidate, stage, request.user)
+            send_stage_notification(candidate, stage, request.user, request)
 
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'status': 'ok'})
@@ -469,7 +485,7 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, PermissionRequiredMix
                 )
 
             if old_stage != new_stage:
-                send_stage_notification(candidate, new_stage, request.user)
+                send_stage_notification(candidate, new_stage, request.user, request)
 
             return JsonResponse({'status': 'ok'})
 

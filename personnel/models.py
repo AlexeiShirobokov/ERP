@@ -8,7 +8,7 @@ DEFAULT_STAGE_DEFINITIONS = [
     {'code': 'response', 'label': 'Отклик', 'emails': [], 'sort_order': 10},
     {'code': 'phone_interview', 'label': 'Тел. интервью', 'emails': [], 'sort_order': 20},
     {'code': 'otipb', 'label': 'ОТИПБ', 'emails': ['shirobokov@pskgold.ru'], 'sort_order': 30},
-    {'code': 'hr_department', 'label': 'Отдел кадров', 'emails': ['alexeimvc@gmail.com'], 'sort_order': 40},
+    {'code': 'hr_department', 'label': 'Отдел кадров', 'emails': ['shirobokov@pskgold.ru'], 'sort_order': 40},
     {'code': 'ticket', 'label': 'Требуется покупка билетов', 'emails': [], 'sort_order': 50},
     {'code': 'hired', 'label': 'Трудоустроен', 'emails': [], 'sort_order': 60},
 ]
@@ -84,6 +84,7 @@ class ResumeCandidate(models.Model):
     comment = models.TextField('Комментарий', blank=True)
     birth_year = models.PositiveIntegerField('Год рождения', null=True, blank=True)
     qualification = models.TextField('Квалификация, наличие удостоверения на сайте', blank=True)
+    work_experience=models.TextField('Опыт работы', blank=True)
     note = models.TextField('Примечание', blank=True)
     otipb = models.CharField('ОТИПБ', max_length=255, blank=True)
     refusal_reason = models.TextField('Примечание или причина отказа', blank=True)
