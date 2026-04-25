@@ -1,55 +1,21 @@
 from django.conf import settings
 from django.db import models
 from django.db.models import Max
+from django.urls import reverse
 from django.utils import timezone
 
 
 DEFAULT_STAGE_DEFINITIONS = [
-    {
-        'code': 'response',
-        'label': 'Отклик',
-        'emails': [],
-        'sort_order': 10,
-    },
-    {
-        'code': 'phone_interview',
-        'label': 'Тел. интервью',
-        'emails': [],
-        'sort_order': 20,
-    },
-    {
-        'code': 'otipb',
-        'label': 'ОТИПБ',
-        'emails': ['shirobokov@pskgold.ru'],
-        'sort_order': 30,
-    },
-    {
-        'code': 'hr_department',
-        'label': 'Отдел кадров',
-        'emails': ['shirobokov@pskgold.ru'],
-        'sort_order': 40,
-    },
-    {
-        'code': 'ticket',
-        'label': 'Требуется покупка билетов',
-        'emails': [],
-        'sort_order': 50,
-    },
-    {
-        'code': 'hired',
-        'label': 'Трудоустроен',
-        'emails': [],
-        'sort_order': 60,
-    },
+    {'code': 'response', 'label': 'Отклик', 'emails': [], 'sort_order': 10},
+    {'code': 'phone_interview', 'label': 'Тел. интервью', 'emails': [], 'sort_order': 20},
+    {'code': 'otipb', 'label': 'ОТИПБ', 'emails': ['shirobokov@pskgold.ru'], 'sort_order': 30},
+    {'code': 'hr_department', 'label': 'Отдел кадров', 'emails': ['shirobokov@pskgold.ru'], 'sort_order': 40},
+    {'code': 'ticket', 'label': 'Требуется покупка билетов', 'emails': [], 'sort_order': 50},
+    {'code': 'hired', 'label': 'Трудоустроен', 'emails': [], 'sort_order': 60},
 ]
 
 
-def normalize_fio(value):
-    """
-    Нормализация ФИО для поиска:
-    - убираем лишние пробелы;
-    - приводим к нижнему регистру.
-    """
+def normalize_full_name(value):
     if not value:
         return ''
 
@@ -58,11 +24,8 @@ def normalize_fio(value):
 
 class ResumeStage(models.Model):
     name = models.CharField('Название этапа', max_length=255)
-
     code = models.SlugField('Код', max_length=100, unique=True)
-
     sort_order = models.PositiveIntegerField('Порядок', default=100)
-
     is_active = models.BooleanField('Активен', default=True)
 
     responsible_user = models.ForeignKey(
@@ -335,12 +298,31 @@ class ResumeCandidate(models.Model):
 
         super().save(*args, **kwargs)
 
-        OtipbHistory.create_from_candidate(self)
+        # Актуализируем справочную базу только после прохождения этапа ОТИПБ.
+        # Пока кандидат находится на этапе ОТИПБ, запись ещё не обновляем.
+        CandidateSourceRecord.create_or_update_from_candidate_if_otipb_stage_passed(self)
 
     def get_absolute_url(self):
-        from django.urls import reverse
-
         return reverse('personnel:resume_candidate_edit', kwargs={'pk': self.pk})
+
+    def as_autofill_data(self):
+        return {
+            'date': self.date.isoformat() if self.date else '',
+            'full_name': self.full_name or '',
+            'hh_vacancy': self.hh_vacancy or '',
+            'position': self.position or '',
+            'contacts': self.contacts or '',
+            'medical_commission': self.medical_commission or '',
+            'comment': self.comment or '',
+            'birth_year': self.birth_year or '',
+            'qualification': self.qualification or '',
+            'work_experience': self.work_experience or '',
+            'note': self.note or '',
+            'otipb': self.otipb or '',
+            'refusal_reason': self.refusal_reason or '',
+            'ticket': self.ticket or '',
+            'stage': self.stage or '',
+        }
 
 
 class ResumeCandidateDocument(models.Model):
@@ -388,22 +370,25 @@ class ResumeCandidateDocument(models.Model):
         return self.title
 
 
-class OtipbHistory(models.Model):
-    """
-    История актуальных данных по кандидатам.
-
-    Используется для проверки ФИО:
-    - если кандидат найден, берём самую последнюю запись;
-    - если не найден, очищаем поле ОТИПБ на форме.
-    """
-
-    source_candidate = models.ForeignKey(
-        ResumeCandidate,
-        on_delete=models.SET_NULL,
+class CandidateSourceRecord(models.Model):
+    source_row = models.PositiveIntegerField(
+        'Строка Excel',
         null=True,
         blank=True,
-        related_name='otipb_history_items',
-        verbose_name='Карточка кандидата',
+        db_index=True,
+    )
+
+    source_number = models.PositiveIntegerField(
+        '№ п/п из Excel',
+        null=True,
+        blank=True,
+    )
+
+    source_date = models.DateField(
+        'Дата из Excel',
+        null=True,
+        blank=True,
+        db_index=True,
     )
 
     full_name = models.CharField(
@@ -419,32 +404,9 @@ class OtipbHistory(models.Model):
         blank=True,
     )
 
-    hh_vacancy = models.CharField(
-        'Соискатель по вакансии на hh.ru',
-        max_length=255,
-        blank=True,
-    )
-
-    position = models.CharField(
-        'Должность',
-        max_length=255,
-        blank=True,
-    )
-
-    contacts = models.CharField(
-        'Контакты',
-        max_length=255,
-        blank=True,
-    )
-
-    medical_commission = models.CharField(
-        'Мед комиссия',
-        max_length=20,
-        blank=True,
-    )
-
-    comment = models.TextField(
-        'Комментарий',
+    birth_date = models.DateField(
+        'Дата рождения',
+        null=True,
         blank=True,
     )
 
@@ -454,13 +416,20 @@ class OtipbHistory(models.Model):
         blank=True,
     )
 
-    qualification = models.TextField(
-        'Квалификация, наличие удостоверения на сайте',
+    vacancy = models.CharField(
+        'Вакансия',
+        max_length=255,
         blank=True,
     )
 
-    work_experience = models.TextField(
-        'Опыт работы',
+    phone = models.CharField(
+        'Телефон',
+        max_length=255,
+        blank=True,
+    )
+
+    qualification = models.TextField(
+        'Квалификация, наличие удостоверения на сайте',
         blank=True,
     )
 
@@ -475,38 +444,30 @@ class OtipbHistory(models.Model):
         blank=True,
     )
 
+    medical_direction = models.TextField(
+        'Направление на МО',
+        blank=True,
+    )
+
     refusal_reason = models.TextField(
         'Примечание или причина отказа',
         blank=True,
     )
 
-    ticket = models.CharField(
-        'Билет',
+    accepted_date = models.DateField(
+        'Принят дата',
+        null=True,
+        blank=True,
+    )
+
+    import_file_name = models.CharField(
+        'Имя файла импорта',
         max_length=255,
         blank=True,
     )
 
-    stage = models.CharField(
-        'Этап',
-        max_length=100,
-        blank=True,
-    )
-
-    source = models.CharField(
-        'Источник',
-        max_length=255,
-        blank=True,
-        default='Карточка кандидата',
-    )
-
-    source_date = models.DateTimeField(
-        'Дата актуальности данных',
-        default=timezone.now,
-        db_index=True,
-    )
-
-    created_at = models.DateTimeField(
-        'Создано',
+    imported_at = models.DateTimeField(
+        'Дата импорта',
         auto_now_add=True,
     )
 
@@ -516,20 +477,23 @@ class OtipbHistory(models.Model):
     )
 
     class Meta:
-        verbose_name = 'История ОТИПБ'
-        verbose_name_plural = 'История ОТИПБ'
+        verbose_name = 'Запись из файла кандидатов'
+        verbose_name_plural = 'Записи из файла кандидатов'
         ordering = ['-source_date', '-id']
+        indexes = [
+            models.Index(fields=['full_name_normalized', '-source_date']),
+        ]
 
     def __str__(self):
         return self.full_name
 
     def save(self, *args, **kwargs):
-        self.full_name_normalized = normalize_fio(self.full_name)
+        self.full_name_normalized = normalize_full_name(self.full_name)
         super().save(*args, **kwargs)
 
     @classmethod
     def get_latest_by_full_name(cls, full_name):
-        full_name_normalized = normalize_fio(full_name)
+        full_name_normalized = normalize_full_name(full_name)
 
         if not full_name_normalized:
             return None
@@ -537,72 +501,144 @@ class OtipbHistory(models.Model):
         return (
             cls.objects
             .filter(full_name_normalized=full_name_normalized)
-            .order_by('-source_date', '-id')
+            .order_by('-source_date', '-accepted_date', '-id')
             .first()
         )
 
+    def get_medical_commission_value(self):
+        value = (self.medical_direction or '').strip().lower()
+
+        if not value:
+            return 'pending'
+
+        if any(word in value for word in ['не год', 'не пройд', 'отказ', 'отказался', 'отказалась']):
+            return 'failed'
+
+        if any(word in value for word in ['пройд', 'годен', 'годна']):
+            return 'passed'
+
+        return 'pending'
+
+
     @classmethod
-    def create_from_candidate(cls, candidate):
-        if not candidate.full_name:
+    def get_stage_sort_order(cls, stage_code):
+        """
+        Возвращает порядок этапа по его коду.
+
+        Сначала смотрим пользовательские этапы из базы ResumeStage.
+        Если этапа там нет, берём порядок из DEFAULT_STAGE_DEFINITIONS.
+        """
+        if not stage_code:
             return None
 
-        latest = cls.get_latest_by_full_name(candidate.full_name)
+        stage = ResumeStage.objects.filter(code=stage_code).first()
 
-        current_data = {
-            'full_name': candidate.full_name,
-            'hh_vacancy': candidate.hh_vacancy or '',
-            'position': candidate.position or '',
-            'contacts': candidate.contacts or '',
-            'medical_commission': candidate.medical_commission or '',
-            'comment': candidate.comment or '',
+        if stage:
+            return stage.sort_order
+
+        for item in DEFAULT_STAGE_DEFINITIONS:
+            if item.get('code') == stage_code:
+                return item.get('sort_order', 100)
+
+        return None
+
+    @classmethod
+    def is_otipb_stage_passed(cls, stage_code):
+        """
+        ОТИПБ считается пройденным, когда текущий этап кандидата
+        находится ПОСЛЕ этапа 'otipb'.
+
+        То есть:
+        - response — нет;
+        - phone_interview — нет;
+        - otipb — ещё нет;
+        - hr_department / ticket / hired — да.
+        """
+        current_stage_order = cls.get_stage_sort_order(stage_code)
+        otipb_stage_order = cls.get_stage_sort_order('otipb')
+
+        if current_stage_order is None or otipb_stage_order is None:
+            return False
+
+        return current_stage_order > otipb_stage_order
+
+    @classmethod
+    def create_or_update_from_candidate_if_otipb_stage_passed(cls, candidate):
+        """
+        Актуализирует справочную базу кандидатов из карточки.
+
+        Правило: запись создаётся или обновляется только тогда,
+        когда кандидат уже прошёл этап ОТИПБ, то есть переведён
+        на следующий этап после 'otipb'.
+        """
+        if not cls.is_otipb_stage_passed(candidate.stage):
+            return None
+
+        full_name = (getattr(candidate, 'full_name', '') or '').strip()
+
+        if not full_name:
+            return None
+
+        source_record = cls.get_latest_by_full_name(full_name)
+
+        data = {
+            'source_date': candidate.date or timezone.localdate(),
+            'full_name': full_name,
             'birth_year': candidate.birth_year,
+            'vacancy': candidate.hh_vacancy or candidate.position or '',
+            'phone': candidate.contacts or '',
             'qualification': candidate.qualification or '',
-            'work_experience': candidate.work_experience or '',
             'note': candidate.note or '',
             'otipb': candidate.otipb or '',
+            'medical_direction': candidate.comment or '',
             'refusal_reason': candidate.refusal_reason or '',
-            'ticket': candidate.ticket or '',
-            'stage': candidate.stage or '',
+            'import_file_name': 'Карточка кандидата',
         }
 
-        if latest:
-            is_same = True
+        if source_record:
+            for field_name, field_value in data.items():
+                setattr(source_record, field_name, field_value)
 
-            for field_name, field_value in current_data.items():
-                if getattr(latest, field_name) != field_value:
-                    is_same = False
-                    break
+            source_record.save()
+            return source_record
 
-            if is_same:
-                return latest
+        return cls.objects.create(**data)
 
-        return cls.objects.create(
-            source_candidate=candidate,
-            source='Карточка кандидата',
-            source_date=timezone.now(),
-            **current_data,
-        )
+    @classmethod
+    def create_or_update_from_candidate_if_otipb_filled(cls, candidate):
+        """
+        Обратная совместимость со старым названием метода.
 
-    def as_form_data(self):
+        Раньше база обновлялась по заполненному полю ОТИПБ.
+        Теперь правильное условие — прохождение этапа ОТИПБ.
+        """
+        return cls.create_or_update_from_candidate_if_otipb_stage_passed(candidate)
+
+    def as_autofill_data(self):
+        comment = ''
+
+        medical_text = (self.medical_direction or '').strip()
+
+        if medical_text and medical_text.lower() != 'направлено':
+            comment = medical_text
+
         return {
+            'date': self.source_date.isoformat() if self.source_date else '',
             'full_name': self.full_name or '',
-            'hh_vacancy': self.hh_vacancy or '',
-            'position': self.position or '',
-            'contacts': self.contacts or '',
-            'medical_commission': self.medical_commission or '',
-            'comment': self.comment or '',
+            'hh_vacancy': self.vacancy or '',
+            'position': self.vacancy or '',
+            'contacts': self.phone or '',
+            'medical_commission': self.get_medical_commission_value(),
+            'comment': comment,
             'birth_year': self.birth_year or '',
             'qualification': self.qualification or '',
-            'work_experience': self.work_experience or '',
+            'work_experience': '',
             'note': self.note or '',
             'otipb': self.otipb or '',
             'refusal_reason': self.refusal_reason or '',
-            'ticket': self.ticket or '',
-            'stage': self.stage or '',
-            'source': self.source or '',
-            'source_date': (
-                self.source_date.strftime('%d.%m.%Y %H:%M')
-                if self.source_date
-                else ''
-            ),
+            'ticket': '',
+            'stage': '',
+            'source_date': self.source_date.strftime('%d.%m.%Y') if self.source_date else '',
+            'accepted_date': self.accepted_date.strftime('%d.%m.%Y') if self.accepted_date else '',
+            'medical_direction': self.medical_direction or '',
         }

@@ -110,8 +110,6 @@ urlpatterns = [
         ResumeStageDeleteView.as_view(),
         name='resume_stage_delete',
     ),
-
-    # Старые алиасы, если где-то в меню ещё используются records/
     path(
         'records/',
         ResumeCandidateListView.as_view(),

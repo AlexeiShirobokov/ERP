@@ -12,7 +12,15 @@
 {% block content %}
 <div class="container-fluid py-4">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} mb-3">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
             <h1 class="h3 mb-1">
                 {% if object %}
@@ -22,295 +30,626 @@
                 {% endif %}
             </h1>
 
-            {% if object %}
-                <div class="text-muted small">
+            <div class="text-muted">
+                {% if object %}
                     № {{ object.number|default:object.id }}
-                </div>
-            {% endif %}
+                {% else %}
+                    Новая карточка кандидата
+                {% endif %}
+            </div>
         </div>
 
-        <a href="{% url 'personnel:resume_candidate_list' %}" class="btn btn-outline-secondary">
-            Отмена
-        </a>
+        <div class="d-flex gap-2">
+            {% if object %}
+                <a href="/personnel/resume/{{ object.pk }}/" class="btn btn-outline-secondary px-4">
+                    Отмена
+                </a>
+            {% else %}
+                <a href="/personnel/resume/kanban/" class="btn btn-outline-secondary px-4">
+                    Отмена
+                </a>
+            {% endif %}
+
+            <a href="/personnel/resume/kanban/" class="btn btn-outline-secondary px-4">
+                Назад
+            </a>
+        </div>
     </div>
 
-    <form method="post" enctype="multipart/form-data" class="card border-0 shadow-sm">
-        {% csrf_token %}
+    <div class="row g-4">
 
-        <div class="card-body">
+        <div class="col-12 col-xl-8">
 
-            {% if form.non_field_errors %}
-                <div class="alert alert-danger">
-                    {{ form.non_field_errors }}
+            <form method="post" enctype="multipart/form-data" class="card border-0 shadow-sm">
+                {% csrf_token %}
+
+                <div class="card-header bg-white">
+                    <strong>Карточка кандидата</strong>
                 </div>
-            {% endif %}
 
-            <div class="row g-3">
-                {% for field in form %}
-                    {% if field.name != 'document_title' and field.name != 'document_file' and field.name != 'document_comment' %}
+                <div class="card-body">
 
-                        <div class="col-12 {% if field.name == 'comment' or field.name == 'qualification' or field.name == 'work_experience' or field.name == 'note' or field.name == 'refusal_reason' %}col-lg-12{% else %}col-lg-6{% endif %}">
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
 
-                            <label for="{{ field.id_for_label }}" class="form-label">
-                                {{ field.label }}
+                    <div class="row g-3">
+
+                        {% if object %}
+                            <div class="col-12 col-md-4">
+                                <label class="form-label">№</label>
+                                <div class="form-control-plaintext">
+                                    {{ object.number|default:object.id }}
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <div class="col-12 col-md-6 {% if object %}col-xl-4{% else %}col-xl-6{% endif %}">
+                            <label for="{{ form.date.id_for_label }}" class="form-label">
+                                {{ form.date.label }}
                             </label>
+                            {{ form.date }}
 
-                            {{ field }}
-
-                            {% if field.name == 'full_name' %}
-                                <div class="mt-1">
-                                    <button
-                                        type="button"
-                                        id="check-candidate-otipb-btn"
-                                        class="btn btn-link btn-sm p-0 text-decoration-none"
-                                        style="font-size: 12px;"
-                                        data-url="{% url 'personnel:resume_candidate_check_otipb' %}"
-                                    >
-                                        проверить кандидата
-                                    </button>
-                                </div>
-
-                                <div
-                                    id="candidate-otipb-status"
-                                    class="small mt-1 text-muted"
-                                    style="font-size: 12px;"
-                                ></div>
-                            {% endif %}
-
-                            {% if field.help_text %}
-                                <div class="form-text">
-                                    {{ field.help_text }}
-                                </div>
-                            {% endif %}
-
-                            {% if field.errors %}
+                            {% if form.date.errors %}
                                 <div class="text-danger small mt-1">
-                                    {{ field.errors }}
+                                    {{ form.date.errors }}
                                 </div>
                             {% endif %}
-
                         </div>
 
-                    {% endif %}
-                {% endfor %}
-            </div>
-
-            {% if is_create %}
-                <hr class="my-4">
-
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="h5 mb-0">
-                        Документы
-                    </h2>
-
-                    <button
-                        type="button"
-                        class="btn btn-outline-primary btn-sm"
-                        id="add-create-document-row"
-                    >
-                        Добавить ещё документ
-                    </button>
-                </div>
-
-                <div id="create-documents-wrapper">
-
-                    <div class="create-document-row border rounded p-3 mb-3">
-                        <div class="row g-3 align-items-end">
-
-                            <div class="col-12 col-lg-4">
-                                <label class="form-label">
-                                    Название
+                        {% if form.birth_year %}
+                            <div class="col-12 col-md-6 {% if object %}col-xl-4{% else %}col-xl-6{% endif %}">
+                                <label for="{{ form.birth_year.id_for_label }}" class="form-label">
+                                    {{ form.birth_year.label }}
                                 </label>
-                                <input
-                                    type="text"
-                                    name="create_document_titles"
-                                    class="form-control"
-                                >
-                            </div>
+                                {{ form.birth_year }}
 
-                            <div class="col-12 col-lg-4">
-                                <label class="form-label">
-                                    Файл
-                                </label>
-                                <input
-                                    type="file"
-                                    name="create_document_files"
-                                    class="form-control"
-                                >
+                                {% if form.birth_year.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.birth_year.errors }}
+                                    </div>
+                                {% endif %}
                             </div>
+                        {% endif %}
 
-                            <div class="col-12 col-lg-3">
-                                <label class="form-label">
-                                    Комментарий
-                                </label>
-                                <input
-                                    type="text"
-                                    name="create_document_comments"
-                                    class="form-control"
-                                >
-                            </div>
+                        <div class="col-12 col-md-6">
+                            <label for="{{ form.full_name.id_for_label }}" class="form-label">
+                                {{ form.full_name.label }}
+                            </label>
 
-                            <div class="col-12 col-lg-1">
+                            {{ form.full_name }}
+
+                            <div class="mt-1">
                                 <button
                                     type="button"
-                                    class="btn btn-outline-danger w-100 remove-create-document-row"
+                                    id="check-candidate-otipb-btn"
+                                    class="btn btn-link btn-sm p-0 text-decoration-none"
+                                    style="font-size: 12px;"
+                                    data-url="/personnel/resume/check-otipb/"
                                 >
-                                    ×
+                                    проверить кандидата
                                 </button>
+
+                                <span class="small text-muted ms-2">
+                                    также проверяется автоматически после ввода ФИО
+                                </span>
                             </div>
 
+                            <div
+                                id="candidate-otipb-status"
+                                class="small mt-1 text-muted"
+                                style="font-size: 12px;"
+                            ></div>
+
+                            {% if form.full_name.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.full_name.errors }}
+                                </div>
+                            {% endif %}
                         </div>
+
+                        {% if form.hh_vacancy %}
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.hh_vacancy.id_for_label }}" class="form-label">
+                                    {{ form.hh_vacancy.label }}
+                                </label>
+                                {{ form.hh_vacancy }}
+
+                                {% if form.hh_vacancy.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.hh_vacancy.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.position %}
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.position.id_for_label }}" class="form-label">
+                                    {{ form.position.label }}
+                                </label>
+                                {{ form.position }}
+
+                                {% if form.position.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.position.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.contacts %}
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.contacts.id_for_label }}" class="form-label">
+                                    {{ form.contacts.label }}
+                                </label>
+                                {{ form.contacts }}
+
+                                {% if form.contacts.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.contacts.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.medical_commission %}
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.medical_commission.id_for_label }}" class="form-label">
+                                    {{ form.medical_commission.label }}
+                                </label>
+                                {{ form.medical_commission }}
+
+                                {% if form.medical_commission.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.medical_commission.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.stage %}
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.stage.id_for_label }}" class="form-label">
+                                    {{ form.stage.label }}
+                                </label>
+                                {{ form.stage }}
+
+                                {% if form.stage.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.stage.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.ticket %}
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.ticket.id_for_label }}" class="form-label">
+                                    {{ form.ticket.label }}
+                                </label>
+                                {{ form.ticket }}
+
+                                {% if form.ticket.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.ticket.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.otipb %}
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.otipb.id_for_label }}" class="form-label">
+                                    {{ form.otipb.label }}
+                                </label>
+                                {{ form.otipb }}
+
+                                {% if form.otipb.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.otipb.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.comment %}
+                            <div class="col-12">
+                                <label for="{{ form.comment.id_for_label }}" class="form-label">
+                                    {{ form.comment.label }}
+                                </label>
+                                {{ form.comment }}
+
+                                {% if form.comment.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.comment.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.qualification %}
+                            <div class="col-12">
+                                <label for="{{ form.qualification.id_for_label }}" class="form-label">
+                                    {{ form.qualification.label }}
+                                </label>
+                                {{ form.qualification }}
+
+                                {% if form.qualification.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.qualification.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.work_experience %}
+                            <div class="col-12">
+                                <label for="{{ form.work_experience.id_for_label }}" class="form-label">
+                                    {{ form.work_experience.label }}
+                                </label>
+                                {{ form.work_experience }}
+
+                                {% if form.work_experience.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.work_experience.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.note %}
+                            <div class="col-12">
+                                <label for="{{ form.note.id_for_label }}" class="form-label">
+                                    {{ form.note.label }}
+                                </label>
+                                {{ form.note }}
+
+                                {% if form.note.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.note.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.refusal_reason %}
+                            <div class="col-12">
+                                <label for="{{ form.refusal_reason.id_for_label }}" class="form-label">
+                                    {{ form.refusal_reason.label }}
+                                </label>
+                                {{ form.refusal_reason }}
+
+                                {% if form.refusal_reason.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.refusal_reason.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
                     </div>
 
-                </div>
+                    {% if not object %}
+                        <hr class="my-4">
 
-                <div class="form-text">
-                    Можно добавить несколько документов до сохранения кандидата.
-                </div>
-            {% endif %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h2 class="h5 mb-0">
+                                    Документы
+                                </h2>
+                                <div class="text-muted small">
+                                    Можно добавить один или несколько документов сразу при создании карточки.
+                                </div>
+                            </div>
 
-        </div>
-
-        <div class="card-footer bg-white d-flex justify-content-end gap-2">
-            <a href="{% url 'personnel:resume_candidate_list' %}" class="btn btn-outline-secondary">
-                Отмена
-            </a>
-
-            <button type="submit" class="btn btn-primary">
-                Сохранить
-            </button>
-        </div>
-    </form>
-
-    {% if object %}
-        <div class="card border-0 shadow-sm mt-4">
-            <div class="card-body">
-
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="h5 mb-0">
-                        Документы {{ documents|length }}
-                    </h2>
-                </div>
-
-                <form
-                    method="post"
-                    enctype="multipart/form-data"
-                    action="{% url 'personnel:document_upload' object.pk %}"
-                    class="border rounded p-3 mb-4"
-                >
-                    {% csrf_token %}
-
-                    <input type="hidden" name="next" value="{{ request.path }}">
-
-                    <div class="row g-3 align-items-end">
-
-                        <div class="col-12 col-lg-4">
-                            <label for="{{ document_form.title.id_for_label }}" class="form-label">
-                                {{ document_form.title.label }}
-                            </label>
-                            {{ document_form.title }}
-                        </div>
-
-                        <div class="col-12 col-lg-4">
-                            <label for="{{ document_form.file.id_for_label }}" class="form-label">
-                                {{ document_form.file.label }}
-                            </label>
-                            {{ document_form.file }}
-                        </div>
-
-                        <div class="col-12 col-lg-3">
-                            <label for="{{ document_form.comment.id_for_label }}" class="form-label">
-                                {{ document_form.comment.label }}
-                            </label>
-                            {{ document_form.comment }}
-                        </div>
-
-                        <div class="col-12 col-lg-1">
-                            <button type="submit" class="btn btn-primary w-100">
-                                +
+                            <button
+                                type="button"
+                                class="btn btn-outline-primary btn-sm"
+                                id="add-create-document-row"
+                            >
+                                Добавить ещё документ
                             </button>
                         </div>
 
-                    </div>
-                </form>
+                        <div id="create-documents-wrapper">
 
-                {% if documents %}
-                    <div class="table-responsive">
-                        <table class="table align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Название</th>
-                                    <th>Комментарий</th>
-                                    <th>Загрузил</th>
-                                    <th>Дата</th>
-                                    <th class="text-end">Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for doc in documents %}
+                            <div class="create-document-row border rounded p-3 mb-3">
+                                <div class="row g-3 align-items-end">
+
+                                    <div class="col-12 col-lg-4">
+                                        <label class="form-label">
+                                            Название
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="create_document_titles"
+                                            class="form-control"
+                                        >
+                                    </div>
+
+                                    <div class="col-12 col-lg-4">
+                                        <label class="form-label">
+                                            Файл
+                                        </label>
+                                        <input
+                                            type="file"
+                                            name="create_document_files"
+                                            class="form-control"
+                                        >
+                                    </div>
+
+                                    <div class="col-12 col-lg-3">
+                                        <label class="form-label">
+                                            Комментарий
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="create_document_comments"
+                                            class="form-control"
+                                        >
+                                    </div>
+
+                                    <div class="col-12 col-lg-1">
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-danger w-100 remove-create-document-row"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                        </div>
+                    {% endif %}
+
+                </div>
+
+                <div class="card-footer bg-white d-flex justify-content-end gap-2">
+                    {% if object %}
+                        <a href="/personnel/resume/{{ object.pk }}/" class="btn btn-outline-secondary px-4">
+                            Отмена
+                        </a>
+                    {% else %}
+                        <a href="/personnel/resume/kanban/" class="btn btn-outline-secondary px-4">
+                            Отмена
+                        </a>
+                    {% endif %}
+
+                    <button type="submit" class="btn btn-primary px-4">
+                        Сохранить
+                    </button>
+                </div>
+            </form>
+
+            {% if object %}
+                <div class="card border-0 shadow-sm mt-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <strong>Документы</strong>
+                        <span class="badge bg-secondary">{{ documents|length }}</span>
+                    </div>
+
+                    <div class="card-body">
+
+                        <form
+                            method="post"
+                            enctype="multipart/form-data"
+                            action="/personnel/resume/{{ object.pk }}/documents/upload/"
+                            class="row g-3 align-items-end mb-4"
+                        >
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.path }}">
+
+                            <div class="col-12 col-md-4">
+                                <label class="form-label">
+                                    {{ document_form.title.label }}
+                                </label>
+                                {{ document_form.title }}
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <label class="form-label">
+                                    {{ document_form.file.label }}
+                                </label>
+                                {{ document_form.file }}
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label">
+                                    {{ document_form.comment.label }}
+                                </label>
+                                {{ document_form.comment }}
+                            </div>
+
+                            <div class="col-12 col-md-1">
+                                <button type="submit" class="btn btn-success w-100">
+                                    +
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered align-middle mb-0">
+                                <thead class="table-light">
                                     <tr>
-                                        <td>
-                                            {{ doc.title }}
-                                        </td>
-
-                                        <td>
-                                            {{ doc.comment|default:"—"|linebreaksbr }}
-                                        </td>
-
-                                        <td>
-                                            {% if doc.uploaded_by %}
-                                                {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}
-                                            {% else %}
-                                                —
-                                            {% endif %}
-                                        </td>
-
-                                        <td>
-                                            {{ doc.uploaded_at|date:"d.m.Y H:i" }}
-                                        </td>
-
-                                        <td class="text-end">
-                                            <a
-                                                href="{% url 'personnel:document_download' doc.pk %}"
-                                                class="btn btn-outline-secondary btn-sm"
-                                            >
-                                                Скачать
-                                            </a>
-
-                                            <form
-                                                method="post"
-                                                action="{% url 'personnel:document_delete' doc.pk %}"
-                                                class="d-inline"
-                                                onsubmit="return confirm('Удалить документ?');"
-                                            >
-                                                {% csrf_token %}
-                                                <input type="hidden" name="next" value="{{ request.path }}">
-
-                                                <button type="submit" class="btn btn-outline-danger btn-sm">
-                                                    Удалить
-                                                </button>
-                                            </form>
-                                        </td>
+                                        <th>Название</th>
+                                        <th>Комментарий</th>
+                                        <th>Загрузил</th>
+                                        <th>Дата</th>
+                                        <th class="text-end">Действия</th>
                                     </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="text-muted">
-                        Документов пока нет
-                    </div>
-                {% endif %}
+                                </thead>
 
-            </div>
+                                <tbody>
+                                    {% for doc in documents %}
+                                        <tr>
+                                            <td>
+                                                {{ doc.title }}
+                                            </td>
+
+                                            <td>
+                                                {{ doc.comment|default:"—"|linebreaksbr }}
+                                            </td>
+
+                                            <td>
+                                                {% if doc.uploaded_by %}
+                                                    {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            </td>
+
+                                            <td>
+                                                {{ doc.uploaded_at|date:"d.m.Y H:i" }}
+                                            </td>
+
+                                            <td class="text-end">
+                                                <a
+                                                    href="/personnel/resume/documents/{{ doc.pk }}/download/"
+                                                    class="btn btn-outline-secondary btn-sm"
+                                                >
+                                                    Скачать
+                                                </a>
+
+                                                <form
+                                                    method="post"
+                                                    action="/personnel/resume/documents/{{ doc.pk }}/delete/"
+                                                    class="d-inline"
+                                                    onsubmit="return confirm('Удалить документ?');"
+                                                >
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="next" value="{{ request.path }}">
+
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                        Удалить
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted py-4">
+                                                Документов пока нет
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+            {% endif %}
+
         </div>
-    {% endif %}
+
+        <div class="col-12 col-xl-4">
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <strong>Служебная информация</strong>
+                </div>
+
+                <div class="card-body">
+                    {% if object %}
+                        <div class="mb-3">
+                            <div class="fw-semibold">Создал:</div>
+                            <div>
+                                {% if object.created_by %}
+                                    {{ object.created_by.get_full_name|default:object.created_by.username }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="fw-semibold">Последний редактор:</div>
+                            <div>
+                                {% if object.updated_by %}
+                                    {{ object.updated_by.get_full_name|default:object.updated_by.username }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="fw-semibold">Создано:</div>
+                            <div>
+                                {% if object.created_at %}
+                                    {{ object.created_at|date:"d.m.Y H:i" }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="fw-semibold">Изменено:</div>
+                            <div>
+                                {% if object.updated_at %}
+                                    {{ object.updated_at|date:"d.m.Y H:i" }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="mb-3">
+                            <div class="fw-semibold">Статус:</div>
+                            <div>
+                                Новая карточка
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="fw-semibold">Проверка кандидата:</div>
+                            <div class="text-muted">
+                                После ввода ФИО можно выполнить проверку и подтянуть данные из базы.
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="fw-semibold">Документы:</div>
+                            <div class="text-muted">
+                                Можно прикрепить сразу при создании карточки.
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if object %}
+                <div class="card border-danger shadow-sm">
+                    <div class="card-body">
+                        <p class="text-muted small">
+                            Удаление карточки удалит кандидата и все связанные документы.
+                        </p>
+
+                        <a
+                            href="/personnel/resume/{{ object.pk }}/delete/"
+                            class="btn btn-outline-danger w-100"
+                        >
+                            Удалить карточку
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+
+        </div>
+
+    </div>
 
 </div>
 
 <script src="{% static 'personnel/js/check_candidate_otipb.js' %}"></script>
 
-{% if is_create %}
+{% if not object %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const wrapper = document.getElementById('create-documents-wrapper');

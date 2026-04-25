@@ -37,15 +37,12 @@ def candidate_widgets():
     widgets = {}
 
     if 'date' in existing_candidate_fields():
-        widgets['date'] = forms.DateInput(attrs={'type': 'date'})
+        widgets['date'] = forms.DateInput(
+            format='%Y-%m-%d',
+            attrs={'type': 'date'},
+        )
 
-    for field_name in [
-        'comment',
-        'qualification',
-        'work_experience',
-        'note',
-        'refusal_reason',
-    ]:
+    for field_name in ['comment', 'qualification', 'note', 'refusal_reason']:
         if field_name in existing_candidate_fields():
             widgets[field_name] = forms.Textarea(attrs={'rows': 2})
 
@@ -77,6 +74,11 @@ class ResumeCandidateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if 'date' in self.fields:
+            self.fields['date'].input_formats = [
+                '%Y-%m-%d',
+                '%d.%m.%Y',
+            ]
 
         for _, field in self.fields.items():
             css_class = (

@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import (
-    OtipbHistory,
+    CandidateSourceRecord,
     ResumeCandidate,
     ResumeCandidateDocument,
     ResumeStage,
@@ -61,6 +61,7 @@ class ResumeCandidateAdmin(admin.ModelAdmin):
         'date',
         'full_name',
         'position',
+        'contacts',
         'medical_commission',
         'otipb',
         'stage_name_display',
@@ -96,36 +97,42 @@ class ResumeCandidateAdmin(admin.ModelAdmin):
         return obj.stage_name
 
 
-@admin.register(OtipbHistory)
-class OtipbHistoryAdmin(admin.ModelAdmin):
+@admin.register(CandidateSourceRecord)
+class CandidateSourceRecordAdmin(admin.ModelAdmin):
     list_display = (
-        'full_name',
-        'position',
-        'contacts',
-        'otipb',
-        'source',
+        'source_number',
         'source_date',
-        'created_at',
+        'full_name',
+        'birth_year',
+        'vacancy',
+        'phone',
+        'medical_direction',
+        'accepted_date',
+        'imported_at',
     )
 
     search_fields = (
         'full_name',
         'full_name_normalized',
-        'position',
-        'contacts',
-        'otipb',
-        'comment',
+        'vacancy',
+        'phone',
+        'qualification',
+        'note',
+        'medical_direction',
+        'refusal_reason',
     )
 
     list_filter = (
-        'source',
         'source_date',
-        'created_at',
+        'vacancy',
+        'medical_direction',
+        'accepted_date',
+        'import_file_name',
     )
 
     readonly_fields = (
         'full_name_normalized',
-        'created_at',
+        'imported_at',
         'updated_at',
     )
 

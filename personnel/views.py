@@ -8,11 +8,11 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.core.mail import send_mail
 from django.db.models import Max, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import (
     CreateView,
@@ -31,14 +31,27 @@ from .forms import (
 )
 from .models import (
     DEFAULT_STAGE_DEFINITIONS,
-    OtipbHistory,
+    CandidateSourceRecord,
     ResumeCandidate,
     ResumeCandidateDocument,
     ResumeStage,
+    normalize_full_name,
 )
 
 
 logger = logging.getLogger(__name__)
+
+KANBAN_URL = '/personnel/resume/kanban/'
+CANDIDATE_LIST_URL = '/personnel/resume/'
+STAGES_URL = '/personnel/stages/'
+
+
+def candidate_detail_url(pk):
+    return f'/personnel/resume/{pk}/'
+
+
+def candidate_edit_url(pk):
+    return f'/personnel/resume/{pk}/?edit=1'
 
 
 def get_stage_items(include_codes=None):
@@ -113,21 +126,13 @@ def send_stage_notification(candidate, stage_code, moved_by, request=None):
     if not moved_by_name:
         moved_by_name = 'Система'
 
-    candidate_url = ''
+    relative_url = candidate_detail_url(candidate.pk)
 
-    try:
-        relative_url = reverse(
-            'personnel:resume_candidate_edit',
-            kwargs={'pk': candidate.pk},
-        )
-
-        if request is not None:
-            candidate_url = request.build_absolute_uri(relative_url)
-        else:
-            site_url = getattr(settings, 'SITE_URL', '').rstrip('/')
-            candidate_url = f'{site_url}{relative_url}' if site_url else relative_url
-    except Exception:
-        candidate_url = ''
+    if request is not None:
+        candidate_url = request.build_absolute_uri(relative_url)
+    else:
+        site_url = getattr(settings, 'SITE_URL', '').rstrip('/')
+        candidate_url = f'{site_url}{relative_url}' if site_url else relative_url
 
     subject = f'Кандидат переведен на этап: {stage_name}'
 
@@ -137,10 +142,8 @@ def send_stage_notification(candidate, stage_code, moved_by, request=None):
         f'Новый этап: {stage_name}\n'
         f'Переместил: {moved_by_name}\n'
         f'ID кандидата: {candidate.pk}\n'
+        f'Ссылка на карточку: {candidate_url}\n'
     )
-
-    if candidate_url:
-        message += f'Ссылка на карточку: {candidate_url}\n'
 
     from_email = (
         getattr(settings, 'DEFAULT_FROM_EMAIL', None)
@@ -186,6 +189,8 @@ def get_resume_candidates_queryset(request):
             | Q(contacts__icontains=q)
             | Q(ticket__icontains=q)
             | Q(otipb__icontains=q)
+            | Q(note__icontains=q)
+            | Q(refusal_reason__icontains=q)
         )
 
     if stage:
@@ -222,7 +227,7 @@ class ResumeStageCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateV
     model = ResumeStage
     form_class = ResumeStageForm
     template_name = 'personnel/resume_stage_form.html'
-    success_url = reverse_lazy('personnel:resume_stage_list')
+    success_url = STAGES_URL
     permission_required = 'personnel.add_resumestage'
     raise_exception = True
 
@@ -231,7 +236,7 @@ class ResumeStageUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
     model = ResumeStage
     form_class = ResumeStageForm
     template_name = 'personnel/resume_stage_form.html'
-    success_url = reverse_lazy('personnel:resume_stage_list')
+    success_url = STAGES_URL
     permission_required = 'personnel.change_resumestage'
     raise_exception = True
 
@@ -239,7 +244,7 @@ class ResumeStageUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
 class ResumeStageDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = ResumeStage
     template_name = 'personnel/resume_stage_confirm_delete.html'
-    success_url = reverse_lazy('personnel:resume_stage_list')
+    success_url = STAGES_URL
     permission_required = 'personnel.delete_resumestage'
     raise_exception = True
 
@@ -252,7 +257,7 @@ class ResumeStageDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteV
                 'Нельзя удалить этап, который используется в карточках кандидатов.',
             )
 
-            return redirect('personnel:resume_stage_list')
+            return redirect(STAGES_URL)
 
         return super().post(request, *args, **kwargs)
 
@@ -380,6 +385,7 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
             items = (
                 ResumeCandidate.objects
                 .filter(stage=stage_item.code)
+                .prefetch_related('documents')
                 .order_by('sort_order', '-date', '-id')
             )
 
@@ -398,19 +404,92 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
 
 
 class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    """
+    Карточка кандидата.
+
+    GET /personnel/resume/<pk>/        — просмотр карточки.
+    GET /personnel/resume/<pk>/?edit=1 — редактирование в этой же карточке.
+    POST /personnel/resume/<pk>/       — сохранение изменений из карточки.
+    """
+
     model = ResumeCandidate
     template_name = 'personnel/resume_candidate_detail.html'
     context_object_name = 'record'
     permission_required = 'personnel.view_resumecandidate'
     raise_exception = True
 
+    def get_candidate_form(self, data=None, files=None):
+        form = ResumeCandidateForm(
+            data=data,
+            files=files,
+            instance=self.object,
+        )
+
+        if 'stage' in form.fields:
+            current_stage = getattr(self.object, 'stage', '')
+
+            choices = get_stage_choices(
+                include_codes=[current_stage] if current_stage else None
+            )
+
+            if current_stage and current_stage not in {code for code, _ in choices}:
+                choices.append(
+                    (
+                        current_stage,
+                        ResumeCandidate.get_stage_label(current_stage),
+                    )
+                )
+
+            form.fields['stage'].widget = forms.Select(choices=choices)
+            form.fields['stage'].choices = choices
+
+        return form
+
     def get_context_data(self, **kwargs):
+        form = kwargs.pop('form', None)
+        edit_mode = kwargs.pop('edit_mode', False)
+
         context = super().get_context_data(**kwargs)
 
         context['documents'] = self.object.documents.all()
         context['document_form'] = ResumeCandidateDocumentForm()
+        context['edit_mode'] = edit_mode or self.request.GET.get('edit') == '1'
+
+        if form is None:
+            form = self.get_candidate_form()
+
+        context['form'] = form
 
         return context
+
+    def post(self, request, *args, **kwargs):
+        if not request.user.has_perm('personnel.change_resumecandidate'):
+            raise PermissionDenied
+
+        self.object = self.get_object()
+
+        form = self.get_candidate_form(
+            data=request.POST,
+            files=request.FILES,
+        )
+
+        if form.is_valid():
+            old_stage = self.object.stage
+            candidate = form.save()
+            new_stage = candidate.stage
+
+            if old_stage != new_stage:
+                send_stage_notification(candidate, new_stage, request.user, request)
+
+            messages.success(request, 'Карточка кандидата сохранена.')
+            return redirect(candidate_detail_url(candidate.pk))
+
+        return self.render_to_response(
+            self.get_context_data(
+                form=form,
+                edit_mode=True,
+            )
+        )
 
 
 class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
@@ -470,19 +549,26 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
         return response
 
     def get_success_url(self):
-        return reverse_lazy(
-            'personnel:resume_candidate_edit',
-            kwargs={'pk': self.object.pk},
-        )
+        return KANBAN_URL
 
 
 class ResumeCandidateUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+    """
+    Старый адрес /personnel/resume/<pk>/edit/ оставлен для совместимости.
+
+    Чтобы окно не менялось, при открытии этого URL переводим пользователя
+    в карточку кандидата в режим редактирования.
+    """
+
     model = ResumeCandidate
     form_class = ResumeCandidateForm
     template_name = 'personnel/resume_candidate_form.html'
-    success_url = reverse_lazy('personnel:resume_candidate_list')
     permission_required = 'personnel.change_resumecandidate'
     raise_exception = True
+
+    def get(self, request, *args, **kwargs):
+        candidate = self.get_object()
+        return redirect(candidate_edit_url(candidate.pk))
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
@@ -507,20 +593,14 @@ class ResumeCandidateUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upd
 
         return form
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        context['documents'] = self.object.documents.all()
-        context['document_form'] = ResumeCandidateDocumentForm()
-        context['is_create'] = False
-
-        return context
+    def get_success_url(self):
+        return KANBAN_URL
 
 
 class ResumeCandidateDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = ResumeCandidate
     template_name = 'personnel/resume_candidate_confirm_delete.html'
-    success_url = reverse_lazy('personnel:resume_candidate_list')
+    success_url = KANBAN_URL
     permission_required = 'personnel.delete_resumecandidate'
     raise_exception = True
 
@@ -566,7 +646,7 @@ class ResumeCandidateStageUpdateView(LoginRequiredMixin, PermissionRequiredMixin
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'status': 'ok'})
 
-        return redirect('personnel:resume_candidate_kanban')
+        return redirect(KANBAN_URL)
 
 
 class ResumeCandidateKanbanReorderView(LoginRequiredMixin, PermissionRequiredMixin, View):
@@ -622,6 +702,7 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, PermissionRequiredMix
             return JsonResponse({'status': 'ok'})
 
         except Exception as e:
+            logger.exception('Ошибка изменения порядка канбана')
             return JsonResponse(
                 {
                     'status': 'error',
@@ -635,8 +716,8 @@ class ResumeCandidateCheckOtipbView(LoginRequiredMixin, View):
     """
     AJAX-проверка кандидата по ФИО.
 
-    Используется на форме кандидата:
-    под полем ФИО нажимаем "проверить кандидата".
+    Сначала ищем в импортированной базе CandidateSourceRecord.
+    Если там нет — ищем среди уже заведённых карточек ResumeCandidate.
     """
 
     def get(self, request, *args, **kwargs):
@@ -653,26 +734,59 @@ class ResumeCandidateCheckOtipbView(LoginRequiredMixin, View):
                 status=400,
             )
 
-        history = OtipbHistory.get_latest_by_full_name(full_name)
+        source_record = CandidateSourceRecord.get_latest_by_full_name(full_name)
 
-        if not history:
+        if source_record:
+            data = source_record.as_autofill_data()
+            data['source_type'] = 'candidate_source'
+            data['source_label'] = 'Импортированная база кандидатов'
+
             return JsonResponse(
                 {
                     'success': True,
-                    'found': False,
-                    'message': 'Совпадений не найдено.',
-                    'data': {
-                        'otipb': '',
-                    },
+                    'found': True,
+                    'message': 'Кандидат найден в импортированной базе.',
+                    'data': data,
+                }
+            )
+
+        target_name = normalize_full_name(full_name)
+
+        candidate = (
+            ResumeCandidate.objects
+            .filter(full_name__iexact=full_name)
+            .order_by('-updated_at', '-id')
+            .first()
+        )
+
+        if not candidate and target_name:
+            for item in ResumeCandidate.objects.all().order_by('-updated_at', '-id')[:2000]:
+                if normalize_full_name(item.full_name) == target_name:
+                    candidate = item
+                    break
+
+        if candidate:
+            data = candidate.as_autofill_data()
+            data['source_type'] = 'resume_candidate'
+            data['source_label'] = 'Ранее заведённая карточка'
+
+            return JsonResponse(
+                {
+                    'success': True,
+                    'found': True,
+                    'message': 'Кандидат найден среди ранее заведённых карточек.',
+                    'data': data,
                 }
             )
 
         return JsonResponse(
             {
                 'success': True,
-                'found': True,
-                'message': 'Кандидат найден.',
-                'data': history.as_form_data(),
+                'found': False,
+                'message': 'Совпадений не найдено.',
+                'data': {
+                    'otipb': '',
+                },
             }
         )
 
@@ -690,13 +804,16 @@ class ResumeCandidateDocumentUploadView(LoginRequiredMixin, PermissionRequiredMi
             document.record = record
             document.uploaded_by = request.user
             document.save()
+            messages.success(request, 'Документ загружен.')
+        else:
+            messages.error(request, 'Не удалось загрузить документ.')
 
         next_url = request.POST.get('next')
 
         if next_url:
             return redirect(next_url)
 
-        return redirect('personnel:resume_candidate_edit', pk=record.pk)
+        return redirect(candidate_detail_url(record.pk))
 
 
 class ResumeCandidateDocumentDownloadView(LoginRequiredMixin, PermissionRequiredMixin, View):
@@ -731,10 +848,11 @@ class ResumeCandidateDocumentDeleteView(LoginRequiredMixin, PermissionRequiredMi
             document.file.delete(save=False)
 
         document.delete()
+        messages.success(request, 'Документ удалён.')
 
         next_url = request.POST.get('next')
 
         if next_url:
             return redirect(next_url)
 
-        return redirect('personnel:resume_candidate_edit', pk=record_pk)
+        return redirect(candidate_detail_url(record_pk))

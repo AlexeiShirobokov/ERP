@@ -1,150 +1,370 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ record.full_name }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .field-label {
-            font-size: 0.85rem;
-            color: #6c757d;
-            margin-bottom: 0.25rem;
-        }
-        .field-value {
-            font-weight: 500;
-            word-break: break-word;
-        }
-    </style>
-</head>
-<body class="bg-light">
+{% extends "personnel/base.html" %}
 
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+{% block title %}
+    {{ record.full_name }}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} mb-3">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h1 class="h3 mb-1">{{ record.full_name }}</h1>
-            <div class="text-muted">{{ record.position|default:"—" }}</div>
+            <h1 class="h3 mb-1">
+                {{ record.full_name }}
+            </h1>
+
+            <div class="text-muted">
+                {{ record.position|default:"—" }}
+            </div>
         </div>
+
         <div class="d-flex gap-2">
-            <a href="{% url 'personnel:resume_candidate_edit' record.pk %}" class="btn btn-primary">Редактировать</a>
-            <a href="{% url 'personnel:resume_candidate_list' %}" class="btn btn-outline-secondary">Назад</a>
+            {% if edit_mode %}
+                <a href="{{ request.path }}" class="btn btn-primary px-4">
+                    Отмена
+                </a>
+            {% else %}
+                <a href="?edit=1" class="btn btn-primary px-4">
+                    Редактировать
+                </a>
+            {% endif %}
+
+            <a href="/personnel/resume/kanban/" class="btn btn-outline-secondary px-4">
+                Назад
+            </a>
         </div>
     </div>
 
     <div class="row g-4">
-        <div class="col-lg-8">
-            <div class="card shadow-sm">
+
+        <div class="col-12 col-xl-8">
+
+            <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
                     <strong>Карточка кандидата</strong>
                 </div>
+
                 <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <div class="field-label">№</div>
-                            <div class="field-value">{{ record.number|default:record.id }}</div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="field-label">Дата</div>
-                            <div class="field-value">{{ record.date|date:"d.m.Y" }}</div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="field-label">Год рождения</div>
-                            <div class="field-value">{{ record.birth_year|default:"—" }}</div>
+
+                    {% if edit_mode %}
+
+                        <form method="post" enctype="multipart/form-data" action="{{ request.path }}">
+                            {% csrf_token %}
+
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-danger">
+                                    {{ form.non_field_errors }}
+                                </div>
+                            {% endif %}
+
+                            <div class="row g-3">
+
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label">№</label>
+                                    <div class="form-control-plaintext">
+                                        {{ record.number|default:record.id }}
+                                    </div>
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label for="{{ form.date.id_for_label }}" class="form-label">
+                                        {{ form.date.label }}
+                                    </label>
+                                    {{ form.date }}
+                                    {% if form.date.errors %}
+                                        <div class="text-danger small mt-1">{{ form.date.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label for="{{ form.birth_year.id_for_label }}" class="form-label">
+                                        {{ form.birth_year.label }}
+                                    </label>
+                                    {{ form.birth_year }}
+                                    {% if form.birth_year.errors %}
+                                        <div class="text-danger small mt-1">{{ form.birth_year.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12 col-md-6">
+                                    <label for="{{ form.full_name.id_for_label }}" class="form-label">
+                                        {{ form.full_name.label }}
+                                    </label>
+                                    {{ form.full_name }}
+                                    {% if form.full_name.errors %}
+                                        <div class="text-danger small mt-1">{{ form.full_name.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12 col-md-6">
+                                    <label for="{{ form.hh_vacancy.id_for_label }}" class="form-label">
+                                        {{ form.hh_vacancy.label }}
+                                    </label>
+                                    {{ form.hh_vacancy }}
+                                    {% if form.hh_vacancy.errors %}
+                                        <div class="text-danger small mt-1">{{ form.hh_vacancy.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12 col-md-6">
+                                    <label for="{{ form.position.id_for_label }}" class="form-label">
+                                        {{ form.position.label }}
+                                    </label>
+                                    {{ form.position }}
+                                    {% if form.position.errors %}
+                                        <div class="text-danger small mt-1">{{ form.position.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12 col-md-6">
+                                    <label for="{{ form.contacts.id_for_label }}" class="form-label">
+                                        {{ form.contacts.label }}
+                                    </label>
+                                    {{ form.contacts }}
+                                    {% if form.contacts.errors %}
+                                        <div class="text-danger small mt-1">{{ form.contacts.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12 col-md-6">
+                                    <label for="{{ form.medical_commission.id_for_label }}" class="form-label">
+                                        {{ form.medical_commission.label }}
+                                    </label>
+                                    {{ form.medical_commission }}
+                                    {% if form.medical_commission.errors %}
+                                        <div class="text-danger small mt-1">{{ form.medical_commission.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12 col-md-6">
+                                    <label for="{{ form.stage.id_for_label }}" class="form-label">
+                                        {{ form.stage.label }}
+                                    </label>
+                                    {{ form.stage }}
+                                    {% if form.stage.errors %}
+                                        <div class="text-danger small mt-1">{{ form.stage.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12 col-md-6">
+                                    <label for="{{ form.ticket.id_for_label }}" class="form-label">
+                                        {{ form.ticket.label }}
+                                    </label>
+                                    {{ form.ticket }}
+                                    {% if form.ticket.errors %}
+                                        <div class="text-danger small mt-1">{{ form.ticket.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12 col-md-6">
+                                    <label for="{{ form.otipb.id_for_label }}" class="form-label">
+                                        {{ form.otipb.label }}
+                                    </label>
+                                    {{ form.otipb }}
+                                    {% if form.otipb.errors %}
+                                        <div class="text-danger small mt-1">{{ form.otipb.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12">
+                                    <label for="{{ form.comment.id_for_label }}" class="form-label">
+                                        {{ form.comment.label }}
+                                    </label>
+                                    {{ form.comment }}
+                                    {% if form.comment.errors %}
+                                        <div class="text-danger small mt-1">{{ form.comment.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12">
+                                    <label for="{{ form.qualification.id_for_label }}" class="form-label">
+                                        {{ form.qualification.label }}
+                                    </label>
+                                    {{ form.qualification }}
+                                    {% if form.qualification.errors %}
+                                        <div class="text-danger small mt-1">{{ form.qualification.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12">
+                                    <label for="{{ form.work_experience.id_for_label }}" class="form-label">
+                                        {{ form.work_experience.label }}
+                                    </label>
+                                    {{ form.work_experience }}
+                                    {% if form.work_experience.errors %}
+                                        <div class="text-danger small mt-1">{{ form.work_experience.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12">
+                                    <label for="{{ form.note.id_for_label }}" class="form-label">
+                                        {{ form.note.label }}
+                                    </label>
+                                    {{ form.note }}
+                                    {% if form.note.errors %}
+                                        <div class="text-danger small mt-1">{{ form.note.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12">
+                                    <label for="{{ form.refusal_reason.id_for_label }}" class="form-label">
+                                        {{ form.refusal_reason.label }}
+                                    </label>
+                                    {{ form.refusal_reason }}
+                                    {% if form.refusal_reason.errors %}
+                                        <div class="text-danger small mt-1">{{ form.refusal_reason.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2 mt-4">
+                                <a href="{{ request.path }}" class="btn btn-outline-secondary">
+                                    Отмена
+                                </a>
+
+                                <button type="submit" class="btn btn-primary">
+                                    Сохранить
+                                </button>
+                            </div>
+                        </form>
+
+                    {% else %}
+
+                        <div class="row g-4">
+
+                            <div class="col-12 col-md-4">
+                                <div class="text-muted small">№</div>
+                                <div class="fw-semibold">{{ record.number|default:record.id }}</div>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <div class="text-muted small">Дата</div>
+                                <div class="fw-semibold">{{ record.date|date:"d.m.Y"|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <div class="text-muted small">Год рождения</div>
+                                <div class="fw-semibold">{{ record.birth_year|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="text-muted small">ФИО</div>
+                                <div class="fw-semibold">{{ record.full_name|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="text-muted small">Соискатель по вакансии на hh.ru</div>
+                                <div class="fw-semibold">{{ record.hh_vacancy|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="text-muted small">Должность</div>
+                                <div class="fw-semibold">{{ record.position|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="text-muted small">Контакты</div>
+                                <div class="fw-semibold">{{ record.contacts|default:"—"|linebreaksbr }}</div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="text-muted small">Мед комиссия</div>
+                                <div class="fw-semibold">{{ record.get_medical_commission_display|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="text-muted small">Этап</div>
+                                <div class="fw-semibold">{{ record.get_stage_display|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="text-muted small">ОТИПБ</div>
+                                <div class="fw-semibold">{{ record.otipb|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="text-muted small">Билет</div>
+                                <div class="fw-semibold">{{ record.ticket|default:"—" }}</div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="text-muted small">Комментарий</div>
+                                <div class="fw-semibold">{{ record.comment|default:"—"|linebreaksbr }}</div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="text-muted small">Квалификация, наличие удостоверения на сайте</div>
+                                <div class="fw-semibold">{{ record.qualification|default:"—"|linebreaksbr }}</div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="text-muted small">Опыт работы</div>
+                                <div class="fw-semibold">{{ record.work_experience|default:"—"|linebreaksbr }}</div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="text-muted small">Примечание</div>
+                                <div class="fw-semibold">{{ record.note|default:"—"|linebreaksbr }}</div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="text-muted small">Примечание или причина отказа</div>
+                                <div class="fw-semibold">{{ record.refusal_reason|default:"—"|linebreaksbr }}</div>
+                            </div>
+
                         </div>
 
-                        <div class="col-md-6">
-                            <div class="field-label">ФИО</div>
-                            <div class="field-value">{{ record.full_name }}</div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="field-label">Соискатель по вакансии на hh.ru</div>
-                            <div class="field-value">{{ record.hh_vacancy|default:"—" }}</div>
-                        </div>
+                    {% endif %}
 
-                        <div class="col-md-6">
-                            <div class="field-label">Должность</div>
-                            <div class="field-value">{{ record.position|default:"—" }}</div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="field-label">Контакты</div>
-                            <div class="field-value">{{ record.contacts|default:"—"|linebreaksbr }}</div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="field-label">Мед комиссия</div>
-                            <div class="field-value">{{ record.get_medical_commission_display|default:"—" }}</div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="field-label">Этап</div>
-                            <div class="field-value">{{ record.get_stage_display }}</div>
-                        </div>
-
-
-                        <div class="col-md-6">
-                            <div class="field-label">Билет</div>
-                            <div class="field-value">{{ record.ticket|default:"—" }}</div>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="field-label">Комментарий</div>
-                            <div class="field-value">{{ record.comment|default:"—"|linebreaksbr }}</div>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="field-label">Квалификация, наличие удостоверения на сайте</div>
-                            <div class="field-value">{{ record.qualification|default:"—"|linebreaksbr }}</div>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="field-label">Опыт работы</div>
-                            <div class="field-value">{{ record.work_experience|default:"—"|linebreaksbr }}</div>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="field-label">Примечание</div>
-                            <div class="field-value">{{ record.note|default:"—"|linebreaksbr }}</div>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="field-label">Примечание или причина отказа</div>
-                            <div class="field-value">{{ record.refusal_reason|default:"—"|linebreaksbr }}</div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
-            <div class="card shadow-sm mt-4">
+            <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <strong>Документы</strong>
-                    <span class="badge text-bg-secondary">{{ documents|length }}</span>
+                    <span class="badge bg-secondary">{{ documents|length }}</span>
                 </div>
+
                 <div class="card-body">
+
                     <form
                         method="post"
-                        action="{% url 'personnel:document_upload' record.pk %}"
                         enctype="multipart/form-data"
-                        class="row g-3 mb-4"
+                        action="/personnel/resume/{{ record.pk }}/documents/upload/"
+                        class="row g-3 align-items-end mb-4"
                     >
                         {% csrf_token %}
-                        <input type="hidden" name="next" value="{% url 'personnel:resume_candidate_detail' record.pk %}">
 
-                        <div class="col-md-4">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+
+                        <div class="col-12 col-md-4">
                             <label class="form-label">{{ document_form.title.label }}</label>
                             {{ document_form.title }}
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-12 col-md-4">
                             <label class="form-label">{{ document_form.file.label }}</label>
                             {{ document_form.file }}
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-12 col-md-3">
                             <label class="form-label">{{ document_form.comment.label }}</label>
                             {{ document_form.comment }}
                         </div>
 
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-success">Загрузить документ</button>
+                        <div class="col-12 col-md-1">
+                            <button type="submit" class="btn btn-success w-100">
+                                +
+                            </button>
                         </div>
                     </form>
 
@@ -156,14 +376,17 @@
                                     <th>Комментарий</th>
                                     <th>Загрузил</th>
                                     <th>Дата</th>
-                                    <th style="width: 220px;">Действия</th>
+                                    <th class="text-end">Действия</th>
                                 </tr>
                             </thead>
+
                             <tbody>
                                 {% for doc in documents %}
                                     <tr>
                                         <td>{{ doc.title }}</td>
+
                                         <td>{{ doc.comment|default:"—"|linebreaksbr }}</td>
+
                                         <td>
                                             {% if doc.uploaded_by %}
                                                 {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}
@@ -171,20 +394,30 @@
                                                 —
                                             {% endif %}
                                         </td>
+
                                         <td>{{ doc.uploaded_at|date:"d.m.Y H:i" }}</td>
-                                        <td>
-                                            <div class="d-flex gap-2">
-                                                <a href="{% url 'personnel:document_download' doc.pk %}" class="btn btn-sm btn-outline-primary">
-                                                    Скачать
-                                                </a>
-                                                <form method="post" action="{% url 'personnel:document_delete' doc.pk %}">
-                                                    {% csrf_token %}
-                                                    <input type="hidden" name="next" value="{% url 'personnel:resume_candidate_detail' record.pk %}">
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                        Удалить
-                                                    </button>
-                                                </form>
-                                            </div>
+
+                                        <td class="text-end">
+                                            <a
+                                                href="/personnel/resume/documents/{{ doc.pk }}/download/"
+                                                class="btn btn-outline-secondary btn-sm"
+                                            >
+                                                Скачать
+                                            </a>
+
+                                            <form
+                                                method="post"
+                                                action="/personnel/resume/documents/{{ doc.pk }}/delete/"
+                                                class="d-inline"
+                                                onsubmit="return confirm('Удалить документ?');"
+                                            >
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{{ request.path }}">
+
+                                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                    Удалить
+                                                </button>
+                                            </form>
                                         </td>
                                     </tr>
                                 {% empty %}
@@ -197,67 +430,86 @@
                             </tbody>
                         </table>
                     </div>
+
                 </div>
             </div>
+
         </div>
 
-        <div class="col-lg-4">
-            <div class="card shadow-sm">
+        <div class="col-12 col-xl-4">
+
+            <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
                     <strong>Служебная информация</strong>
                 </div>
+
                 <div class="card-body">
-                    <p class="mb-2">
-                        <strong>Создал:</strong><br>
-                        {% if record.created_by %}
-                            {{ record.created_by.get_full_name|default:record.created_by.username }}
-                        {% else %}
-                            —
-                        {% endif %}
-                    </p>
 
-                    <p class="mb-2">
-                        <strong>Последний редактор:</strong><br>
-                        {% if record.updated_by %}
-                            {{ record.updated_by.get_full_name|default:record.updated_by.username }}
-                        {% else %}
-                            —
-                        {% endif %}
-                    </p>
+                    <div class="mb-3">
+                        <div class="fw-semibold">Создал:</div>
+                        <div>
+                            {% if record.created_by %}
+                                {{ record.created_by.get_full_name|default:record.created_by.username }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </div>
+                    </div>
 
-                    <p class="mb-2">
-                        <strong>Создано:</strong><br>
-                        {% if record.created_at %}
-                            {{ record.created_at|date:"d.m.Y H:i" }}
-                        {% else %}
-                            —
-                        {% endif %}
-                    </p>
+                    <div class="mb-3">
+                        <div class="fw-semibold">Последний редактор:</div>
+                        <div>
+                            {% if record.updated_by %}
+                                {{ record.updated_by.get_full_name|default:record.updated_by.username }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </div>
+                    </div>
 
-                    <p class="mb-0">
-                        <strong>Изменено:</strong><br>
-                        {% if record.updated_at %}
-                            {{ record.updated_at|date:"d.m.Y H:i" }}
-                        {% else %}
-                            —
-                        {% endif %}
-                    </p>
+                    <div class="mb-3">
+                        <div class="fw-semibold">Создано:</div>
+                        <div>
+                            {% if record.created_at %}
+                                {{ record.created_at|date:"d.m.Y H:i" }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="fw-semibold">Изменено:</div>
+                        <div>
+                            {% if record.updated_at %}
+                                {{ record.updated_at|date:"d.m.Y H:i" }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
-            <div class="card shadow-sm mt-4 border-danger">
+            <div class="card border-danger shadow-sm">
                 <div class="card-body">
-                    <p class="text-muted small mb-3">
+                    <p class="text-muted small">
                         Удаление карточки удалит кандидата и все связанные документы.
                     </p>
-                    <a href="{% url 'personnel:resume_candidate_delete' record.pk %}" class="btn btn-outline-danger w-100">
+
+                    <a
+                        href="/personnel/resume/{{ record.pk }}/delete/"
+                        class="btn btn-outline-danger w-100"
+                    >
                         Удалить карточку
                     </a>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-</body>
-</html>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
