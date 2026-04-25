@@ -483,7 +483,7 @@ class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, Det
             if old_stage != new_stage:
                 send_stage_notification(candidate, new_stage, request.user, request)
 
-            messages.success(request, 'Карточка кандидата сохранена.')
+            # messages.success(request, 'Карточка кандидата сохранена.')
             return redirect(candidate_detail_url(candidate.pk))
 
         return self.render_to_response(

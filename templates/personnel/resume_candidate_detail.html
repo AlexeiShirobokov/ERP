@@ -48,8 +48,11 @@
         <div class="col-12 col-xl-8">
 
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <strong>Карточка кандидата</strong>
+                    <span class="text-muted small">
+                        № {{ record.number|default:record.id }}
+                    </span>
                 </div>
 
                 <div class="card-body">
@@ -66,13 +69,6 @@
                             {% endif %}
 
                             <div class="row g-3">
-
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label">№</label>
-                                    <div class="form-control-plaintext">
-                                        {{ record.number|default:record.id }}
-                                    </div>
-                                </div>
 
                                 <div class="col-12 col-md-4">
                                     <label for="{{ form.date.id_for_label }}" class="form-label">
