@@ -14,6 +14,7 @@ CANDIDATE_FIELD_ORDER = [
     'comment',
     'birth_year',
     'qualification',
+    'work_experience',
     'note',
     'otipb',
     'refusal_reason',
@@ -24,7 +25,12 @@ CANDIDATE_FIELD_ORDER = [
 
 def existing_candidate_fields():
     model_field_names = {field.name for field in ResumeCandidate._meta.get_fields()}
-    return [name for name in CANDIDATE_FIELD_ORDER if name in model_field_names]
+
+    return [
+        name
+        for name in CANDIDATE_FIELD_ORDER
+        if name in model_field_names
+    ]
 
 
 def candidate_widgets():
@@ -33,7 +39,13 @@ def candidate_widgets():
     if 'date' in existing_candidate_fields():
         widgets['date'] = forms.DateInput(attrs={'type': 'date'})
 
-    for field_name in ['comment', 'qualification', 'note', 'refusal_reason']:
+    for field_name in [
+        'comment',
+        'qualification',
+        'work_experience',
+        'note',
+        'refusal_reason',
+    ]:
         if field_name in existing_candidate_fields():
             widgets[field_name] = forms.Textarea(attrs={'rows': 2})
 
@@ -46,10 +58,12 @@ class ResumeCandidateForm(forms.ModelForm):
         max_length=255,
         required=False,
     )
+
     document_file = forms.FileField(
         label='Файл',
         required=False,
     )
+
     document_comment = forms.CharField(
         label='Комментарий к документу',
         required=False,
@@ -63,13 +77,20 @@ class ResumeCandidateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         for _, field in self.fields.items():
-            css_class = 'form-select' if isinstance(field.widget, forms.Select) else 'form-control'
+            css_class = (
+                'form-select'
+                if isinstance(field.widget, forms.Select)
+                else 'form-control'
+            )
+
             current = field.widget.attrs.get('class', '')
             field.widget.attrs['class'] = f'{current} {css_class}'.strip()
 
     def clean(self):
         cleaned_data = super().clean()
+
         document_title = cleaned_data.get('document_title')
         document_file = cleaned_data.get('document_file')
 
@@ -84,11 +105,16 @@ class ResumeCandidateDocumentForm(forms.ModelForm):
         model = ResumeCandidateDocument
         fields = ['title', 'file', 'comment']
         widgets = {
-            'comment': forms.TextInput(attrs={'placeholder': 'Комментарий'}),
+            'comment': forms.TextInput(
+                attrs={
+                    'placeholder': 'Комментарий',
+                }
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         for _, field in self.fields.items():
             current = field.widget.attrs.get('class', '')
             field.widget.attrs['class'] = f'{current} form-control'.strip()
@@ -97,13 +123,23 @@ class ResumeCandidateDocumentForm(forms.ModelForm):
 class ResumeStageForm(forms.ModelForm):
     class Meta:
         model = ResumeStage
-        fields = ['name', 'code', 'sort_order', 'is_active', 'responsible_user', 'notify_email']
+        fields = [
+            'name',
+            'code',
+            'sort_order',
+            'is_active',
+            'responsible_user',
+            'notify_email',
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.fields['code'].required = False
-        self.fields['code'].help_text = 'Если оставить пустым, код будет создан автоматически.'
+        self.fields['code'].help_text = (
+            'Если оставить пустым, код будет создан автоматически.'
+        )
+
         self.fields['notify_email'].required = False
         self.fields['responsible_user'].required = False
 
@@ -111,12 +147,19 @@ class ResumeStageForm(forms.ModelForm):
             if isinstance(field.widget, forms.CheckboxInput):
                 continue
 
-            css_class = 'form-select' if isinstance(field.widget, forms.Select) else 'form-control'
+            css_class = (
+                'form-select'
+                if isinstance(field.widget, forms.Select)
+                else 'form-control'
+            )
+
             current = field.widget.attrs.get('class', '')
             field.widget.attrs['class'] = f'{current} {css_class}'.strip()
 
         current = self.fields['is_active'].widget.attrs.get('class', '')
-        self.fields['is_active'].widget.attrs['class'] = f'{current} form-check-input'.strip()
+        self.fields['is_active'].widget.attrs['class'] = (
+            f'{current} form-check-input'.strip()
+        )
 
     def clean_code(self):
         code = (self.cleaned_data.get('code') or '').strip()
@@ -129,6 +172,7 @@ class ResumeStageForm(forms.ModelForm):
             raise forms.ValidationError('Не удалось сформировать код этапа.')
 
         qs = ResumeStage.objects.filter(code=code)
+
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
 

@@ -1,13 +1,26 @@
 from django.contrib import admin
 
-from .models import ResumeCandidate, ResumeCandidateDocument, ResumeStage
+from .models import (
+    OtipbHistory,
+    ResumeCandidate,
+    ResumeCandidateDocument,
+    ResumeStage,
+)
 
 
 class ResumeCandidateDocumentInline(admin.TabularInline):
     model = ResumeCandidateDocument
     extra = 0
-    fields = ('title', 'file', 'comment', 'uploaded_by', 'uploaded_at')
-    readonly_fields = ('uploaded_at',)
+    fields = (
+        'title',
+        'file',
+        'comment',
+        'uploaded_by',
+        'uploaded_at',
+    )
+    readonly_fields = (
+        'uploaded_at',
+    )
 
 
 @admin.register(ResumeStage)
@@ -20,7 +33,12 @@ class ResumeStageAdmin(admin.ModelAdmin):
         'responsible_user',
         'notify_email',
     )
-    list_editable = ('sort_order', 'is_active')
+
+    list_editable = (
+        'sort_order',
+        'is_active',
+    )
+
     search_fields = (
         'name',
         'code',
@@ -29,7 +47,11 @@ class ResumeStageAdmin(admin.ModelAdmin):
         'responsible_user__last_name',
         'notify_email',
     )
-    ordering = ('sort_order', 'id')
+
+    ordering = (
+        'sort_order',
+        'id',
+    )
 
 
 @admin.register(ResumeCandidate)
@@ -42,11 +64,72 @@ class ResumeCandidateAdmin(admin.ModelAdmin):
         'medical_commission',
         'otipb',
         'stage_name_display',
+        'created_at',
+        'updated_at',
     )
-    search_fields = ('full_name', 'position', 'contacts', 'number')
-    list_filter = ('date', 'medical_commission', 'stage')
-    inlines = [ResumeCandidateDocumentInline]
+
+    search_fields = (
+        'full_name',
+        'position',
+        'contacts',
+        'number',
+        'otipb',
+    )
+
+    list_filter = (
+        'date',
+        'medical_commission',
+        'stage',
+    )
+
+    readonly_fields = (
+        'created_at',
+        'updated_at',
+    )
+
+    inlines = [
+        ResumeCandidateDocumentInline,
+    ]
 
     @admin.display(description='Этап')
     def stage_name_display(self, obj):
         return obj.stage_name
+
+
+@admin.register(OtipbHistory)
+class OtipbHistoryAdmin(admin.ModelAdmin):
+    list_display = (
+        'full_name',
+        'position',
+        'contacts',
+        'otipb',
+        'source',
+        'source_date',
+        'created_at',
+    )
+
+    search_fields = (
+        'full_name',
+        'full_name_normalized',
+        'position',
+        'contacts',
+        'otipb',
+        'comment',
+    )
+
+    list_filter = (
+        'source',
+        'source_date',
+        'created_at',
+    )
+
+    readonly_fields = (
+        'full_name_normalized',
+        'created_at',
+        'updated_at',
+    )
+
+    ordering = (
+        '-source_date',
+        '-id',
+    )
