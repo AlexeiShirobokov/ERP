@@ -240,16 +240,16 @@
                             </div>
                         {% endif %}
 
-                        {% if form.otipb %}
+                        {% if form.approval_department %}
                             <div class="col-12 col-md-6">
-                                <label for="{{ form.otipb.id_for_label }}" class="form-label">
-                                    {{ form.otipb.label }}
+                                <label for="{{ form.approval_department.id_for_label }}" class="form-label">
+                                    {{ form.approval_department.label }}
                                 </label>
-                                {{ form.otipb }}
+                                {{ form.approval_department }}
 
-                                {% if form.otipb.errors %}
+                                {% if form.approval_department.errors %}
                                     <div class="text-danger small mt-1">
-                                        {{ form.otipb.errors }}
+                                        {{ form.approval_department.errors }}
                                     </div>
                                 {% endif %}
                             </div>

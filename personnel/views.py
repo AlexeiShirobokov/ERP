@@ -474,15 +474,20 @@ class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, Det
         )
 
         if form.is_valid():
-            old_stage = self.object.stage
-            candidate = form.save()
-            new_stage = candidate.stage
+            old_approval_department = self.object.approval_department
 
-            if old_stage != new_stage:
-                send_stage_notification(candidate, new_stage, request.user, request)
+            candidate = form.save(commit=False)
+
+            if (
+                    candidate.approval_department
+                    and candidate.approval_department != old_approval_department
+            ):
+                candidate.stage = candidate.approval_department
+
+            candidate.save()
 
             messages.success(request, 'Карточка кандидата сохранена.')
-            return redirect(candidate_detail_url(candidate.pk))
+            return redirect(request.path)
 
         return self.render_to_response(
             self.get_context_data(
@@ -519,17 +524,26 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
         return context
 
     def form_valid(self, form):
-        response = super().form_valid(form)
+        candidate = form.save(commit=False)
+
+        if candidate.approval_department:
+            candidate.stage = candidate.approval_department
+
+        candidate.save()
+        self.object = candidate
+
+        if hasattr(form, 'save_m2m'):
+            form.save_m2m()
 
         titles = self.request.POST.getlist('create_document_titles')
         comments = self.request.POST.getlist('create_document_comments')
         files = self.request.FILES.getlist('create_document_files')
 
         for title, comment, uploaded_file in zip_longest(
-            titles,
-            comments,
-            files,
-            fillvalue=None,
+                titles,
+                comments,
+                files,
+                fillvalue=None,
         ):
             if not uploaded_file:
                 continue
@@ -546,7 +560,7 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
                 ),
             )
 
-        return response
+        return redirect('/personnel/resume/kanban/')
 
     def get_success_url(self):
         return KANBAN_URL
@@ -559,6 +573,21 @@ class ResumeCandidateUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upd
     Чтобы окно не менялось, при открытии этого URL переводим пользователя
     в карточку кандидата в режим редактирования.
     """
+    def form_valid(self, form):
+        old_approval_department = self.object.approval_department
+
+        candidate = form.save(commit=False)
+
+        if (
+            candidate.approval_department
+            and candidate.approval_department != old_approval_department
+        ):
+            candidate.stage = candidate.approval_department
+
+        candidate.save()
+        self.object = candidate
+
+        return redirect('/personnel/resume/kanban/')
 
     model = ResumeCandidate
     form_class = ResumeCandidateForm

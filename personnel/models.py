@@ -6,15 +6,63 @@ from django.utils import timezone
 
 
 DEFAULT_STAGE_DEFINITIONS = [
-    {'code': 'response', 'label': 'Отклик', 'emails': [], 'sort_order': 10},
-    {'code': 'phone_interview', 'label': 'Тел. интервью', 'emails': [], 'sort_order': 20},
-    {'code': 'otipb', 'label': 'ОТИПБ', 'emails': ['shirobokov@pskgold.ru'], 'sort_order': 30},
-    {'code': 'hr_department', 'label': 'Отдел кадров', 'emails': ['shirobokov@pskgold.ru'], 'sort_order': 40},
-    {'code': 'ticket', 'label': 'Требуется покупка билетов', 'emails': [], 'sort_order': 50},
-    {'code': 'hired', 'label': 'Трудоустроен', 'emails': [], 'sort_order': 60},
+    {
+        'code': 'phone_interview',
+        'label': 'Тел. интервью',
+        'emails': [],
+        'sort_order': 10,
+    },
+    {
+        'code': 'otipb',
+        'label': 'ОТИПБ',
+        'emails': ['shirobokov@pskgold.ru'],
+        'sort_order': 20,
+    },
+    {
+        'code': 'mechanic_approval',
+        'label': 'ОГМ',
+        'emails': ['shirobokov@pskgold.ru'],
+        'sort_order': 30,
+    },
+    {
+        'code': 'geology_approval',
+        'label': 'Геологический отдел',
+        'emails': ['shirobokov@pskgold.ru'],
+        'sort_order': 40,
+    },
+    {
+        'code': 'transport_approval',
+        'label': 'Транспортный цех',
+        'emails': ['shirobokov@pskgold.ru'],
+        'sort_order': 50,
+    },
+    {
+        'code': 'ticket',
+        'label': 'Требуется покупка билетов',
+        'emails': [],
+        'sort_order': 70,
+    },
+    {
+        'code': 'hr_department',
+        'label': 'Отдел кадров',
+        'emails': ['shirobokov@pskgold.ru'],
+        'sort_order': 60,
+    },
+
+    {
+        'code': 'hired',
+        'label': 'Трудоустроен',
+        'emails': [],
+        'sort_order': 80,
+    },
 ]
 
-
+APPROVAL_CHOICES = [
+    ('', 'Не требуется'),
+    ('mechanic_approval', 'Согласование с отделом механика'),
+    ('geology_approval', 'Согласование с геологическим отделом'),
+    ('transport_approval', 'Согласование с транспортным цехом'),
+]
 def normalize_full_name(value):
     if not value:
         return ''
@@ -69,6 +117,25 @@ class ResumeStage(models.Model):
 
 
 class ResumeCandidate(models.Model):
+    def save(self, *args, **kwargs):
+        if self.stage == 'response':
+            self.stage = 'phone_interview'
+
+        if not self.number:
+            max_number = (
+                    ResumeCandidate.objects.aggregate(max_num=Max('number'))['max_num']
+                    or 0
+            )
+            self.number = max_number + 1
+
+    APPROVAL_CHOICES = [
+        ('', 'Не требуется'),
+        ('mechanic_approval', 'ОГМ'),
+        ('geology_approval', 'Геологический отдел'),
+        ('transport_approval', 'Транспортный цех'),
+    ]
+
+
     MEDICAL_CHOICES = [
         ('pending', 'Ожидает'),
         ('passed', 'Пройдена'),
@@ -181,6 +248,15 @@ class ResumeCandidate(models.Model):
         blank=True,
     )
 
+    approval_department = models.CharField(
+        'Требуется согласование',
+        max_length=100,
+        choices=APPROVAL_CHOICES,
+        blank=True,
+        default='',
+        db_index=True,
+    )
+
     refusal_reason = models.TextField(
         'Примечание или причина отказа',
         blank=True,
@@ -195,7 +271,7 @@ class ResumeCandidate(models.Model):
     stage = models.CharField(
         'Этап',
         max_length=100,
-        default=DEFAULT_STAGE_DEFINITIONS[0]['code'],
+        default='phone_interview',
         db_index=True,
     )
 
@@ -443,6 +519,11 @@ class CandidateSourceRecord(models.Model):
         max_length=255,
         blank=True,
     )
+
+
+
+
+
 
     medical_direction = models.TextField(
         'Направление на МО',

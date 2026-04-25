@@ -17,6 +17,7 @@ CANDIDATE_FIELD_ORDER = [
     'work_experience',
     'note',
     'otipb',
+    'approval_department',
     'refusal_reason',
     'ticket',
     'stage',

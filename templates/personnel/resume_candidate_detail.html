@@ -164,15 +164,20 @@
                                     {% endif %}
                                 </div>
 
+                                {% if form.approval_department %}
                                 <div class="col-12 col-md-6">
-                                    <label for="{{ form.otipb.id_for_label }}" class="form-label">
-                                        {{ form.otipb.label }}
+                                    <label for="{{ form.approval_department.id_for_label }}" class="form-label">
+                                        {{ form.approval_department.label }}
                                     </label>
-                                    {{ form.otipb }}
-                                    {% if form.otipb.errors %}
-                                        <div class="text-danger small mt-1">{{ form.otipb.errors }}</div>
+                                    {{ form.approval_department }}
+
+                                    {% if form.approval_department.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.approval_department.errors }}
+                                        </div>
                                     {% endif %}
                                 </div>
+                                {% endif %}
 
                                 <div class="col-12">
                                     <label for="{{ form.comment.id_for_label }}" class="form-label">
@@ -287,8 +292,8 @@
                             </div>
 
                             <div class="col-12 col-md-6">
-                                <div class="text-muted small">ОТИПБ</div>
-                                <div class="fw-semibold">{{ record.otipb|default:"—" }}</div>
+                                <div class="text-muted small">Требуется согласование</div>
+                                <div class="fw-semibold">{{ record.get_approval_department_display|default:"—"  }}</div>
                             </div>
 
                             <div class="col-12 col-md-6">
