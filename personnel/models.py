@@ -45,7 +45,7 @@ DEFAULT_STAGE_DEFINITIONS = [
     {
         'code': 'hr_department',
         'label': 'Отдел кадров',
-        'emails': ['pivovarova@pskgold.ru'],
+        'emails': ['pivovarova@pskgold.ru', 'kalashnikova@pskgold.ru'],
         'sort_order': 60,
     },
 

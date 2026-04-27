@@ -1,30 +1,73 @@
 {% extends "personnel/base.html" %}
 
 {% block title %}Канбан кандидатов{% endblock %}
-{% block container_class %}container-fluid px-4{% endblock %}
+{% block container_class %}container-fluid px-3 kanban-container{% endblock %}
+
 {% block content %}
 <style>
+    body {
+        overflow: hidden;
+    }
+
+    .kanban-container {
+        padding-bottom: 0 !important;
+    }
+
+    .kanban-page {
+        height: calc(100vh - 92px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .kanban-toolbar {
+        flex: 0 0 auto;
+        margin-bottom: 1rem;
+    }
+
     .kanban-wrapper {
+        flex: 1 1 auto;
         overflow-x: auto;
-        padding-bottom: 1rem;
+        overflow-y: hidden;
+        width: 100%;
+        padding-bottom: 0.75rem;
     }
 
     .kanban-board {
         display: flex;
         gap: 1rem;
-        align-items: flex-start;
+        align-items: stretch;
         min-width: max-content;
-    }
-
-    .kanban-wrapper {
-    overflow-x: auto;
-    padding-bottom: 1rem;
-    width: 100%;
+        height: 100%;
     }
 
     .kanban-column {
         width: 380px;
         flex: 0 0 380px;
+        height: 100%;
+    }
+
+    .kanban-column-card {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .kanban-column-card .card-header {
+        flex: 0 0 auto;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #fff;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .kanban-dropzone {
+        flex: 1 1 auto;
+        min-height: 80px;
+        overflow-y: auto;
+        overflow-x: hidden;
     }
 
     .kanban-card {
@@ -36,96 +79,175 @@
         opacity: 0.5;
     }
 
-    .kanban-dropzone {
-        min-height: 40px;
-    }
-
     .drop-hover {
         outline: 2px dashed #0d6efd;
-        outline-offset: 4px;
+        outline-offset: -4px;
         border-radius: 0.5rem;
+        background: rgba(13, 110, 253, 0.04);
+    }
+
+    .kanban-wrapper::-webkit-scrollbar {
+        height: 14px;
+    }
+
+    .kanban-dropzone::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    .kanban-wrapper::-webkit-scrollbar-track,
+    .kanban-dropzone::-webkit-scrollbar-track {
+        background: #e9ecef;
+        border-radius: 999px;
+    }
+
+    .kanban-wrapper::-webkit-scrollbar-thumb,
+    .kanban-dropzone::-webkit-scrollbar-thumb {
+        background: #adb5bd;
+        border-radius: 999px;
+    }
+
+    .kanban-wrapper::-webkit-scrollbar-thumb:hover,
+    .kanban-dropzone::-webkit-scrollbar-thumb:hover {
+        background: #6c757d;
+    }
+
+    @media (max-width: 768px) {
+        body {
+            overflow: auto;
+        }
+
+        .kanban-page {
+            height: auto;
+            overflow: visible;
+        }
+
+        .kanban-wrapper {
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+
+        .kanban-board {
+            height: auto;
+        }
+
+        .kanban-column {
+            height: calc(100vh - 180px);
+        }
     }
 </style>
 
-<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="h3 mb-1">Подбор персонала</h1>
-        <p class="text-muted mb-0">Канбан кандидатов</p>
+<div class="kanban-page">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center kanban-toolbar">
+        <div>
+            <h1 class="h3 mb-1">Подбор персонала</h1>
+            <p class="text-muted mb-0">Канбан кандидатов</p>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/" class="btn btn-outline-secondary">На главную</a>
+            <a href="{% url 'personnel:resume_candidate_list' %}" class="btn btn-outline-primary">Список</a>
+
+            {% if perms.personnel.view_resumestage %}
+                <a href="{% url 'personnel:resume_stage_list' %}" class="btn btn-outline-dark">Этапы</a>
+            {% endif %}
+
+            <a href="{% url 'personnel:resume_candidate_add' %}" class="btn btn-primary">
+                Добавить кандидата
+            </a>
+        </div>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
-        <a href="/" class="btn btn-outline-secondary">На главную</a>
-        <a href="{% url 'personnel:resume_candidate_list' %}" class="btn btn-outline-primary">Список</a>
-        {% if perms.personnel.view_resumestage %}
-            <a href="{% url 'personnel:resume_stage_list' %}" class="btn btn-outline-dark">Этапы</a>
-        {% endif %}
-        <a href="{% url 'personnel:resume_candidate_add' %}" class="btn btn-primary">Добавить кандидата</a>
-    </div>
-</div>
 
-<div class="kanban-wrapper">
-    <div class="kanban-board">
-        {% for column in columns %}
-            <div class="kanban-column">
-                <div class="card shadow-sm border-0">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <strong>{{ column.name }}</strong>
-                        <span class="badge bg-secondary">{{ column.count }}</span>
-                    </div>
+    <div class="kanban-wrapper">
+        <div class="kanban-board">
+            {% for column in columns %}
+                <div class="kanban-column">
+                    <div class="card shadow-sm border-0 kanban-column-card">
 
-                    <div class="card-body bg-body-tertiary kanban-dropzone"
-                         data-stage="{{ column.code }}">
-                        {% for item in column.items %}
-                            <div class="card kanban-card shadow-sm border-0 mb-3"
-                                 draggable="true"
-                                 data-id="{{ item.id }}">
-                                <div class="card-body">
-                                    <h6 class="mb-1">{{ item.full_name }}</h6>
-                                    <div class="small text-muted mb-1">{{ item.position|default:"Без должности" }}</div>
-                                    <div class="small mb-1">{{ item.contacts|default:"Нет контактов" }}</div>
-                                    <div class="small mb-1">МО: {{ item.get_medical_commission_display }}</div>
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <strong>{{ column.name }}</strong>
+                            <span class="badge bg-secondary">{{ column.count }}</span>
+                        </div>
 
-                                    {% if item.birth_year %}
-                                        <div class="small mb-1">Год рождения: {{ item.birth_year }}</div>
-                                    {% endif %}
+                        <div class="card-body bg-body-tertiary kanban-dropzone"
+                             data-stage="{{ column.code }}">
 
-                                    {% if item.ticket %}
-                                        <div class="small mb-1">Билет: {{ item.ticket }}</div>
-                                    {% endif %}
+                            {% for item in column.items %}
+                                <div class="card kanban-card shadow-sm border-0 mb-3"
+                                     draggable="true"
+                                     data-id="{{ item.id }}">
 
-                                    {% if item.comment %}
-                                        <div class="small text-muted mb-2">{{ item.comment|truncatechars:80 }}</div>
-                                    {% endif %}
+                                    <div class="card-body">
+                                        <h6 class="mb-1">{{ item.full_name }}</h6>
 
-                                    <div class="d-grid gap-2">
-                                        <a href="{% url 'personnel:resume_candidate_detail' item.pk %}" class="btn btn-sm btn-outline-primary">
-                                            Открыть
-                                        </a>
+                                        <div class="small text-muted mb-1">
+                                            {{ item.position|default:"Без должности" }}
+                                        </div>
+
+                                        <div class="small mb-1">
+                                            {{ item.contacts|default:"Нет контактов" }}
+                                        </div>
+
+                                        <div class="small mb-1">
+                                            МО: {{ item.get_medical_commission_display }}
+                                        </div>
+
+                                        {% if item.birth_year %}
+                                            <div class="small mb-1">
+                                                Год рождения: {{ item.birth_year }}
+                                            </div>
+                                        {% endif %}
+
+                                        {% if item.ticket %}
+                                            <div class="small mb-1">
+                                                Билет: {{ item.ticket }}
+                                            </div>
+                                        {% endif %}
+
+                                        {% if item.comment %}
+                                            <div class="small text-muted mb-2">
+                                                {{ item.comment|truncatechars:80 }}
+                                            </div>
+                                        {% endif %}
+
+                                        <div class="d-grid gap-2">
+                                            <a href="{% url 'personnel:resume_candidate_detail' item.pk %}"
+                                               class="btn btn-sm btn-outline-primary">
+                                                Открыть
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        {% empty %}
-                            <div class="text-muted small empty-note">Нет кандидатов</div>
-                        {% endfor %}
+                            {% empty %}
+                                <div class="text-muted small empty-note">Нет кандидатов</div>
+                            {% endfor %}
+
+                        </div>
                     </div>
                 </div>
-            </div>
-        {% endfor %}
+            {% endfor %}
+        </div>
     </div>
+
 </div>
 
 <script>
     function getCookie(name) {
         let cookieValue = null;
+
         if (document.cookie && document.cookie !== '') {
             const cookies = document.cookie.split(';');
+
             for (let cookie of cookies) {
                 cookie = cookie.trim();
+
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
                 }
             }
         }
+
         return cookieValue;
     }
 
@@ -144,7 +266,10 @@
         card.addEventListener('dragend', () => {
             card.classList.remove('dragging');
             draggedCard = null;
-            document.querySelectorAll('.drop-hover').forEach(el => el.classList.remove('drop-hover'));
+
+            document.querySelectorAll('.drop-hover').forEach(el => {
+                el.classList.remove('drop-hover');
+            });
         });
     });
 
@@ -154,10 +279,16 @@
             zone.classList.add('drop-hover');
 
             const afterElement = getDragAfterElement(zone, e.clientY);
-            if (!draggedCard) return;
+
+            if (!draggedCard) {
+                return;
+            }
 
             const emptyNote = zone.querySelector('.empty-note');
-            if (emptyNote) emptyNote.remove();
+
+            if (emptyNote) {
+                emptyNote.remove();
+            }
 
             if (afterElement == null) {
                 zone.appendChild(draggedCard);
@@ -174,11 +305,16 @@
             e.preventDefault();
             zone.classList.remove('drop-hover');
 
-            if (!draggedCard) return;
+            if (!draggedCard) {
+                return;
+            }
 
             const newStage = zone.dataset.stage;
             const candidateId = draggedCard.dataset.id;
-            const orderedIds = Array.from(zone.querySelectorAll('.kanban-card')).map(card => card.dataset.id);
+
+            const orderedIds = Array.from(
+                zone.querySelectorAll('.kanban-card')
+            ).map(card => card.dataset.id);
 
             try {
                 const response = await fetch("{% url 'personnel:resume_candidate_kanban_reorder' %}", {
@@ -211,18 +347,25 @@
     });
 
     function getDragAfterElement(container, y) {
-        const draggableElements = [...container.querySelectorAll('.kanban-card:not(.dragging)')];
+        const draggableElements = [
+            ...container.querySelectorAll('.kanban-card:not(.dragging)')
+        ];
 
         return draggableElements.reduce((closest, child) => {
             const box = child.getBoundingClientRect();
             const offset = y - box.top - box.height / 2;
 
             if (offset < 0 && offset > closest.offset) {
-                return { offset: offset, element: child };
+                return {
+                    offset: offset,
+                    element: child
+                };
             } else {
                 return closest;
             }
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }, {
+            offset: Number.NEGATIVE_INFINITY
+        }).element;
     }
 
     function updateEmptyNotes() {
