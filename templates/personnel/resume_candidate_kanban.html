@@ -30,7 +30,7 @@
     }
 
     .kanban-creator-filter {
-        min-width: 260px;
+        min-width: 220px;
     }
 
     .kanban-wrapper {
@@ -50,8 +50,8 @@
     }
 
     .kanban-column {
-        width: 380px;
-        flex: 0 0 380px;
+        width: 320px;
+        flex: 0 0 320px;
         height: 100%;
     }
 
@@ -153,6 +153,7 @@
         </div>
 
         <div class="d-flex flex-wrap align-items-end justify-content-end gap-2 kanban-top-controls">
+
             <form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-0">
                 <div class="kanban-creator-filter">
                     <label class="form-label mb-1 small">Создал карточку</label>
@@ -174,7 +175,8 @@
                 </button>
 
                 {% if selected_created_by %}
-                    <a href="{% url 'personnel:resume_candidate_kanban' %}" class="btn btn-sm btn-outline-secondary">
+                    <a href="{% url 'personnel:resume_candidate_kanban' %}"
+                       class="btn btn-sm btn-outline-secondary">
                         Сбросить
                     </a>
                 {% endif %}
@@ -242,18 +244,6 @@
                                             </div>
                                         {% endif %}
 
-                                        {% if item.security_approval and item.security_approval != 'pending' %}
-                                            <div class="small mb-1">
-                                                СБ: {{ item.get_security_approval_display }}
-                                            </div>
-                                        {% endif %}
-
-                                        {% if item.department_call_approval and item.department_call_approval != 'pending' %}
-                                            <div class="small mb-1">
-                                                Вызов: {{ item.get_department_call_approval_display }}
-                                            </div>
-                                        {% endif %}
-
                                         {% if item.birth_year %}
                                             <div class="small mb-1">
                                                 Год рождения: {{ item.birth_year }}
@@ -263,6 +253,13 @@
                                         {% if item.ticket %}
                                             <div class="small mb-1">
                                                 Билет: {{ item.ticket }}
+                                            </div>
+                                        {% endif %}
+
+                                        {% if item.estimated_arrival_date %}
+                                            <div class="small mb-1">
+                                                Расчетная дата приезда:
+                                                {{ item.estimated_arrival_date|date:"d.m.Y" }}
                                             </div>
                                         {% endif %}
 

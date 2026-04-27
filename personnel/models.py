@@ -265,7 +265,6 @@ class ResumeCandidate(models.Model):
         blank=True,
         db_index=True,
     )
-
     security_comment = models.TextField(
         'Комментарий службы безопасности',
         blank=True,
@@ -291,10 +290,17 @@ class ResumeCandidate(models.Model):
     refusal_reason = models.TextField('Примечание или причина отказа', blank=True)
     ticket = models.CharField('Билет', max_length=255, blank=True)
 
+    estimated_arrival_date = models.DateField(
+        'Расчетная дата приезда',
+        null=True,
+        blank=True,
+    )
+
     stage = models.CharField(
         'Этап процесса',
         max_length=100,
         default='phone_interview',
+        blank=True,
         db_index=True,
     )
     sort_order = models.PositiveIntegerField(
@@ -400,6 +406,7 @@ class ResumeCandidate(models.Model):
         return self.stage_name
 
     def save(self, *args, **kwargs):
+        # Старый этап response оставлен только для обратной совместимости.
         if not self.stage or self.stage == 'response':
             self.stage = 'phone_interview'
 
@@ -454,6 +461,7 @@ class ResumeCandidate(models.Model):
             'department_call_comment': self.department_call_comment or '',
             'refusal_reason': self.refusal_reason or '',
             'ticket': self.ticket or '',
+            'estimated_arrival_date': self.estimated_arrival_date.isoformat() if self.estimated_arrival_date else '',
             'stage': self.stage or '',
         }
 
@@ -725,6 +733,7 @@ class CandidateSourceRecord(models.Model):
             'department_call_comment': '',
             'refusal_reason': self.refusal_reason or '',
             'ticket': '',
+            'estimated_arrival_date': '',
             'stage': '',
             'source_date': self.source_date.strftime('%d.%m.%Y') if self.source_date else '',
             'accepted_date': self.accepted_date.strftime('%d.%m.%Y') if self.accepted_date else '',

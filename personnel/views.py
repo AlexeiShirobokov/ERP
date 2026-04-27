@@ -27,6 +27,7 @@ from django.views.generic import (
 from openpyxl import Workbook
 
 from .forms import (
+    POSITION_OPTIONS,
     ResumeCandidateDocumentForm,
     ResumeCandidateForm,
     ResumeStageForm,
@@ -317,6 +318,7 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
             'Комментарий отдела',
             'Причина отказа',
             'Билет',
+            'Расчетная дата приезда',
             'Этап процесса',
             'Создал',
             'Последний редактор',
@@ -348,6 +350,7 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
                     item.department_call_comment or '',
                     item.refusal_reason or '',
                     item.ticket or '',
+                    item.estimated_arrival_date.strftime('%d.%m.%Y') if item.estimated_arrival_date else '',
                     item.stage_name,
                     get_user_display_name(item.created_by) if item.created_by else '',
                     get_user_display_name(item.updated_by) if item.updated_by else '',
@@ -487,6 +490,7 @@ class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, Det
         context['documents'] = self.object.documents.all()
         context['document_form'] = ResumeCandidateDocumentForm()
         context['edit_mode'] = edit_mode or self.request.GET.get('edit') == '1'
+        context['position_options'] = POSITION_OPTIONS
 
         if form is None:
             form = self.get_candidate_form()
@@ -543,13 +547,6 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
 
-        if 'stage' in form.fields:
-            choices = get_stage_choices()
-            form.fields['stage'].widget = forms.Select(choices=choices)
-            form.fields['stage'].choices = choices
-            form.fields['stage'].required = False
-            form.fields['stage'].initial = 'phone_interview'
-
         if 'security_approval' in form.fields:
             form.fields['security_approval'].required = False
             form.fields['security_approval'].initial = 'pending'
@@ -560,20 +557,21 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
 
         return form
 
-    def form_invalid(self, form):
-        messages.error(
-            self.request,
-            'Карточка не сохранена. Проверьте обязательные поля.'
-        )
-        logger.error('Ошибки создания карточки кандидата: %s', form.errors.as_json())
-        return super().form_invalid(form)
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['documents'] = []
         context['document_form'] = None
         context['is_create'] = True
+        context['position_options'] = POSITION_OPTIONS
         return context
+
+    def form_invalid(self, form):
+        messages.error(
+            self.request,
+            'Карточка не сохранена. Проверьте обязательные поля.',
+        )
+        logger.error('Ошибки создания карточки кандидата: %s', form.errors.as_json())
+        return super().form_invalid(form)
 
     def form_valid(self, form):
         self.object = form.save(commit=False)
@@ -906,6 +904,7 @@ class ResumeCandidateDocumentDownloadView(LoginRequiredMixin, PermissionRequired
             filename=filename,
         )
 
+
 class ResumeCandidateDocumentPreviewView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'personnel.view_resumecandidate'
     raise_exception = True
@@ -920,14 +919,13 @@ class ResumeCandidateDocumentPreviewView(LoginRequiredMixin, PermissionRequiredM
         filename = os.path.basename(document.file.name)
         content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
 
-        response = FileResponse(
+        return FileResponse(
             file_handle,
             as_attachment=False,
             filename=filename,
             content_type=content_type,
         )
 
-        return response
 
 class ResumeCandidateDocumentDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'personnel.change_resumecandidate'

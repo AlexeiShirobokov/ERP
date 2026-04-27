@@ -7,6 +7,12 @@
 {% if edit_mode %}
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
+
+    {% if form.stage %}
+        <input type="hidden"
+               name="{{ form.stage.html_name }}"
+               value="{% if record.stage %}{{ record.stage }}{% else %}phone_interview{% endif %}">
+    {% endif %}
 {% endif %}
 
 <div class="d-flex flex-wrap justify-content-between align-items-start mb-4 gap-3">
@@ -18,24 +24,29 @@
     <div class="d-flex gap-2 flex-wrap">
         {% if edit_mode %}
             <button type="submit" class="btn btn-primary">Сохранить</button>
-            <a href="{% url 'personnel:resume_candidate_detail' record.pk %}" class="btn btn-outline-secondary">
+
+            <a href="{% url 'personnel:resume_candidate_detail' record.pk %}"
+               class="btn btn-outline-secondary">
                 Отмена
             </a>
         {% else %}
             {% if perms.personnel.change_resumecandidate %}
-                <a href="{% url 'personnel:resume_candidate_detail' record.pk %}?edit=1" class="btn btn-primary">
+                <a href="{% url 'personnel:resume_candidate_detail' record.pk %}?edit=1"
+                   class="btn btn-primary">
                     Редактировать
                 </a>
             {% endif %}
         {% endif %}
 
-        <a href="{% url 'personnel:resume_candidate_kanban' %}" class="btn btn-outline-secondary">
+        <a href="{% url 'personnel:resume_candidate_kanban' %}"
+           class="btn btn-outline-secondary">
             Назад
         </a>
     </div>
 </div>
 
 <div class="row g-4">
+
     <div class="col-12 col-xl-8">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -45,6 +56,7 @@
 
             <div class="card-body">
                 {% if edit_mode %}
+
                     {% if form.non_field_errors %}
                         <div class="alert alert-danger">
                             {{ form.non_field_errors }}
@@ -52,6 +64,7 @@
                     {% endif %}
 
                     <div class="row g-3">
+
                         {% if form.date %}
                             <div class="col-12 col-md-4">
                                 <label class="form-label">{{ form.date.label }}</label>
@@ -122,22 +135,22 @@
                             </div>
                         {% endif %}
 
-                        {% if form.stage %}
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">{{ form.stage.label }}</label>
-                                {{ form.stage }}
-                                {% if form.stage.errors %}
-                                    <div class="text-danger small">{{ form.stage.errors }}</div>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-
                         {% if form.ticket %}
                             <div class="col-12 col-md-6">
                                 <label class="form-label">{{ form.ticket.label }}</label>
                                 {{ form.ticket }}
                                 {% if form.ticket.errors %}
                                     <div class="text-danger small">{{ form.ticket.errors }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.estimated_arrival_date %}
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">{{ form.estimated_arrival_date.label }}</label>
+                                {{ form.estimated_arrival_date }}
+                                {% if form.estimated_arrival_date.errors %}
+                                    <div class="text-danger small">{{ form.estimated_arrival_date.errors }}</div>
                                 {% endif %}
                             </div>
                         {% endif %}
@@ -211,8 +224,11 @@
                                 {% endif %}
                             </div>
                         {% endif %}
+
                     </div>
+
                 {% else %}
+
                     <div class="row g-4">
                         <div class="col-12 col-md-4">
                             <div class="field-label">№</div>
@@ -255,11 +271,6 @@
                         </div>
 
                         <div class="col-12 col-md-6">
-                            <div class="field-label">Этап процесса</div>
-                            <div class="field-value">{{ record.get_stage_display|default:"—" }}</div>
-                        </div>
-
-                        <div class="col-12 col-md-6">
                             <div class="field-label">Какой отдел отвечает</div>
                             <div class="field-value">{{ record.current_department_name|default:"—" }}</div>
                         </div>
@@ -267,6 +278,13 @@
                         <div class="col-12 col-md-6">
                             <div class="field-label">Билет</div>
                             <div class="field-value">{{ record.ticket|default:"—" }}</div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <div class="field-label">Расчетная дата приезда</div>
+                            <div class="field-value">
+                                {{ record.estimated_arrival_date|date:"d.m.Y"|default:"—" }}
+                            </div>
                         </div>
 
                         <div class="col-12">
@@ -299,6 +317,7 @@
                             <div class="field-value">{{ record.refusal_reason|default:"—"|linebreaksbr }}</div>
                         </div>
                     </div>
+
                 {% endif %}
             </div>
         </div>
@@ -365,7 +384,8 @@
                     </p>
 
                     <div class="d-grid">
-                        <a href="{% url 'personnel:resume_candidate_delete' record.pk %}" class="btn btn-outline-danger">
+                        <a href="{% url 'personnel:resume_candidate_delete' record.pk %}"
+                           class="btn btn-outline-danger">
                             Удалить карточку
                         </a>
                     </div>
@@ -467,13 +487,14 @@
             </div>
         </div>
     </div>
+
 </div>
 
 {% if edit_mode %}
 </form>
 {% endif %}
 
-<div class="row g-4 mt-1">
+<div class="row g-4 mt-4">
     <div class="col-12 col-xl-8">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -567,7 +588,8 @@
                                                 {% csrf_token %}
                                                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
 
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <button type="submit"
+                                                        class="btn btn-sm btn-outline-danger">
                                                     Удалить
                                                 </button>
                                             </form>
@@ -589,5 +611,23 @@
         </div>
     </div>
 </div>
+
+<datalist id="position-options">
+    {% for position_name in position_options %}
+        <option value="{{ position_name }}"></option>
+    {% endfor %}
+</datalist>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const positionInput = document.getElementById('id_position');
+
+        if (positionInput) {
+            positionInput.setAttribute('list', 'position-options');
+            positionInput.setAttribute('autocomplete', 'off');
+            positionInput.setAttribute('placeholder', 'Начните вводить должность');
+        }
+    });
+</script>
 
 {% endblock %}
