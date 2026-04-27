@@ -13,6 +13,12 @@ DEFAULT_STAGE_DEFINITIONS = [
         'sort_order': 10,
     },
     {
+        'code': 'security_service',
+        'label': 'Служба безопасности',
+        'emails': [],
+        'sort_order': 15,
+    },
+    {
         'code': 'otipb',
         'label': 'ОТИПБ',
         'emails': ['sorokin@pskgold.ru'],
@@ -31,10 +37,22 @@ DEFAULT_STAGE_DEFINITIONS = [
         'sort_order': 40,
     },
     {
+        'code': 'surveyor_approval',
+        'label': 'Отдел маркшейдера',
+        'emails': [],
+        'sort_order': 45,
+    },
+    {
         'code': 'transport_approval',
         'label': 'Транспортный цех',
         'emails': ['pokashevskii@pskgold.ru'],
         'sort_order': 50,
+    },
+    {
+        'code': 'medical_direction',
+        'label': 'Направление на медосмотр',
+        'emails': [],
+        'sort_order': 53,
     },
     {
         'code': 'ticket',
@@ -48,25 +66,57 @@ DEFAULT_STAGE_DEFINITIONS = [
         'emails': ['pivovarova@pskgold.ru', 'kalashnikova@pskgold.ru'],
         'sort_order': 60,
     },
-
     {
         'code': 'hired',
         'label': 'Трудоустроен',
         'emails': [],
         'sort_order': 80,
     },
+    {
+        'code': 'refusal',
+        'label': 'Отказ',
+        'emails': [],
+        'sort_order': 90,
+    },
 ]
+
 
 APPROVAL_CHOICES = [
     ('', 'Не требуется'),
-    ('mechanic_approval', 'Согласование с отделом механика'),
-    ('geology_approval', 'Согласование с геологическим отделом'),
-    ('transport_approval', 'Согласование с транспортным цехом'),
+    ('otipb', 'ОТИПБ'),
+    ('mechanic_approval', 'ОГМ'),
+    ('geology_approval', 'Геологический отдел'),
+    ('surveyor_approval', 'Отдел маркшейдера'),
+    ('transport_approval', 'Транспортный цех'),
 ]
+
+
+DEPARTMENT_STAGE_LABELS = {
+    'otipb': 'ОТИПБ',
+    'mechanic_approval': 'ОГМ',
+    'geology_approval': 'Геологический отдел',
+    'surveyor_approval': 'Отдел маркшейдера',
+    'transport_approval': 'Транспортный цех',
+}
+
+
+SECURITY_APPROVAL_CHOICES = [
+    ('pending', 'Не рассмотрено'),
+    ('approved', 'Согласовано'),
+    ('rejected', 'Не согласовано'),
+]
+
+
+DEPARTMENT_CALL_APPROVAL_CHOICES = [
+    ('pending', 'Не рассмотрено'),
+    ('approved', 'Согласован к вызову'),
+    ('rejected', 'Не согласован к вызову'),
+]
+
+
 def normalize_full_name(value):
     if not value:
         return ''
-
     return ' '.join(str(value).strip().lower().split())
 
 
@@ -84,7 +134,6 @@ class ResumeStage(models.Model):
         verbose_name='Ответственный',
         related_name='resume_stages',
     )
-
     notify_email = models.EmailField(
         'Дополнительный email для уведомлений',
         blank=True,
@@ -117,24 +166,7 @@ class ResumeStage(models.Model):
 
 
 class ResumeCandidate(models.Model):
-    def save(self, *args, **kwargs):
-        if self.stage == 'response':
-            self.stage = 'phone_interview'
-
-        if not self.number:
-            max_number = (
-                    ResumeCandidate.objects.aggregate(max_num=Max('number'))['max_num']
-                    or 0
-            )
-            self.number = max_number + 1
-
-    APPROVAL_CHOICES = [
-        ('', 'Не требуется'),
-        ('mechanic_approval', 'ОГМ'),
-        ('geology_approval', 'Геологический отдел'),
-        ('transport_approval', 'Транспортный цех'),
-    ]
-
+    APPROVAL_CHOICES = APPROVAL_CHOICES
 
     MEDICAL_CHOICES = [
         ('pending', 'Ожидает'),
@@ -142,31 +174,30 @@ class ResumeCandidate(models.Model):
         ('failed', 'Не пройдена'),
     ]
 
+    SECURITY_APPROVAL_CHOICES = SECURITY_APPROVAL_CHOICES
+    DEPARTMENT_CALL_APPROVAL_CHOICES = DEPARTMENT_CALL_APPROVAL_CHOICES
+
     hh_resume_id = models.CharField(
         'HH resume id',
         max_length=100,
         blank=True,
         db_index=True,
     )
-
     hh_resume_link = models.URLField(
         'Ссылка на резюме HH',
         blank=True,
     )
-
     hh_vacancy_id = models.CharField(
         'HH vacancy id',
         max_length=100,
         blank=True,
         db_index=True,
     )
-
     hh_source = models.CharField(
         'Источник HH',
         max_length=100,
         blank=True,
     )
-
     hh_last_sync_at = models.DateTimeField(
         'Последняя синхронизация HH',
         null=True,
@@ -179,35 +210,29 @@ class ResumeCandidate(models.Model):
         blank=True,
         null=True,
     )
-
     date = models.DateField(
         'Дата',
         default=timezone.localdate,
     )
-
     full_name = models.CharField(
         'ФИО',
         max_length=255,
     )
-
     hh_vacancy = models.CharField(
         'Соискатель по вакансии на hh.ru',
         max_length=255,
         blank=True,
     )
-
     position = models.CharField(
         'Должность',
         max_length=255,
         blank=True,
     )
-
     contacts = models.CharField(
         'Контакты',
         max_length=255,
         blank=True,
     )
-
     medical_commission = models.CharField(
         'Мед комиссия',
         max_length=20,
@@ -216,40 +241,15 @@ class ResumeCandidate(models.Model):
         blank=True,
     )
 
-    comment = models.TextField(
-        'Комментарий',
-        blank=True,
-    )
-
-    birth_year = models.PositiveIntegerField(
-        'Год рождения',
-        null=True,
-        blank=True,
-    )
-
-    qualification = models.TextField(
-        'Квалификация, наличие удостоверения на сайте',
-        blank=True,
-    )
-
-    work_experience = models.TextField(
-        'Опыт работы',
-        blank=True,
-    )
-
-    note = models.TextField(
-        'Примечание',
-        blank=True,
-    )
-
-    otipb = models.CharField(
-        'ОТИПБ',
-        max_length=255,
-        blank=True,
-    )
+    comment = models.TextField('Комментарий', blank=True)
+    birth_year = models.PositiveIntegerField('Год рождения', null=True, blank=True)
+    qualification = models.TextField('Квалификация, наличие удостоверения на сайте', blank=True)
+    work_experience = models.TextField('Опыт работы', blank=True)
+    note = models.TextField('Примечание', blank=True)
+    otipb = models.CharField('ОТИПБ', max_length=255, blank=True)
 
     approval_department = models.CharField(
-        'Требуется согласование',
+        'Какой отдел отвечает',
         max_length=100,
         choices=APPROVAL_CHOICES,
         blank=True,
@@ -257,16 +257,39 @@ class ResumeCandidate(models.Model):
         db_index=True,
     )
 
-    refusal_reason = models.TextField(
-        'Примечание или причина отказа',
+    security_approval = models.CharField(
+        'Служба безопасности',
+        max_length=20,
+        choices=SECURITY_APPROVAL_CHOICES,
+        default='pending',
+        blank=True,
+        db_index=True,
+    )
+
+    security_comment = models.TextField(
+        'Комментарий службы безопасности',
+        blank=True,
+    )
+    security_refusal_reason = models.TextField(
+        'Причина отказа службы безопасности',
         blank=True,
     )
 
-    ticket = models.CharField(
-        'Билет',
-        max_length=255,
+    department_call_approval = models.CharField(
+        'Согласование к вызову',
+        max_length=20,
+        choices=DEPARTMENT_CALL_APPROVAL_CHOICES,
+        default='pending',
+        blank=True,
+        db_index=True,
+    )
+    department_call_comment = models.TextField(
+        'Комментарий отдела',
         blank=True,
     )
+
+    refusal_reason = models.TextField('Примечание или причина отказа', blank=True)
+    ticket = models.CharField('Билет', max_length=255, blank=True)
 
     stage = models.CharField(
         'Этап процесса',
@@ -274,7 +297,6 @@ class ResumeCandidate(models.Model):
         default='phone_interview',
         db_index=True,
     )
-
     sort_order = models.PositiveIntegerField(
         'Порядок',
         default=0,
@@ -288,7 +310,6 @@ class ResumeCandidate(models.Model):
         verbose_name='Создал',
         related_name='created_resume_candidates',
     )
-
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -302,7 +323,6 @@ class ResumeCandidate(models.Model):
         'Создано',
         auto_now_add=True,
     )
-
     updated_at = models.DateTimeField(
         'Обновлено',
         auto_now=True,
@@ -324,7 +344,6 @@ class ResumeCandidate(models.Model):
     def get_stage_object(cls, stage_code):
         if not stage_code:
             return None
-
         return (
             ResumeStage.objects
             .select_related('responsible_user')
@@ -338,12 +357,10 @@ class ResumeCandidate(models.Model):
             return '—'
 
         stage_obj = cls.get_stage_object(stage_code)
-
         if stage_obj:
             return stage_obj.name
 
         default_item = cls.get_default_stage_map().get(stage_code)
-
         if default_item:
             return default_item['label']
 
@@ -355,12 +372,10 @@ class ResumeCandidate(models.Model):
             return []
 
         stage_obj = cls.get_stage_object(stage_code)
-
         if stage_obj:
             return stage_obj.get_notification_emails()
 
         default_item = cls.get_default_stage_map().get(stage_code)
-
         if default_item:
             return default_item.get('emails', [])
 
@@ -370,14 +385,33 @@ class ResumeCandidate(models.Model):
     def stage_name(self):
         return self.get_stage_label(self.stage)
 
+    @property
+    def current_department_name(self):
+        # Берём отдел именно по текущему этапу канбана.
+        # Если карточка стоит в колонке Транспортного цеха, здесь будет
+        # 'Транспортный цех'. Если в ОГМ — 'ОГМ' и так далее.
+        if self.stage in DEPARTMENT_STAGE_LABELS:
+            return DEPARTMENT_STAGE_LABELS[self.stage]
+
+        approval_map = {code: label for code, label in APPROVAL_CHOICES if code}
+        return approval_map.get(self.approval_department, '')
+
     def get_stage_display(self):
         return self.stage_name
 
     def save(self, *args, **kwargs):
+        if not self.stage or self.stage == 'response':
+            self.stage = 'phone_interview'
+
+        if not self.security_approval:
+            self.security_approval = 'pending'
+
+        if not self.department_call_approval:
+            self.department_call_approval = 'pending'
+
         if not self.number:
             max_number = (
-                ResumeCandidate.objects.aggregate(max_num=Max('number'))['max_num']
-                or 0
+                ResumeCandidate.objects.aggregate(max_num=Max('number'))['max_num'] or 0
             )
             self.number = max_number + 1
 
@@ -385,8 +419,7 @@ class ResumeCandidate(models.Model):
             max_sort = (
                 ResumeCandidate.objects
                 .filter(stage=self.stage)
-                .aggregate(max_sort=models.Max('sort_order'))['max_sort']
-                or 0
+                .aggregate(max_sort=models.Max('sort_order'))['max_sort'] or 0
             )
             self.sort_order = max_sort + 1
 
@@ -413,6 +446,12 @@ class ResumeCandidate(models.Model):
             'work_experience': self.work_experience or '',
             'note': self.note or '',
             'otipb': self.otipb or '',
+            'approval_department': self.approval_department or '',
+            'security_approval': self.security_approval or 'pending',
+            'security_comment': self.security_comment or '',
+            'security_refusal_reason': self.security_refusal_reason or '',
+            'department_call_approval': self.department_call_approval or 'pending',
+            'department_call_comment': self.department_call_comment or '',
             'refusal_reason': self.refusal_reason or '',
             'ticket': self.ticket or '',
             'stage': self.stage or '',
@@ -426,22 +465,9 @@ class ResumeCandidateDocument(models.Model):
         related_name='documents',
         verbose_name='Кандидат',
     )
-
-    title = models.CharField(
-        'Название',
-        max_length=255,
-    )
-
-    file = models.FileField(
-        'Файл',
-        upload_to='personnel/candidate_documents/%Y/%m/',
-    )
-
-    comment = models.TextField(
-        'Комментарий',
-        blank=True,
-    )
-
+    title = models.CharField('Название', max_length=255)
+    file = models.FileField('Файл', upload_to='personnel/candidate_documents/%Y/%m/')
+    comment = models.TextField('Комментарий', blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -449,11 +475,7 @@ class ResumeCandidateDocument(models.Model):
         blank=True,
         verbose_name='Загрузил',
     )
-
-    uploaded_at = models.DateTimeField(
-        'Дата загрузки',
-        auto_now_add=True,
-    )
+    uploaded_at = models.DateTimeField('Дата загрузки', auto_now_add=True)
 
     class Meta:
         verbose_name = 'Документ кандидата'
@@ -471,105 +493,83 @@ class CandidateSourceRecord(models.Model):
         blank=True,
         db_index=True,
     )
-
     source_number = models.PositiveIntegerField(
         '№ п/п из Excel',
         null=True,
         blank=True,
     )
-
     source_date = models.DateField(
         'Дата из Excel',
         null=True,
         blank=True,
         db_index=True,
     )
-
     full_name = models.CharField(
         'ФИО',
         max_length=255,
         db_index=True,
     )
-
     full_name_normalized = models.CharField(
         'ФИО для поиска',
         max_length=255,
         db_index=True,
         blank=True,
     )
-
     birth_date = models.DateField(
         'Дата рождения',
         null=True,
         blank=True,
     )
-
     birth_year = models.PositiveIntegerField(
         'Год рождения',
         null=True,
         blank=True,
     )
-
     vacancy = models.CharField(
         'Вакансия',
         max_length=255,
         blank=True,
     )
-
     phone = models.CharField(
         'Телефон',
         max_length=255,
         blank=True,
     )
-
     qualification = models.TextField(
         'Квалификация, наличие удостоверения на сайте',
         blank=True,
     )
-
     note = models.TextField(
         'Примечание',
         blank=True,
     )
-
     otipb = models.CharField(
         'ОТИПБ',
         max_length=255,
         blank=True,
     )
-
-
-
-
-
-
     medical_direction = models.TextField(
         'Направление на МО',
         blank=True,
     )
-
     refusal_reason = models.TextField(
         'Примечание или причина отказа',
         blank=True,
     )
-
     accepted_date = models.DateField(
         'Принят дата',
         null=True,
         blank=True,
     )
-
     import_file_name = models.CharField(
         'Имя файла импорта',
         max_length=255,
         blank=True,
     )
-
     imported_at = models.DateTimeField(
         'Дата импорта',
         auto_now_add=True,
     )
-
     updated_at = models.DateTimeField(
         'Обновлено',
         auto_now=True,
@@ -593,7 +593,6 @@ class CandidateSourceRecord(models.Model):
     @classmethod
     def get_latest_by_full_name(cls, full_name):
         full_name_normalized = normalize_full_name(full_name)
-
         if not full_name_normalized:
             return None
 
@@ -606,7 +605,6 @@ class CandidateSourceRecord(models.Model):
 
     def get_medical_commission_value(self):
         value = (self.medical_direction or '').strip().lower()
-
         if not value:
             return 'pending'
 
@@ -618,12 +616,10 @@ class CandidateSourceRecord(models.Model):
 
         return 'pending'
 
-
     @classmethod
     def get_stage_sort_order(cls, stage_code):
         """
         Возвращает порядок этапа по его коду.
-
         Сначала смотрим пользовательские этапы из базы ResumeStage.
         Если этапа там нет, берём порядок из DEFAULT_STAGE_DEFINITIONS.
         """
@@ -631,7 +627,6 @@ class CandidateSourceRecord(models.Model):
             return None
 
         stage = ResumeStage.objects.filter(code=stage_code).first()
-
         if stage:
             return stage.sort_order
 
@@ -644,14 +639,8 @@ class CandidateSourceRecord(models.Model):
     @classmethod
     def is_otipb_stage_passed(cls, stage_code):
         """
-        ОТИПБ считается пройденным, когда текущий этап кандидата
-        находится ПОСЛЕ этапа 'otipb'.
-
-        То есть:
-        - response — нет;
-        - phone_interview — нет;
-        - otipb — ещё нет;
-        - hr_department / ticket / hired — да.
+        ОТИПБ считается пройденным, когда текущий этап кандидата находится
+        после этапа 'otipb'.
         """
         current_stage_order = cls.get_stage_sort_order(stage_code)
         otipb_stage_order = cls.get_stage_sort_order('otipb')
@@ -665,16 +654,13 @@ class CandidateSourceRecord(models.Model):
     def create_or_update_from_candidate_if_otipb_stage_passed(cls, candidate):
         """
         Актуализирует справочную базу кандидатов из карточки.
-
-        Правило: запись создаётся или обновляется только тогда,
-        когда кандидат уже прошёл этап ОТИПБ, то есть переведён
-        на следующий этап после 'otipb'.
+        Правило: запись создаётся или обновляется только тогда, когда кандидат
+        уже прошёл этап ОТИПБ, то есть переведён на следующий этап после 'otipb'.
         """
         if not cls.is_otipb_stage_passed(candidate.stage):
             return None
 
         full_name = (getattr(candidate, 'full_name', '') or '').strip()
-
         if not full_name:
             return None
 
@@ -697,7 +683,6 @@ class CandidateSourceRecord(models.Model):
         if source_record:
             for field_name, field_value in data.items():
                 setattr(source_record, field_name, field_value)
-
             source_record.save()
             return source_record
 
@@ -707,7 +692,6 @@ class CandidateSourceRecord(models.Model):
     def create_or_update_from_candidate_if_otipb_filled(cls, candidate):
         """
         Обратная совместимость со старым названием метода.
-
         Раньше база обновлялась по заполненному полю ОТИПБ.
         Теперь правильное условие — прохождение этапа ОТИПБ.
         """
@@ -715,7 +699,6 @@ class CandidateSourceRecord(models.Model):
 
     def as_autofill_data(self):
         comment = ''
-
         medical_text = (self.medical_direction or '').strip()
 
         if medical_text and medical_text.lower() != 'направлено':
@@ -734,6 +717,12 @@ class CandidateSourceRecord(models.Model):
             'work_experience': '',
             'note': self.note or '',
             'otipb': self.otipb or '',
+            'approval_department': '',
+            'security_approval': 'pending',
+            'security_comment': '',
+            'security_refusal_reason': '',
+            'department_call_approval': 'pending',
+            'department_call_comment': '',
             'refusal_reason': self.refusal_reason or '',
             'ticket': '',
             'stage': '',

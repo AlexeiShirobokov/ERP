@@ -18,6 +18,11 @@ CANDIDATE_FIELD_ORDER = [
     'note',
     'otipb',
     'approval_department',
+    'security_approval',
+    'security_comment',
+    'security_refusal_reason',
+    'department_call_approval',
+    'department_call_comment',
     'refusal_reason',
     'ticket',
     'stage',
@@ -26,7 +31,6 @@ CANDIDATE_FIELD_ORDER = [
 
 def existing_candidate_fields():
     model_field_names = {field.name for field in ResumeCandidate._meta.get_fields()}
-
     return [
         name
         for name in CANDIDATE_FIELD_ORDER
@@ -43,9 +47,21 @@ def candidate_widgets():
             attrs={'type': 'date'},
         )
 
-    for field_name in ['comment', 'qualification', 'note', 'refusal_reason']:
+    textarea_fields = [
+        'comment',
+        'qualification',
+        'work_experience',
+        'note',
+        'refusal_reason',
+        'security_comment',
+        'security_refusal_reason',
+        'department_call_comment',
+    ]
+
+    for field_name in textarea_fields:
         if field_name in existing_candidate_fields():
-            widgets[field_name] = forms.Textarea(attrs={'rows': 2})
+            rows = 4 if field_name == 'work_experience' else 2
+            widgets[field_name] = forms.Textarea(attrs={'rows': rows})
 
     return widgets
 
@@ -56,12 +72,10 @@ class ResumeCandidateForm(forms.ModelForm):
         max_length=255,
         required=False,
     )
-
     document_file = forms.FileField(
         label='Файл',
         required=False,
     )
-
     document_comment = forms.CharField(
         label='Комментарий к документу',
         required=False,
@@ -75,6 +89,7 @@ class ResumeCandidateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         if 'date' in self.fields:
             self.fields['date'].input_formats = [
                 '%Y-%m-%d',
@@ -87,7 +102,6 @@ class ResumeCandidateForm(forms.ModelForm):
                 if isinstance(field.widget, forms.Select)
                 else 'form-control'
             )
-
             current = field.widget.attrs.get('class', '')
             field.widget.attrs['class'] = f'{current} {css_class}'.strip()
 
@@ -140,9 +154,8 @@ class ResumeStageForm(forms.ModelForm):
 
         self.fields['code'].required = False
         self.fields['code'].help_text = (
-            'Если оставить пустым, код будет создан автоматически.'
+            'Если оставить пустым, код этапа процесса будет создан автоматически.'
         )
-
         self.fields['notify_email'].required = False
         self.fields['responsible_user'].required = False
 
@@ -155,7 +168,6 @@ class ResumeStageForm(forms.ModelForm):
                 if isinstance(field.widget, forms.Select)
                 else 'form-control'
             )
-
             current = field.widget.attrs.get('class', '')
             field.widget.attrs['class'] = f'{current} {css_class}'.strip()
 
@@ -175,7 +187,6 @@ class ResumeStageForm(forms.ModelForm):
             raise forms.ValidationError('Не удалось сформировать код этапа процесса.')
 
         qs = ResumeStage.objects.filter(code=code)
-
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
 

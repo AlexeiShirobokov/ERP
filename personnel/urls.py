@@ -7,6 +7,7 @@ from .views import (
     ResumeCandidateDetailView,
     ResumeCandidateDocumentDeleteView,
     ResumeCandidateDocumentDownloadView,
+    ResumeCandidateDocumentPreviewView,
     ResumeCandidateDocumentUploadView,
     ResumeCandidateExportExcelView,
     ResumeCandidateKanbanReorderView,
@@ -84,6 +85,11 @@ urlpatterns = [
         'resume/documents/<int:pk>/download/',
         ResumeCandidateDocumentDownloadView.as_view(),
         name='document_download',
+    ),
+    path(
+        'resume/documents/<int:pk>/preview/',
+        ResumeCandidateDocumentPreviewView.as_view(),
+        name='document_preview',
     ),
     path(
         'resume/documents/<int:pk>/delete/',

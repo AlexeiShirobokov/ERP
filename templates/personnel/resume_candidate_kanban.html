@@ -25,9 +25,12 @@
         margin-bottom: 0.75rem;
     }
 
-    .kanban-filter {
-        flex: 0 0 auto;
-        margin-bottom: 0.75rem;
+    .kanban-top-controls {
+        max-width: 100%;
+    }
+
+    .kanban-creator-filter {
+        min-width: 260px;
     }
 
     .kanban-wrapper {
@@ -144,39 +147,38 @@
 <div class="kanban-page">
 
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 kanban-toolbar">
-    <div>
-        <h1 class="h3 mb-1">Подбор персонала</h1>
-        <p class="text-muted mb-0">Канбан кандидатов</p>
-    </div>
+        <div>
+            <h1 class="h3 mb-1">Подбор персонала</h1>
+            <p class="text-muted mb-0">Канбан кандидатов</p>
+        </div>
 
-    <div class="d-flex flex-wrap align-items-end justify-content-end gap-2 kanban-top-controls">
+        <div class="d-flex flex-wrap align-items-end justify-content-end gap-2 kanban-top-controls">
+            <form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-0">
+                <div class="kanban-creator-filter">
+                    <label class="form-label mb-1 small">Создал карточку</label>
 
-        <form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-0">
-            <div class="kanban-creator-filter">
-                <label class="form-label mb-1 small">Создал карточку</label>
+                    <select name="created_by" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Все создатели</option>
 
-                <select name="created_by" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="">Все создатели</option>
+                        {% for user_item in creators %}
+                            <option value="{{ user_item.id }}"
+                                    {% if selected_created_by == user_item.id|stringformat:"s" %}selected{% endif %}>
+                                {% firstof user_item.get_full_name user_item.username %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                    {% for user_item in creators %}
-                        <option value="{{ user_item.id }}"
-                                {% if selected_created_by == user_item.id|stringformat:"s" %}selected{% endif %}>
-                            {% firstof user_item.get_full_name user_item.username %}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    Показать
+                </button>
 
-            <button type="submit" class="btn btn-sm btn-outline-primary">
-                Показать
-            </button>
-
-            {% if selected_created_by %}
-                <a href="{% url 'personnel:resume_candidate_kanban' %}" class="btn btn-sm btn-outline-secondary">
-                    Сбросить
-                </a>
-            {% endif %}
-        </form>
+                {% if selected_created_by %}
+                    <a href="{% url 'personnel:resume_candidate_kanban' %}" class="btn btn-sm btn-outline-secondary">
+                        Сбросить
+                    </a>
+                {% endif %}
+            </form>
 
             <a href="/" class="btn btn-sm btn-outline-secondary">
                 На главную
@@ -237,6 +239,18 @@
                                             <div class="small text-muted mb-1">
                                                 Создал:
                                                 {% firstof item.created_by.get_full_name item.created_by.username %}
+                                            </div>
+                                        {% endif %}
+
+                                        {% if item.security_approval and item.security_approval != 'pending' %}
+                                            <div class="small mb-1">
+                                                СБ: {{ item.get_security_approval_display }}
+                                            </div>
+                                        {% endif %}
+
+                                        {% if item.department_call_approval and item.department_call_approval != 'pending' %}
+                                            <div class="small mb-1">
+                                                Вызов: {{ item.get_department_call_approval_display }}
                                             </div>
                                         {% endif %}
 
