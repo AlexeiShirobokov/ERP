@@ -71,7 +71,7 @@ def normalize_full_name(value):
 
 
 class ResumeStage(models.Model):
-    name = models.CharField('Название этапа', max_length=255)
+    name = models.CharField('Название этапа процесса', max_length=255)
     code = models.SlugField('Код', max_length=100, unique=True)
     sort_order = models.PositiveIntegerField('Порядок', default=100)
     is_active = models.BooleanField('Активен', default=True)
@@ -91,8 +91,8 @@ class ResumeStage(models.Model):
     )
 
     class Meta:
-        verbose_name = 'Этап подбора'
-        verbose_name_plural = 'Этапы подбора'
+        verbose_name = 'Этап процесса'
+        verbose_name_plural = 'Этапы процесса'
         ordering = ['sort_order', 'id']
 
     def __str__(self):
@@ -269,7 +269,7 @@ class ResumeCandidate(models.Model):
     )
 
     stage = models.CharField(
-        'Этап',
+        'Этап процесса',
         max_length=100,
         default='phone_interview',
         db_index=True,
@@ -278,6 +278,24 @@ class ResumeCandidate(models.Model):
     sort_order = models.PositiveIntegerField(
         'Порядок',
         default=0,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Создал',
+        related_name='created_resume_candidates',
+    )
+
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Последний редактор',
+        related_name='updated_resume_candidates',
     )
 
     created_at = models.DateTimeField(

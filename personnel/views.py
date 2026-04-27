@@ -3,7 +3,7 @@ import logging
 import os
 from itertools import zip_longest
 from types import SimpleNamespace
-
+from django.contrib.auth import get_user_model
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -381,13 +381,23 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        selected_created_by = self.request.GET.get('created_by', '').strip()
+
+        base_queryset = (
+            ResumeCandidate.objects
+            .select_related('created_by')
+            .prefetch_related('documents')
+        )
+
+        if selected_created_by:
+            base_queryset = base_queryset.filter(created_by_id=selected_created_by)
+
         columns = []
 
         for stage_item in get_stage_items():
             items = (
-                ResumeCandidate.objects
+                base_queryset
                 .filter(stage=stage_item.code)
-                .prefetch_related('documents')
                 .order_by('sort_order', '-date', '-id')
             )
 
@@ -400,7 +410,24 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
                 }
             )
 
+        User = get_user_model()
+
+        creator_ids = (
+            ResumeCandidate.objects
+            .exclude(created_by__isnull=True)
+            .values_list('created_by_id', flat=True)
+            .distinct()
+        )
+
+        creators = (
+            User.objects
+            .filter(id__in=creator_ids)
+            .order_by('last_name', 'first_name', 'username')
+        )
+
         context['columns'] = columns
+        context['creators'] = creators
+        context['selected_created_by'] = selected_created_by
 
         return context
 
@@ -477,7 +504,12 @@ class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, Det
 
         if form.is_valid():
             old_stage = self.object.stage
-            candidate = form.save()
+
+            candidate = form.save(commit=False)
+            candidate.updated_by = request.user
+            candidate.save()
+            form.save_m2m()
+
             new_stage = candidate.stage
 
             if old_stage != new_stage:
@@ -521,17 +553,24 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
         return context
 
     def form_valid(self, form):
-        response = super().form_valid(form)
+        self.object = form.save(commit=False)
+
+        if self.request.user.is_authenticated:
+            self.object.created_by = self.request.user
+            self.object.updated_by = self.request.user
+
+        self.object.save()
+        form.save_m2m()
 
         titles = self.request.POST.getlist('create_document_titles')
         comments = self.request.POST.getlist('create_document_comments')
         files = self.request.FILES.getlist('create_document_files')
 
         for title, comment, uploaded_file in zip_longest(
-            titles,
-            comments,
-            files,
-            fillvalue=None,
+                titles,
+                comments,
+                files,
+                fillvalue=None,
         ):
             if not uploaded_file:
                 continue
@@ -548,7 +587,7 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
                 ),
             )
 
-        return response
+        return redirect(self.get_success_url())
 
     def get_success_url(self):
         return KANBAN_URL
@@ -631,12 +670,12 @@ class ResumeCandidateStageUpdateView(LoginRequiredMixin, PermissionRequiredMixin
         old_stage = candidate.stage
 
         candidate.stage = stage
+        candidate.updated_by = request.user
 
         last_sort = (
-            ResumeCandidate.objects
-            .filter(stage=stage)
-            .aggregate(max_sort=Max('sort_order'))['max_sort']
-            or 0
+                ResumeCandidate.objects
+                .filter(stage=stage)
+                .aggregate(max_sort=Max('sort_order'))['max_sort'] or 0
         )
 
         candidate.sort_order = last_sort + 1
@@ -687,9 +726,10 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, PermissionRequiredMix
                 )
 
             candidate = get_object_or_404(ResumeCandidate, pk=candidate_id)
-
             old_stage = candidate.stage
+
             candidate.stage = new_stage
+            candidate.updated_by = request.user
             candidate.save()
 
             for index, item_id in enumerate(ordered_ids, start=1):
@@ -806,6 +846,10 @@ class ResumeCandidateDocumentUploadView(LoginRequiredMixin, PermissionRequiredMi
             document.record = record
             document.uploaded_by = request.user
             document.save()
+
+            record.updated_by = request.user
+            record.save(update_fields=['updated_by', 'updated_at'])
+
             messages.success(request, 'Документ загружен.')
         else:
             messages.error(request, 'Не удалось загрузить документ.')
@@ -844,12 +888,17 @@ class ResumeCandidateDocumentDeleteView(LoginRequiredMixin, PermissionRequiredMi
 
     def post(self, request, pk):
         document = get_object_or_404(ResumeCandidateDocument, pk=pk)
-        record_pk = document.record.pk
+        record = document.record
+        record_pk = record.pk
 
         if document.file:
             document.file.delete(save=False)
 
         document.delete()
+
+        record.updated_by = request.user
+        record.save(update_fields=['updated_by', 'updated_at'])
+
         messages.success(request, 'Документ удалён.')
 
         next_url = request.POST.get('next')

@@ -13,7 +13,7 @@
         <a href="/" class="btn btn-outline-secondary">На главную</a>
         <a href="{% url 'personnel:resume_candidate_kanban' %}" class="btn btn-outline-primary">Канбан</a>
         {% if perms.personnel.view_resumestage %}
-            <a href="{% url 'personnel:resume_stage_list' %}" class="btn btn-outline-dark">Этапы</a>
+            <a href="{% url 'personnel:resume_stage_list' %}" class="btn btn-outline-dark">Этапы процесса</a>
         {% endif %}
         <a href="{% url 'personnel:resume_candidate_add' %}" class="btn btn-primary">Добавить кандидата</a>
     </div>
@@ -34,7 +34,7 @@
             </div>
 
             <div class="col-xl-2 col-lg-6">
-                <label class="form-label">Этап</label>
+                <label class="form-label">Этап процесса</label>
                 <select name="stage" class="form-select">
                     <option value="">Все этапы</option>
                     {% for item in stages %}
@@ -109,7 +109,7 @@
                         <th>ОТИПБ</th>
                         <th>Причина отказа</th>
                         <th>Билет</th>
-                        <th>Этап</th>
+                        <th>Этап процесса</th>
                         <th>Документы</th>
                         <th>Действия</th>
                     </tr>

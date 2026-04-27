@@ -1,11 +1,11 @@
 {% extends "personnel/base.html" %}
 
-{% block title %}Этапы подбора{% endblock %}
+{% block title %}Этапы процесса{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h1 class="h2 mb-1">Этапы подбора</h1>
+        <h1 class="h2 mb-1">Этапы процесса</h1>
         <p class="text-muted mb-0">Пользователь может сам добавлять новые подразделения и ответственных.</p>
     </div>
 
@@ -13,7 +13,7 @@
         <a href="{% url 'personnel:resume_candidate_kanban' %}" class="btn btn-outline-primary">Канбан</a>
         <a href="{% url 'personnel:resume_candidate_list' %}" class="btn btn-outline-secondary">Список кандидатов</a>
         {% if perms.personnel.add_resumestage %}
-            <a href="{% url 'personnel:resume_stage_add' %}" class="btn btn-primary">Добавить этап</a>
+            <a href="{% url 'personnel:resume_stage_add' %}" class="btn btn-primary">Добавить этап процесса</a>
         {% endif %}
     </div>
 </div>

@@ -172,7 +172,7 @@ class ResumeStageForm(forms.ModelForm):
             code = slugify(name)
 
         if not code:
-            raise forms.ValidationError('Не удалось сформировать код этапа.')
+            raise forms.ValidationError('Не удалось сформировать код этапа процесса.')
 
         qs = ResumeStage.objects.filter(code=code)
 
@@ -180,6 +180,6 @@ class ResumeStageForm(forms.ModelForm):
             qs = qs.exclude(pk=self.instance.pk)
 
         if qs.exists():
-            raise forms.ValidationError('Этап с таким кодом уже существует.')
+            raise forms.ValidationError('Этап процесса с таким кодом уже существует.')
 
         return code
