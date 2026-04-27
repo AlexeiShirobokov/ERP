@@ -1,7 +1,7 @@
 {% extends "personnel/base.html" %}
 
 {% block title %}Канбан кандидатов{% endblock %}
-
+{% block container_class %}container-fluid px-4{% endblock %}
 {% block content %}
 <style>
     .kanban-wrapper {
@@ -16,9 +16,15 @@
         min-width: max-content;
     }
 
+    .kanban-wrapper {
+    overflow-x: auto;
+    padding-bottom: 1rem;
+    width: 100%;
+    }
+
     .kanban-column {
-        width: 320px;
-        flex: 0 0 320px;
+        width: 380px;
+        flex: 0 0 380px;
     }
 
     .kanban-card {

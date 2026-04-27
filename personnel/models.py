@@ -8,44 +8,44 @@ from django.utils import timezone
 DEFAULT_STAGE_DEFINITIONS = [
     {
         'code': 'phone_interview',
-        'label': 'Тел. интервью',
-        'emails': [],
+        'label': 'HR',
+        'emails': ['maslovataia@pskgold.ru'],
         'sort_order': 10,
     },
     {
         'code': 'otipb',
         'label': 'ОТИПБ',
-        'emails': ['shirobokov@pskgold.ru'],
+        'emails': ['sorokin@pskgold.ru'],
         'sort_order': 20,
     },
     {
         'code': 'mechanic_approval',
         'label': 'ОГМ',
-        'emails': ['shirobokov@pskgold.ru'],
+        'emails': ['kruglov@pskgold.ru'],
         'sort_order': 30,
     },
     {
         'code': 'geology_approval',
         'label': 'Геологический отдел',
-        'emails': ['shirobokov@pskgold.ru'],
+        'emails': ['pomalejko@pskgold.ru'],
         'sort_order': 40,
     },
     {
         'code': 'transport_approval',
         'label': 'Транспортный цех',
-        'emails': ['shirobokov@pskgold.ru'],
+        'emails': ['pokashevskii@pskgold.ru'],
         'sort_order': 50,
     },
     {
         'code': 'ticket',
         'label': 'Требуется покупка билетов',
         'emails': [],
-        'sort_order': 70,
+        'sort_order': 55,
     },
     {
         'code': 'hr_department',
         'label': 'Отдел кадров',
-        'emails': ['shirobokov@pskgold.ru'],
+        'emails': ['pivovarova@pskgold.ru'],
         'sort_order': 60,
     },
 

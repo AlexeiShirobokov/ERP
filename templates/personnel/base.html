@@ -39,7 +39,7 @@
     </div>
 </nav>
 
-<div class="container pb-5">
+<div class="{% block container_class %}container{% endblock %} pb-5">
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
