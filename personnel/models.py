@@ -15,7 +15,7 @@ DEFAULT_STAGE_DEFINITIONS = [
     {
         'code': 'security_service',
         'label': 'Служба безопасности',
-        'emails': [],
+        'emails': ['platonov@pskgold.ru'],
         'sort_order': 15,
     },
     {
@@ -39,7 +39,7 @@ DEFAULT_STAGE_DEFINITIONS = [
     {
         'code': 'surveyor_approval',
         'label': 'Отдел маркшейдера',
-        'emails': [],
+        'emails': ['efimov@pskgold.ru'],
         'sort_order': 45,
     },
     {
@@ -51,13 +51,13 @@ DEFAULT_STAGE_DEFINITIONS = [
     {
         'code': 'medical_direction',
         'label': 'Направление на медосмотр',
-        'emails': [],
+        'emails': ['kalashnikova@pskgold.ru'],
         'sort_order': 53,
     },
     {
         'code': 'ticket',
         'label': 'Требуется покупка билетов',
-        'emails': [],
+        'emails': ['maslovataia@pskgold.ru','kalashnikova@pskgold.ru'],
         'sort_order': 55,
     },
     {
@@ -169,8 +169,10 @@ class ResumeCandidate(models.Model):
     APPROVAL_CHOICES = APPROVAL_CHOICES
 
     MEDICAL_CHOICES = [
-        ('pending', 'Ожидает'),
-        ('passed', 'Пройдена'),
+        ('pending', 'Ожидает направления'),
+        ('issued', 'Выдано направление'),
+        ('passed', 'Пройдена медкомиссия'),
+        # Старое значение оставлено для совместимости со старыми карточками.
         ('failed', 'Не пройдена'),
     ]
 
@@ -289,7 +291,6 @@ class ResumeCandidate(models.Model):
 
     refusal_reason = models.TextField('Примечание или причина отказа', blank=True)
     ticket = models.CharField('Билет', max_length=255, blank=True)
-
     estimated_arrival_date = models.DateField(
         'Расчетная дата приезда',
         null=True,
@@ -622,6 +623,9 @@ class CandidateSourceRecord(models.Model):
         if any(word in value for word in ['пройд', 'годен', 'годна']):
             return 'passed'
 
+        if any(word in value for word in ['направ', 'выдан']):
+            return 'issued'
+
         return 'pending'
 
     @classmethod
@@ -733,7 +737,6 @@ class CandidateSourceRecord(models.Model):
             'department_call_comment': '',
             'refusal_reason': self.refusal_reason or '',
             'ticket': '',
-            'estimated_arrival_date': '',
             'stage': '',
             'source_date': self.source_date.strftime('%d.%m.%Y') if self.source_date else '',
             'accepted_date': self.accepted_date.strftime('%d.%m.%Y') if self.accepted_date else '',

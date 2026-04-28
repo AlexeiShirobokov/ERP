@@ -240,6 +240,33 @@ class ResumeCandidateForm(forms.ModelForm):
                 '%d.%m.%Y',
             ]
 
+
+        
+        if 'position' in self.fields:
+            self.fields['position'].widget.attrs.update({
+                'list': 'position-options',
+                'autocomplete': 'off',
+                'placeholder': 'Начните вводить должность',
+            })
+
+        allowed_medical_choices = [
+            ('pending', 'Ожидает направления'),
+            ('issued', 'Выдано направление'),
+            ('passed', 'Пройдена медкомиссия'),
+        ]
+
+        if 'medical_commission' in self.fields:
+            current_value = None
+            if self.instance and self.instance.pk:
+                current_value = self.instance.medical_commission
+
+            self.fields['medical_commission'].choices = allowed_medical_choices.copy()
+
+            if current_value and current_value not in dict(allowed_medical_choices):
+                self.fields['medical_commission'].choices.append(
+                    (current_value, self.instance.get_medical_commission_display())
+                )
+
         if 'security_approval' in self.fields:
             self.fields['security_approval'].required = False
             self.fields['security_approval'].initial = 'pending'

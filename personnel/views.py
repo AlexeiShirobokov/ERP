@@ -2,6 +2,8 @@ import json
 import logging
 import mimetypes
 import os
+import threading
+from collections import defaultdict
 from itertools import zip_longest
 from types import SimpleNamespace
 
@@ -165,6 +167,83 @@ def send_stage_notification(candidate, stage_code, moved_by, request=None):
         )
 
 
+def send_stage_notification_async(candidate, stage_code, moved_by, request=None):
+    """
+    Отправляем уведомление в отдельном потоке,
+    чтобы сохранение карточки не ждало SMTP.
+    """
+    thread = threading.Thread(
+        target=send_stage_notification,
+        args=(candidate, stage_code, moved_by, request),
+        daemon=True,
+    )
+    thread.start()
+
+
+DEPARTMENT_APPROVAL_STAGES = {
+    'mechanic_approval',
+    'geology_approval',
+    'surveyor_approval',
+    'transport_approval',
+}
+
+
+def get_next_stage_after_card_save(candidate, old_stage):
+    """
+    Автоматический маршрут кандидата при сохранении карточки.
+
+    Правила:
+    1. HR создает карточку -> Служба безопасности.
+    2. Служба безопасности сохраняет -> ОТИПБ.
+    3. ОТИПБ сохраняет:
+       - если выбран отдел согласования -> в этот отдел;
+       - если отдел не выбран -> Направление на медосмотр.
+    4. ОГМ / Геологический отдел / Отдел маркшейдера / Транспортный цех
+       сохраняют карточку с отметкой "Согласован к вызову"
+       -> Направление на медосмотр.
+    """
+
+    if old_stage == 'phone_interview':
+        return 'security_service'
+
+    if old_stage == 'security_service':
+        return 'otipb'
+
+    if old_stage == 'otipb':
+        approval_department = (candidate.approval_department or '').strip()
+
+        if approval_department in DEPARTMENT_APPROVAL_STAGES:
+            return approval_department
+
+        return 'medical_direction'
+
+    if old_stage in DEPARTMENT_APPROVAL_STAGES:
+        if candidate.department_call_approval == 'approved':
+            return 'medical_direction'
+
+    return old_stage
+
+
+def move_candidate_to_stage(candidate, new_stage):
+    """
+    Переносит кандидата в конец нужной колонки канбана.
+    Возвращает True, если этап реально изменился.
+    """
+    if not new_stage or candidate.stage == new_stage:
+        return False
+
+    last_sort = (
+        ResumeCandidate.objects
+        .filter(stage=new_stage)
+        .aggregate(max_sort=Max('sort_order'))['max_sort'] or 0
+    )
+
+    candidate.stage = new_stage
+    candidate.sort_order = last_sort + 1
+
+    return True
+
+
 def get_resume_candidates_queryset(request):
     queryset = (
         ResumeCandidate.objects
@@ -318,7 +397,6 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
             'Комментарий отдела',
             'Причина отказа',
             'Билет',
-            'Расчетная дата приезда',
             'Этап процесса',
             'Создал',
             'Последний редактор',
@@ -350,7 +428,6 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
                     item.department_call_comment or '',
                     item.refusal_reason or '',
                     item.ticket or '',
-                    item.estimated_arrival_date.strftime('%d.%m.%Y') if item.estimated_arrival_date else '',
                     item.stage_name,
                     get_user_display_name(item.created_by) if item.created_by else '',
                     get_user_display_name(item.updated_by) if item.updated_by else '',
@@ -389,52 +466,77 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
         context = super().get_context_data(**kwargs)
 
         selected_created_by = self.request.GET.get('created_by', '').strip()
+        stages = get_stage_items()
 
+        # Быстрее: одним запросом получаем кандидатов и раскладываем по этапам.
+        # В канбане документы не нужны, поэтому prefetch_related('documents') здесь не используем.
         base_queryset = (
             ResumeCandidate.objects
-            .select_related('created_by', 'updated_by')
-            .prefetch_related('documents')
+            .select_related('created_by')
+            .only(
+                'id',
+                'number',
+                'date',
+                'full_name',
+                'position',
+                'contacts',
+                'medical_commission',
+                'ticket',
+                'estimated_arrival_date',
+                'comment',
+                'stage',
+                'sort_order',
+                'created_by__id',
+                'created_by__username',
+                'created_by__first_name',
+                'created_by__last_name',
+            )
+            .order_by('stage', 'sort_order', '-date', '-id')
         )
 
         if selected_created_by:
             base_queryset = base_queryset.filter(created_by_id=selected_created_by)
 
+        items_by_stage = defaultdict(list)
+
+        for candidate in base_queryset:
+            items_by_stage[candidate.stage].append(candidate)
+
         columns = []
 
-        for stage_item in get_stage_items():
-            items = (
-                base_queryset
-                .filter(stage=stage_item.code)
-                .order_by('sort_order', '-date', '-id')
-            )
+        for stage_item in stages:
+            stage_items = items_by_stage.get(stage_item.code, [])
 
             columns.append(
                 {
                     'code': stage_item.code,
                     'name': stage_item.name,
-                    'items': items,
-                    'count': items.count(),
+                    'items': stage_items,
+                    'count': len(stage_items),
                 }
             )
 
         User = get_user_model()
+
         creator_ids = (
             ResumeCandidate.objects
             .exclude(created_by__isnull=True)
             .values_list('created_by_id', flat=True)
             .distinct()
         )
+
         creators = (
             User.objects
             .filter(id__in=creator_ids)
+            .only('id', 'username', 'first_name', 'last_name')
             .order_by('last_name', 'first_name', 'username')
         )
 
         context['columns'] = columns
         context['creators'] = creators
         context['selected_created_by'] = selected_created_by
-        return context
 
+        return context
 
 class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """
@@ -517,13 +619,14 @@ class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, Det
             if request.user.is_authenticated:
                 candidate.updated_by = request.user
 
+            next_stage = get_next_stage_after_card_save(candidate, old_stage)
+            stage_changed = move_candidate_to_stage(candidate, next_stage)
+
             candidate.save()
             form.save_m2m()
 
-            new_stage = candidate.stage
-
-            if old_stage != new_stage:
-                send_stage_notification(candidate, new_stage, request.user, request)
+            if stage_changed:
+                send_stage_notification_async(candidate, candidate.stage, request.user, request)
 
             return redirect(KANBAN_URL)
 
@@ -546,6 +649,13 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
+
+        if 'stage' in form.fields:
+            choices = get_stage_choices()
+            form.fields['stage'].widget = forms.Select(choices=choices)
+            form.fields['stage'].choices = choices
+            form.fields['stage'].required = False
+            form.fields['stage'].initial = 'phone_interview'
 
         if 'security_approval' in form.fields:
             form.fields['security_approval'].required = False
@@ -576,8 +686,10 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
     def form_valid(self, form):
         self.object = form.save(commit=False)
 
-        if not self.object.stage:
-            self.object.stage = 'phone_interview'
+        # HR создает карточку, после сохранения она сразу уходит
+        # в колонку "Служба безопасности".
+        self.object.stage = 'security_service'
+        self.object.sort_order = 0
 
         if not self.object.security_approval:
             self.object.security_approval = 'pending'
@@ -616,6 +728,13 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
                     else None
                 ),
             )
+
+        send_stage_notification_async(
+            self.object,
+            self.object.stage,
+            self.request.user,
+            self.request,
+        )
 
         return redirect(KANBAN_URL)
 
@@ -662,10 +781,25 @@ class ResumeCandidateUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upd
         return form
 
     def form_valid(self, form):
+        old_stage = self.object.stage
+
         self.object = form.save(commit=False)
         self.object.updated_by = self.request.user
+
+        next_stage = get_next_stage_after_card_save(self.object, old_stage)
+        stage_changed = move_candidate_to_stage(self.object, next_stage)
+
         self.object.save()
         form.save_m2m()
+
+        if stage_changed:
+            send_stage_notification_async(
+                self.object,
+                self.object.stage,
+                self.request.user,
+                self.request,
+            )
+
         return redirect(self.get_success_url())
 
     def get_success_url(self):
@@ -713,7 +847,7 @@ class ResumeCandidateStageUpdateView(LoginRequiredMixin, PermissionRequiredMixin
         candidate.save()
 
         if old_stage != stage:
-            send_stage_notification(candidate, stage, request.user, request)
+            send_stage_notification_async(candidate, stage, request.user, request)
 
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'status': 'ok'})
@@ -765,7 +899,7 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, PermissionRequiredMix
                 )
 
             if old_stage != new_stage:
-                send_stage_notification(candidate, new_stage, request.user, request)
+                send_stage_notification_async(candidate, new_stage, request.user, request)
 
             return JsonResponse({'status': 'ok'})
 
@@ -826,7 +960,7 @@ class ResumeCandidateCheckOtipbView(LoginRequiredMixin, View):
         )
 
         if not candidate and target_name:
-            for item in ResumeCandidate.objects.all().order_by('-updated_at', '-id')[:2000]:
+            for item in ResumeCandidate.objects.only('id', 'full_name').order_by('-updated_at', '-id')[:2000]:
                 if normalize_full_name(item.full_name) == target_name:
                     candidate = item
                     break
