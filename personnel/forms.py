@@ -143,6 +143,9 @@ CANDIDATE_FIELD_ORDER = [
     'security_approval',
     'security_comment',
     'security_refusal_reason',
+    'otipb_approval',
+    'otipb_comment',
+    'otipb_refusal_reason',
     'department_call_approval',
     'department_call_comment',
     'refusal_reason',
@@ -193,6 +196,8 @@ def candidate_widgets():
         'refusal_reason',
         'security_comment',
         'security_refusal_reason',
+        'otipb_comment',
+        'otipb_refusal_reason',
         'department_call_comment',
     ]
 
@@ -270,6 +275,10 @@ class ResumeCandidateForm(forms.ModelForm):
         if 'security_approval' in self.fields:
             self.fields['security_approval'].required = False
             self.fields['security_approval'].initial = 'pending'
+
+        if 'otipb_approval' in self.fields:
+            self.fields['otipb_approval'].required = False
+            self.fields['otipb_approval'].initial = 'pending'
 
         if 'department_call_approval' in self.fields:
             self.fields['department_call_approval'].required = False

@@ -203,7 +203,7 @@
     </div>
 
     <div class="kanban-wrapper">
-        <div class="kanban-board">
+        <div class="kanban-board" id="kanban-board">
 
             {% for column in columns %}
                 <div class="kanban-column">
@@ -294,6 +294,14 @@
 </div>
 
 <script>
+    const KANBAN_DATA_URL = "{% url 'personnel:resume_candidate_kanban_data' %}";
+    const KANBAN_REORDER_URL = "{% url 'personnel:resume_candidate_kanban_reorder' %}";
+    const SELECTED_CREATED_BY = "{{ selected_created_by|default:'' }}";
+
+    let draggedCard = null;
+    let isDragging = false;
+    let isRefreshing = false;
+
     function getCookie(name) {
         let cookieValue = null;
 
@@ -314,99 +322,251 @@
     }
 
     const csrftoken = getCookie('csrftoken');
-    let draggedCard = null;
 
-    const dropzones = document.querySelectorAll('.kanban-dropzone');
-    const cards = document.querySelectorAll('.kanban-card');
+    function escapeHtml(value) {
+        return String(value || '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
 
-    cards.forEach(card => {
-        card.addEventListener('dragstart', () => {
-            draggedCard = card;
-            card.classList.add('dragging');
-        });
+    function truncateText(value, limit) {
+        const text = String(value || '');
 
-        card.addEventListener('dragend', () => {
-            card.classList.remove('dragging');
-            draggedCard = null;
+        if (text.length <= limit) {
+            return text;
+        }
 
-            document.querySelectorAll('.drop-hover').forEach(el => {
-                el.classList.remove('drop-hover');
+        return text.slice(0, limit - 1) + '…';
+    }
+
+    function renderCard(item) {
+        return `
+            <div class="card kanban-card shadow-sm border-0 mb-3"
+                 draggable="true"
+                 data-id="${item.id}">
+                <div class="card-body">
+                    <h6 class="mb-1">${escapeHtml(item.full_name)}</h6>
+
+                    <div class="small text-muted mb-1">
+                        ${escapeHtml(item.position || 'Без должности')}
+                    </div>
+
+                    <div class="small mb-1">
+                        ${escapeHtml(item.contacts || 'Нет контактов')}
+                    </div>
+
+                    <div class="small mb-1">
+                        МО: ${escapeHtml(item.medical_commission || '')}
+                    </div>
+
+                    ${item.created_by ? `
+                        <div class="small text-muted mb-1">
+                            Создал: ${escapeHtml(item.created_by)}
+                        </div>
+                    ` : ''}
+
+                    ${item.ticket ? `
+                        <div class="small mb-1">
+                            Билет: ${escapeHtml(item.ticket)}
+                        </div>
+                    ` : ''}
+
+                    ${item.estimated_arrival_date ? `
+                        <div class="small mb-1">
+                            Расчетная дата приезда: ${escapeHtml(item.estimated_arrival_date)}
+                        </div>
+                    ` : ''}
+
+                    ${item.comment ? `
+                        <div class="small text-muted mb-2">
+                            ${escapeHtml(truncateText(item.comment, 80))}
+                        </div>
+                    ` : ''}
+
+                    <div class="d-grid gap-2">
+                        <a href="${item.detail_url}" class="btn btn-sm btn-outline-primary">
+                            Открыть
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderColumn(column) {
+        const cardsHtml = column.items.length
+            ? column.items.map(renderCard).join('')
+            : '<div class="text-muted small empty-note">Нет кандидатов</div>';
+
+        return `
+            <div class="kanban-column">
+                <div class="card shadow-sm border-0 kanban-column-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>${escapeHtml(column.name)}</strong>
+                        <span class="badge bg-secondary">${column.count}</span>
+                    </div>
+
+                    <div class="card-body bg-body-tertiary kanban-dropzone"
+                         data-stage="${escapeHtml(column.code)}">
+                        ${cardsHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async function refreshKanban() {
+        if (isDragging || isRefreshing) {
+            return;
+        }
+
+        isRefreshing = true;
+
+        try {
+            const url = new URL(KANBAN_DATA_URL, window.location.origin);
+
+            if (SELECTED_CREATED_BY) {
+                url.searchParams.set('created_by', SELECTED_CREATED_BY);
+            }
+
+            const response = await fetch(url.toString(), {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.status !== 'ok') {
+                return;
+            }
+
+            const board = document.getElementById('kanban-board');
+
+            if (!board) {
+                return;
+            }
+
+            board.innerHTML = data.columns.map(renderColumn).join('');
+            bindKanbanEvents();
+        } catch (error) {
+            console.warn('Не удалось обновить канбан', error);
+        } finally {
+            isRefreshing = false;
+        }
+    }
+
+    function bindKanbanEvents() {
+        document.querySelectorAll('.kanban-card').forEach(card => {
+            if (card.dataset.bound === '1') {
+                return;
+            }
+
+            card.dataset.bound = '1';
+
+            card.addEventListener('dragstart', () => {
+                draggedCard = card;
+                isDragging = true;
+                card.classList.add('dragging');
+            });
+
+            card.addEventListener('dragend', () => {
+                card.classList.remove('dragging');
+                draggedCard = null;
+                isDragging = false;
+
+                document.querySelectorAll('.drop-hover').forEach(el => {
+                    el.classList.remove('drop-hover');
+                });
             });
         });
-    });
 
-    dropzones.forEach(zone => {
-        zone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            zone.classList.add('drop-hover');
-
-            const afterElement = getDragAfterElement(zone, e.clientY);
-
-            if (!draggedCard) {
+        document.querySelectorAll('.kanban-dropzone').forEach(zone => {
+            if (zone.dataset.bound === '1') {
                 return;
             }
 
-            const emptyNote = zone.querySelector('.empty-note');
+            zone.dataset.bound = '1';
 
-            if (emptyNote) {
-                emptyNote.remove();
-            }
+            zone.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                zone.classList.add('drop-hover');
 
-            if (afterElement == null) {
-                zone.appendChild(draggedCard);
-            } else {
-                zone.insertBefore(draggedCard, afterElement);
-            }
-        });
-
-        zone.addEventListener('dragleave', () => {
-            zone.classList.remove('drop-hover');
-        });
-
-        zone.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            zone.classList.remove('drop-hover');
-
-            if (!draggedCard) {
-                return;
-            }
-
-            const newStage = zone.dataset.stage;
-            const candidateId = draggedCard.dataset.id;
-
-            const orderedIds = Array.from(
-                zone.querySelectorAll('.kanban-card')
-            ).map(card => card.dataset.id);
-
-            try {
-                const response = await fetch("{% url 'personnel:resume_candidate_kanban_reorder' %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrftoken,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({
-                        candidate_id: candidateId,
-                        new_stage: newStage,
-                        ordered_ids: orderedIds
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.status !== 'ok') {
-                    alert('Ошибка при сохранении: ' + (data.message || 'неизвестная ошибка'));
-                    window.location.reload();
-                } else {
-                    updateEmptyNotes();
+                if (!draggedCard) {
+                    return;
                 }
-            } catch (error) {
-                alert('Ошибка соединения с сервером');
-                window.location.reload();
-            }
+
+                const emptyNote = zone.querySelector('.empty-note');
+
+                if (emptyNote) {
+                    emptyNote.remove();
+                }
+
+                const afterElement = getDragAfterElement(zone, event.clientY);
+
+                if (afterElement == null) {
+                    zone.appendChild(draggedCard);
+                } else {
+                    zone.insertBefore(draggedCard, afterElement);
+                }
+            });
+
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('drop-hover');
+            });
+
+            zone.addEventListener('drop', async (event) => {
+                event.preventDefault();
+                zone.classList.remove('drop-hover');
+
+                if (!draggedCard) {
+                    return;
+                }
+
+                const candidateId = draggedCard.dataset.id;
+                const newStage = zone.dataset.stage;
+
+                const orderedIds = Array.from(
+                    zone.querySelectorAll('.kanban-card')
+                ).map(card => card.dataset.id);
+
+                try {
+                    const response = await fetch(KANBAN_REORDER_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrftoken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            candidate_id: candidateId,
+                            new_stage: newStage,
+                            ordered_ids: orderedIds
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.status !== 'ok') {
+                        alert('Ошибка при сохранении: ' + (data.message || 'неизвестная ошибка'));
+                        await refreshKanban();
+                        return;
+                    }
+
+                    updateEmptyNotes();
+                    updateColumnCounters();
+
+                    setTimeout(refreshKanban, 300);
+                } catch (error) {
+                    alert('Ошибка соединения с сервером');
+                    await refreshKanban();
+                }
+            });
         });
-    });
+    }
 
     function getDragAfterElement(container, y) {
         const draggableElements = [
@@ -447,5 +607,20 @@
             }
         });
     }
+
+    function updateColumnCounters() {
+        document.querySelectorAll('.kanban-column-card').forEach(column => {
+            const count = column.querySelectorAll('.kanban-card').length;
+            const badge = column.querySelector('.badge');
+
+            if (badge) {
+                badge.textContent = count;
+            }
+        });
+    }
+
+    bindKanbanEvents();
+
+    setInterval(refreshKanban, 10000);
 </script>
 {% endblock %}

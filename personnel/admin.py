@@ -63,7 +63,7 @@ class ResumeCandidateAdmin(admin.ModelAdmin):
         'position',
         'contacts',
         'medical_commission',
-        'otipb',
+
         'stage_name_display',
         'created_at',
         'updated_at',

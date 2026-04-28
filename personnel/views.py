@@ -17,6 +17,7 @@ from django.core.mail import send_mail
 from django.db.models import Max, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.views import View
 from django.views.generic import (
     CreateView,
@@ -48,6 +49,13 @@ logger = logging.getLogger(__name__)
 KANBAN_URL = '/personnel/resume/kanban/'
 CANDIDATE_LIST_URL = '/personnel/resume/'
 STAGES_URL = '/personnel/stages/'
+
+DEPARTMENT_APPROVAL_STAGES = {
+    'mechanic_approval',
+    'geology_approval',
+    'surveyor_approval',
+    'transport_approval',
+}
 
 
 def candidate_detail_url(pk):
@@ -180,14 +188,6 @@ def send_stage_notification_async(candidate, stage_code, moved_by, request=None)
     thread.start()
 
 
-DEPARTMENT_APPROVAL_STAGES = {
-    'mechanic_approval',
-    'geology_approval',
-    'surveyor_approval',
-    'transport_approval',
-}
-
-
 def get_next_stage_after_card_save(candidate, old_stage):
     """
     Автоматический маршрут кандидата при сохранении карточки.
@@ -196,7 +196,7 @@ def get_next_stage_after_card_save(candidate, old_stage):
     1. HR создает карточку -> Служба безопасности.
     2. Служба безопасности сохраняет -> ОТИПБ.
     3. ОТИПБ сохраняет:
-       - если выбран отдел согласования -> в этот отдел;
+       - если выбран реальный отдел согласования -> в этот отдел;
        - если отдел не выбран -> Направление на медосмотр.
     4. ОГМ / Геологический отдел / Отдел маркшейдера / Транспортный цех
        сохраняют карточку с отметкой "Согласован к вызову"
@@ -265,11 +265,12 @@ def get_resume_candidates_queryset(request):
             | Q(position__icontains=q)
             | Q(contacts__icontains=q)
             | Q(ticket__icontains=q)
-            | Q(otipb__icontains=q)
             | Q(note__icontains=q)
             | Q(refusal_reason__icontains=q)
             | Q(security_comment__icontains=q)
             | Q(security_refusal_reason__icontains=q)
+            | Q(otipb_comment__icontains=q)
+            | Q(otipb_refusal_reason__icontains=q)
             | Q(department_call_comment__icontains=q)
         )
 
@@ -388,7 +389,9 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
             'Год рождения',
             'Квалификация',
             'Примечание',
-            'ОТИПБ',
+            'ОТИПБ: статус',
+            'ОТИПБ: комментарий',
+            'ОТИПБ: причина отказа',
             'Отдел',
             'Служба безопасности',
             'Комментарий службы безопасности',
@@ -397,6 +400,7 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
             'Комментарий отдела',
             'Причина отказа',
             'Билет',
+            'Расчетная дата приезда',
             'Этап процесса',
             'Создал',
             'Последний редактор',
@@ -419,7 +423,9 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
                     item.birth_year or '',
                     item.qualification or '',
                     item.note or '',
-                    item.otipb or '',
+                    item.get_otipb_approval_display() if item.otipb_approval else '',
+                    item.otipb_comment or '',
+                    item.otipb_refusal_reason or '',
                     item.current_department_name or '',
                     item.get_security_approval_display() if item.security_approval else '',
                     item.security_comment or '',
@@ -428,6 +434,7 @@ class ResumeCandidateExportExcelView(LoginRequiredMixin, PermissionRequiredMixin
                     item.department_call_comment or '',
                     item.refusal_reason or '',
                     item.ticket or '',
+                    item.estimated_arrival_date.strftime('%d.%m.%Y') if item.estimated_arrival_date else '',
                     item.stage_name,
                     get_user_display_name(item.created_by) if item.created_by else '',
                     get_user_display_name(item.updated_by) if item.updated_by else '',
@@ -468,8 +475,6 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
         selected_created_by = self.request.GET.get('created_by', '').strip()
         stages = get_stage_items()
 
-        # Быстрее: одним запросом получаем кандидатов и раскладываем по этапам.
-        # В канбане документы не нужны, поэтому prefetch_related('documents') здесь не используем.
         base_queryset = (
             ResumeCandidate.objects
             .select_related('created_by')
@@ -537,6 +542,97 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
         context['selected_created_by'] = selected_created_by
 
         return context
+
+
+class ResumeCandidateKanbanDataView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'personnel.view_resumecandidate'
+    raise_exception = True
+
+    def get(self, request, *args, **kwargs):
+        selected_created_by = request.GET.get('created_by', '').strip()
+        stages = get_stage_items()
+
+        queryset = (
+            ResumeCandidate.objects
+            .select_related('created_by')
+            .only(
+                'id',
+                'number',
+                'date',
+                'full_name',
+                'position',
+                'contacts',
+                'medical_commission',
+                'ticket',
+                'estimated_arrival_date',
+                'comment',
+                'stage',
+                'sort_order',
+                'created_by__id',
+                'created_by__username',
+                'created_by__first_name',
+                'created_by__last_name',
+            )
+            .order_by('stage', 'sort_order', '-date', '-id')
+        )
+
+        if selected_created_by:
+            queryset = queryset.filter(created_by_id=selected_created_by)
+
+        items_by_stage = defaultdict(list)
+
+        for candidate in queryset:
+            created_by_name = ''
+
+            if candidate.created_by_id:
+                created_by_name = (
+                    candidate.created_by.get_full_name()
+                    or candidate.created_by.username
+                )
+
+            items_by_stage[candidate.stage].append(
+                {
+                    'id': candidate.id,
+                    'full_name': candidate.full_name or '',
+                    'position': candidate.position or 'Без должности',
+                    'contacts': candidate.contacts or 'Нет контактов',
+                    'medical_commission': candidate.get_medical_commission_display(),
+                    'ticket': candidate.ticket or '',
+                    'estimated_arrival_date': (
+                        candidate.estimated_arrival_date.strftime('%d.%m.%Y')
+                        if candidate.estimated_arrival_date
+                        else ''
+                    ),
+                    'comment': candidate.comment or '',
+                    'created_by': created_by_name,
+                    'detail_url': reverse(
+                        'personnel:resume_candidate_detail',
+                        kwargs={'pk': candidate.pk},
+                    ),
+                }
+            )
+
+        columns = []
+
+        for stage_item in stages:
+            items = items_by_stage.get(stage_item.code, [])
+
+            columns.append(
+                {
+                    'code': stage_item.code,
+                    'name': stage_item.name,
+                    'count': len(items),
+                    'items': items,
+                }
+            )
+
+        return JsonResponse(
+            {
+                'status': 'ok',
+                'columns': columns,
+            }
+        )
+
 
 class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """
@@ -661,6 +757,10 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
             form.fields['security_approval'].required = False
             form.fields['security_approval'].initial = 'pending'
 
+        if 'otipb_approval' in form.fields:
+            form.fields['otipb_approval'].required = False
+            form.fields['otipb_approval'].initial = 'pending'
+
         if 'department_call_approval' in form.fields:
             form.fields['department_call_approval'].required = False
             form.fields['department_call_approval'].initial = 'pending'
@@ -686,13 +786,14 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
     def form_valid(self, form):
         self.object = form.save(commit=False)
 
-        # HR создает карточку, после сохранения она сразу уходит
-        # в колонку "Служба безопасности".
         self.object.stage = 'security_service'
         self.object.sort_order = 0
 
         if not self.object.security_approval:
             self.object.security_approval = 'pending'
+
+        if not self.object.otipb_approval:
+            self.object.otipb_approval = 'pending'
 
         if not self.object.department_call_approval:
             self.object.department_call_approval = 'pending'
@@ -984,9 +1085,7 @@ class ResumeCandidateCheckOtipbView(LoginRequiredMixin, View):
                 'success': True,
                 'found': False,
                 'message': 'Совпадений не найдено.',
-                'data': {
-                    'otipb': '',
-                },
+                'data': {},
             }
         )
 

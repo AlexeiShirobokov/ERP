@@ -544,6 +544,58 @@
 
                     <hr>
 
+                    <div class="mb-4">
+                        <h6 class="mb-3">ОТИПБ</h6>
+
+                        {% if edit_mode %}
+                            {% if form.otipb_approval %}
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.otipb_approval.label }}</label>
+                                    {{ form.otipb_approval }}
+                                    {% if form.otipb_approval.errors %}
+                                        <div class="text-danger small">{{ form.otipb_approval.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+
+                            {% if form.otipb_comment %}
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.otipb_comment.label }}</label>
+                                    {{ form.otipb_comment }}
+                                    {% if form.otipb_comment.errors %}
+                                        <div class="text-danger small">{{ form.otipb_comment.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+
+                            {% if form.otipb_refusal_reason %}
+                                <div>
+                                    <label class="form-label">{{ form.otipb_refusal_reason.label }}</label>
+                                    {{ form.otipb_refusal_reason }}
+                                    {% if form.otipb_refusal_reason.errors %}
+                                        <div class="text-danger small">{{ form.otipb_refusal_reason.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="field-label">Статус</div>
+                            <div class="field-value mb-2">
+                                {{ record.get_otipb_approval_display|default:"—" }}
+                            </div>
+
+                            <div class="field-label">Комментарий</div>
+                            <div class="field-value mb-2">
+                                {{ record.otipb_comment|default:"—"|linebreaksbr }}
+                            </div>
+
+                            <div class="field-label">Причина отказа</div>
+                            <div class="field-value">
+                                {{ record.otipb_refusal_reason|default:"—"|linebreaksbr }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <hr>
                     <div>
                         <h6 class="mb-3">{{ record.current_department_name|default:"Отдел не выбран" }}</h6>
 

@@ -9,13 +9,13 @@ DEFAULT_STAGE_DEFINITIONS = [
     {
         'code': 'phone_interview',
         'label': 'HR',
-        'emails': ['maslovataia@pskgold.ru'],
+        'emails': ['maslova@pskgold.ru'],
         'sort_order': 10,
     },
     {
         'code': 'security_service',
         'label': 'Служба безопасности',
-        'emails': ['platonov@pskgold.ru'],
+        'emails': ['platonov@pskgold.ru', 'marchenkov@pskgold.ru'],
         'sort_order': 15,
     },
     {
@@ -83,7 +83,6 @@ DEFAULT_STAGE_DEFINITIONS = [
 
 APPROVAL_CHOICES = [
     ('', 'Не требуется'),
-    ('otipb', 'ОТИПБ'),
     ('mechanic_approval', 'ОГМ'),
     ('geology_approval', 'Геологический отдел'),
     ('surveyor_approval', 'Отдел маркшейдера'),
@@ -92,7 +91,6 @@ APPROVAL_CHOICES = [
 
 
 DEPARTMENT_STAGE_LABELS = {
-    'otipb': 'ОТИПБ',
     'mechanic_approval': 'ОГМ',
     'geology_approval': 'Геологический отдел',
     'surveyor_approval': 'Отдел маркшейдера',
@@ -248,7 +246,7 @@ class ResumeCandidate(models.Model):
     qualification = models.TextField('Квалификация, наличие удостоверения на сайте', blank=True)
     work_experience = models.TextField('Опыт работы', blank=True)
     note = models.TextField('Примечание', blank=True)
-    otipb = models.CharField('ОТИПБ', max_length=255, blank=True)
+
 
     approval_department = models.CharField(
         'Какой отдел отвечает',
@@ -273,6 +271,25 @@ class ResumeCandidate(models.Model):
     )
     security_refusal_reason = models.TextField(
         'Причина отказа службы безопасности',
+        blank=True,
+    )
+
+    otipb_approval = models.CharField(
+        'ОТИПБ',
+        max_length=20,
+        choices=SECURITY_APPROVAL_CHOICES,
+        default='pending',
+        blank=True,
+        db_index=True,
+    )
+
+    otipb_comment = models.TextField(
+        'Комментарий ОТИПБ',
+        blank=True,
+    )
+
+    otipb_refusal_reason = models.TextField(
+        'Причина отказа ОТИПБ',
         blank=True,
     )
 
@@ -453,11 +470,14 @@ class ResumeCandidate(models.Model):
             'qualification': self.qualification or '',
             'work_experience': self.work_experience or '',
             'note': self.note or '',
-            'otipb': self.otipb or '',
+
             'approval_department': self.approval_department or '',
             'security_approval': self.security_approval or 'pending',
             'security_comment': self.security_comment or '',
             'security_refusal_reason': self.security_refusal_reason or '',
+            'otipb_approval': self.otipb_approval or 'pending',
+            'otipb_comment': self.otipb_comment or '',
+            'otipb_refusal_reason': self.otipb_refusal_reason or '',
             'department_call_approval': self.department_call_approval or 'pending',
             'department_call_comment': self.department_call_comment or '',
             'refusal_reason': self.refusal_reason or '',
