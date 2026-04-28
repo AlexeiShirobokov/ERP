@@ -1,0 +1,21 @@
+{% extends "transfers/base.html" %}
+{% block title %}Загрузка перемещений{% endblock %}
+{% block content %}
+<div class="page-card">
+    <h2 class="h4 mb-3">Загрузить Excel из 1С</h2>
+    <p class="text-muted mb-4">Файл будет разобран и сохранен в базу. Повторная загрузка обновит существующие заказы по номеру, а ручные статусы «В пути» и «Доставлено» не будут сброшены.</p>
+    <form method="post" enctype="multipart/form-data" class="vstack gap-3" style="max-width: 620px;">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div>
+            {{ form.file.label_tag }}
+            {{ form.file }}
+            {{ form.file.errors }}
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary">Загрузить</button>
+            <a class="btn btn-outline-secondary" href="{% url 'transfers:order_list' %}">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "transfers/base.html" %}
+{% block title %}Канбан перемещений{% endblock %}
+{% block content %}
+<div class="page-card mb-4">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-12 col-lg-4">
+            <label class="form-label">Поиск</label>
+            <input class="form-control" name="q" value="{{ q }}" placeholder="Номер, товар, склад">
+        </div>
+        <div class="col-12 col-lg-3">
+            <label class="form-label">Подразделение</label>
+            <select class="form-select" name="department">
+                <option value="">Все</option>
+                {% for department in departments %}
+                    <option value="{{ department.id }}" {% if selected_department == department.id|stringformat:'s' %}selected{% endif %}>{{ department.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-lg-2 d-grid">
+            <button class="btn btn-primary">Показать</button>
+        </div>
+        <div class="col-12 col-lg-3 text-lg-end">
+            <a class="btn btn-outline-secondary" href="{% url 'transfers:order_list' %}">Реестр</a>
+        </div>
+    </form>
+</div>
+
+<div class="kanban-board">
+    {% for column in columns %}
+        <section class="kanban-column">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h6 mb-0">{{ column.name }}</h2>
+                <span class="badge text-bg-light">{{ column.count }}</span>
+            </div>
+            {% for order in column.items %}
+                <article class="kanban-card">
+                    <div class="d-flex justify-content-between gap-2 mb-2">
+                        <a class="fw-semibold" href="{% url 'transfers:order_detail' order.pk %}">{{ order.order_number }}</a>
+                        {% include "transfers/_status_badge.html" with order=order %}
+                    </div>
+                    <div class="small text-muted mb-2">{{ order.order_date|date:"d.m.Y H:i"|default:"—" }}</div>
+                    <div class="mb-2"><span class="muted-label">Получатель:</span><br>{{ order.receiver_warehouse|default:"—" }}</div>
+                    <div class="mb-2"><span class="muted-label">Подразделение:</span><br>{{ order.department_name }}</div>
+                    <div class="small text-muted mb-2">Позиции: {{ order.items.count }}</div>
+                    {% if order.movement_numbers %}<div class="small">{{ order.movement_numbers|linebreaksbr }}</div>{% endif %}
+                    <div class="mt-3"><a class="btn btn-sm btn-outline-primary w-100" href="{% url 'transfers:order_detail' order.pk %}">Открыть</a></div>
+                </article>
+            {% empty %}
+                <div class="text-muted small py-4 text-center">Нет заказов</div>
+            {% endfor %}
+        </section>
+    {% endfor %}
+</div>
+{% endblock %}

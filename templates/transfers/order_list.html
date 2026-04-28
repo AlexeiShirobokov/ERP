@@ -1,0 +1,95 @@
+{% extends "transfers/base.html" %}
+{% block title %}Реестр перемещений{% endblock %}
+{% block content %}
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-3"><div class="metric"><div class="muted-label">Заказов в выборке</div><div class="metric-value">{{ total_orders }}</div></div></div>
+    <div class="col-12 col-md-3"><div class="metric"><div class="muted-label">К оформлению приход</div><div class="metric-value">{{ total_requested|floatformat:3 }}</div></div></div>
+    <div class="col-12 col-md-3"><div class="metric"><div class="muted-label">К оформлению расход</div><div class="metric-value">{{ total_moved|floatformat:3 }}</div></div></div>
+    <div class="col-12 col-md-3"><div class="metric"><div class="muted-label">Последняя загрузка</div><div class="fw-semibold">{% if last_batch %}{{ last_batch.created_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</div><div class="small text-muted">{% if last_batch %}{{ last_batch.period_text|default:last_batch.original_name }}{% else %}Файлов пока нет{% endif %}</div></div></div>
+</div>
+
+<div class="page-card mb-4">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-12 col-xl-3">
+            <label class="form-label">Поиск</label>
+            <input class="form-control" name="q" value="{{ q }}" placeholder="Номер, товар, склад, ответственный">
+        </div>
+        <div class="col-12 col-md-6 col-xl-2">
+            <label class="form-label">Статус</label>
+            <select class="form-select" name="status">
+                <option value="">Все статусы</option>
+                {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-6 col-xl-2">
+            <label class="form-label">Подразделение</label>
+            <select class="form-select" name="department">
+                <option value="">Все</option>
+                {% for department in departments %}
+                    <option value="{{ department.id }}" {% if selected_department == department.id|stringformat:'s' %}selected{% endif %}>{{ department.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-6 col-xl-2">
+            <label class="form-label">Получатель</label>
+            <input class="form-control" name="receiver" value="{{ receiver }}" placeholder="Склад/ФИО">
+        </div>
+        <div class="col-6 col-md-3 col-xl-1">
+            <label class="form-label">Дата с</label>
+            <input class="form-control" type="date" name="date_from" value="{{ date_from }}">
+        </div>
+        <div class="col-6 col-md-3 col-xl-1">
+            <label class="form-label">Дата по</label>
+            <input class="form-control" type="date" name="date_to" value="{{ date_to }}">
+        </div>
+        <div class="col-12 col-xl-1 d-grid">
+            <button class="btn btn-primary">Фильтр</button>
+        </div>
+    </form>
+</div>
+
+<div class="page-card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+            <tr>
+                <th>Заказ</th>
+                <th>Дата</th>
+                <th>Статус</th>
+                <th>Подразделение</th>
+                <th>Получатель</th>
+                <th>Документы</th>
+                <th>Позиции</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for order in orders %}
+                <tr>
+                    <td><a class="fw-semibold" href="{% url 'transfers:order_detail' order.pk %}">{{ order.order_number }}</a><div class="small text-muted">{{ order.responsible_name|default:"—" }}</div></td>
+                    <td>{{ order.order_date|date:"d.m.Y H:i"|default:"—" }}</td>
+                    <td>{% include "transfers/_status_badge.html" with order=order %}</td>
+                    <td>{{ order.department_name }}</td>
+                    <td>{{ order.receiver_warehouse|default:"—" }}</td>
+                    <td class="small">{{ order.movement_numbers|linebreaksbr|default:"—" }}</td>
+                    <td>{{ order.items.count }}</td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'transfers:order_detail' order.pk %}">Открыть</a></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-5">Перемещений пока нет</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+        <div class="d-flex justify-content-center gap-2 mt-4">
+            {% if page_obj.has_previous %}<a class="btn btn-outline-secondary" href="?page={{ page_obj.previous_page_number }}">Назад</a>{% endif %}
+            <span class="btn btn-light disabled">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}<a class="btn btn-outline-secondary" href="?page={{ page_obj.next_page_number }}">Вперед</a>{% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

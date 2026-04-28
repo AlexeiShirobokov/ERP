@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "taskmanager.apps.TaskmanagerConfig",
     "operate.apps.OperateConfig",
     "personnel.apps.PersonnelConfig",
+    "transfers.apps.TransfersConfig",
 ]
 
 MIDDLEWARE = [
