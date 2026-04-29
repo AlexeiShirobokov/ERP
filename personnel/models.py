@@ -514,6 +514,31 @@ class ResumeCandidateDocument(models.Model):
     def __str__(self):
         return self.title
 
+    @property
+    def file_extension(self):
+        if not self.file:
+            return ''
+
+        name = self.file.name or ''
+        if '.' not in name:
+            return ''
+
+        return name.rsplit('.', 1)[-1].lower()
+
+    @property
+    def is_previewable(self):
+        return self.file_extension in {
+            'pdf',
+            'png',
+            'jpg',
+            'jpeg',
+            'jpe',
+            'jfif',
+            'gif',
+            'webp',
+            'txt',
+        }
+
 
 class CandidateSourceRecord(models.Model):
     source_row = models.PositiveIntegerField(
@@ -758,5 +783,5 @@ class CandidateSourceRecord(models.Model):
             'stage': '',
             'source_date': self.source_date.strftime('%d.%m.%Y') if self.source_date else '',
             'accepted_date': self.accepted_date.strftime('%d.%m.%Y') if self.accepted_date else '',
-            'medical_direction': self.medical_direction or '',
+            'medical_direction': self.med_result or '',
         }

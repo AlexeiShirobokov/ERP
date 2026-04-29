@@ -735,8 +735,38 @@ class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, Det
             candidate.save()
             form.save_m2m()
 
+            uploaded_file = request.FILES.get('document_file')
+
+            if uploaded_file:
+                document_title = (
+                        request.POST.get('document_title', '').strip()
+                        or uploaded_file.name
+                )
+                document_comment = request.POST.get('document_comment', '').strip()
+
+                ResumeCandidateDocument.objects.create(
+                    record=candidate,
+                    title=document_title,
+                    file=uploaded_file,
+                    comment=document_comment,
+                    uploaded_by=(
+                        request.user
+                        if request.user.is_authenticated
+                        else None
+                    ),
+                )
+
+                messages.success(request, 'Карточка и документ сохранены.')
+            else:
+                messages.success(request, 'Карточка сохранена.')
+
             if stage_changed:
-                send_stage_notification_async(candidate, candidate.stage, request.user, request)
+                send_stage_notification_async(
+                    candidate,
+                    candidate.stage,
+                    request.user,
+                    request,
+                )
 
             return redirect(KANBAN_URL)
 
@@ -1164,14 +1194,54 @@ class ResumeCandidateDocumentPreviewView(LoginRequiredMixin, PermissionRequiredM
 
         file_handle = document.file.open('rb')
         filename = os.path.basename(document.file.name)
-        content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
 
-        return FileResponse(
+        extension = ''
+        if '.' in filename:
+            extension = filename.rsplit('.', 1)[-1].lower()
+
+        previewable_extensions = {
+            'pdf',
+            'png',
+            'jpg',
+            'jpeg',
+            'jpe',
+            'jfif',
+            'gif',
+            'webp',
+            'txt',
+        }
+
+        if extension not in previewable_extensions:
+            return redirect('personnel:document_download', pk=document.pk)
+
+        content_type = mimetypes.guess_type(filename)[0]
+
+        if extension in {'jpg', 'jpeg', 'jpe', 'jfif'}:
+            content_type = 'image/jpeg'
+        elif extension == 'png':
+            content_type = 'image/png'
+        elif extension == 'gif':
+            content_type = 'image/gif'
+        elif extension == 'webp':
+            content_type = 'image/webp'
+        elif extension == 'pdf':
+            content_type = 'application/pdf'
+        elif extension == 'txt':
+            content_type = 'text/plain; charset=utf-8'
+
+        if not content_type:
+            content_type = 'application/octet-stream'
+
+        response = FileResponse(
             file_handle,
             as_attachment=False,
             filename=filename,
             content_type=content_type,
         )
+
+        response['X-Content-Type-Options'] = 'nosniff'
+
+        return response
 
 
 class ResumeCandidateDocumentDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):

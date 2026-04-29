@@ -343,43 +343,36 @@
                 </div>
 
                 <div class="card-body">
-                    {% if perms.personnel.change_resumecandidate %}
+                    {% if edit_mode and perms.personnel.change_resumecandidate %}
                         <div class="row g-2 align-items-end mb-3">
                             <div class="col-12 col-md-4">
                                 <label class="form-label" for="id_document_title">Название</label>
                                 <input type="text"
-                                       name="title"
+                                       name="document_title"
                                        id="id_document_title"
-                                       class="form-control"
-                                       form="document-upload-form">
+                                       class="form-control">
                             </div>
 
                             <div class="col-12 col-md-4">
                                 <label class="form-label" for="id_document_file">Файл</label>
                                 <input type="file"
-                                       name="file"
+                                       name="document_file"
                                        id="id_document_file"
-                                       class="form-control"
-                                       form="document-upload-form">
+                                       class="form-control">
                             </div>
 
-                            <div class="col-12 col-md-3">
+                            <div class="col-12 col-md-4">
                                 <label class="form-label" for="id_document_comment">Комментарий</label>
                                 <input type="text"
-                                       name="comment"
+                                       name="document_comment"
                                        id="id_document_comment"
                                        class="form-control"
-                                       placeholder="Комментарий"
-                                       form="document-upload-form">
+                                       placeholder="Комментарий">
                             </div>
+                        </div>
 
-                            <div class="col-12 col-md-1 d-grid">
-                                <button type="submit"
-                                        class="btn btn-success"
-                                        form="document-upload-form">
-                                    +
-                                </button>
-                            </div>
+                        <div class="text-muted small mb-3">
+                            Документ будет загружен после нажатия кнопки «Сохранить».
                         </div>
                     {% endif %}
 
@@ -425,6 +418,13 @@
 
                                     <td class="text-end">
                                         {% if doc.file %}
+                                            <a href="{% url 'personnel:document_preview' doc.pk %}"
+                                               target="_blank"
+                                               rel="noopener"
+                                               class="btn btn-sm btn-outline-secondary">
+                                                Открыть
+                                            </a>
+
                                             <a href="{% url 'personnel:document_download' doc.pk %}"
                                                class="btn btn-sm btn-outline-primary">
                                                 Скачать
@@ -445,15 +445,6 @@
                                                 </button>
                                             </form>
                                         {% endif %}
-                                        {% if perms.personnel.change_resumecandidate %}
-                                            <form id="document-upload-form"
-                                                  method="post"
-                                                  enctype="multipart/form-data"
-                                                  action="{% url 'personnel:document_upload' record.pk %}">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                            </form>
-                                        {% endif %}
                                     </td>
                                 </tr>
                             {% empty %}
@@ -467,9 +458,9 @@
                         </table>
                     </div>
 
-                    {% if edit_mode %}
+                    {% if not edit_mode %}
                         <div class="text-muted small mt-2">
-                            Загрузка и удаление документов доступны после выхода из режима редактирования карточки.
+                            Чтобы добавить документ, нажмите «Редактировать».
                         </div>
                     {% endif %}
                 </div>
