@@ -171,7 +171,7 @@ class ResumeCandidate(models.Model):
         ('issued', 'Выдано направление'),
         ('passed', 'Пройдена медкомиссия'),
         # Старое значение оставлено для совместимости со старыми карточками.
-        ('failed', 'Не пройдена'),
+
     ]
 
     SECURITY_APPROVAL_CHOICES = SECURITY_APPROVAL_CHOICES
@@ -572,15 +572,18 @@ class CandidateSourceRecord(models.Model):
         'Примечание',
         blank=True,
     )
-    otipb = models.CharField(
-        'ОТИПБ',
-        max_length=255,
-        blank=True,
-    )
-    medical_direction = models.TextField(
+    med_result = models.CharField(
         'Направление на МО',
+        max_length=20,
+        choices=ResumeCandidate.MEDICAL_CHOICES,
+        default='pending',
         blank=True,
     )
+
+    # medical_direction = models.TextField(
+    #     'Направление на МО',
+    #     blank=True,
+    # )
     refusal_reason = models.TextField(
         'Примечание или причина отказа',
         blank=True,
@@ -633,18 +636,14 @@ class CandidateSourceRecord(models.Model):
         )
 
     def get_medical_commission_value(self):
-        value = (self.medical_direction or '').strip().lower()
-        if not value:
-            return 'pending'
+        value = (self.med_result or '').strip()
 
-        if any(word in value for word in ['не год', 'не пройд', 'отказ', 'отказался', 'отказалась']):
-            return 'failed'
+        allowed_values = {
+            code for code, label in ResumeCandidate.MEDICAL_CHOICES
+        }
 
-        if any(word in value for word in ['пройд', 'годен', 'годна']):
-            return 'passed'
-
-        if any(word in value for word in ['направ', 'выдан']):
-            return 'issued'
+        if value in allowed_values:
+            return value
 
         return 'pending'
 
@@ -706,8 +705,7 @@ class CandidateSourceRecord(models.Model):
             'phone': candidate.contacts or '',
             'qualification': candidate.qualification or '',
             'note': candidate.note or '',
-            'otipb': candidate.otipb or '',
-            'medical_direction': candidate.comment or '',
+            'med_result': candidate.medical_commission or 'pending',
             'refusal_reason': candidate.refusal_reason or '',
             'import_file_name': 'Карточка кандидата',
         }
@@ -731,7 +729,7 @@ class CandidateSourceRecord(models.Model):
 
     def as_autofill_data(self):
         comment = ''
-        medical_text = (self.medical_direction or '').strip()
+        medical_text = (self.med_result or '').strip()
 
         if medical_text and medical_text.lower() != 'направлено':
             comment = medical_text
@@ -748,8 +746,8 @@ class CandidateSourceRecord(models.Model):
             'qualification': self.qualification or '',
             'work_experience': '',
             'note': self.note or '',
-            'otipb': self.otipb or '',
             'approval_department': '',
+            'med_result': self.med_result or 'pending',
             'security_approval': 'pending',
             'security_comment': '',
             'security_refusal_reason': '',

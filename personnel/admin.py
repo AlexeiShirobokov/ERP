@@ -33,12 +33,10 @@ class ResumeStageAdmin(admin.ModelAdmin):
         'responsible_user',
         'notify_email',
     )
-
     list_editable = (
         'sort_order',
         'is_active',
     )
-
     search_fields = (
         'name',
         'code',
@@ -47,7 +45,6 @@ class ResumeStageAdmin(admin.ModelAdmin):
         'responsible_user__last_name',
         'notify_email',
     )
-
     ordering = (
         'sort_order',
         'id',
@@ -63,31 +60,31 @@ class ResumeCandidateAdmin(admin.ModelAdmin):
         'position',
         'contacts',
         'medical_commission',
-
         'stage_name_display',
         'created_at',
         'updated_at',
     )
-
     search_fields = (
         'full_name',
         'position',
         'contacts',
         'number',
-        'otipb',
+        'security_comment',
+        'security_refusal_reason',
+        'otipb_comment',
+        'otipb_refusal_reason',
+        'department_call_comment',
+        'refusal_reason',
     )
-
     list_filter = (
         'date',
         'medical_commission',
         'stage',
     )
-
     readonly_fields = (
         'created_at',
         'updated_at',
     )
-
     inlines = [
         ResumeCandidateDocumentInline,
     ]
@@ -106,11 +103,10 @@ class CandidateSourceRecordAdmin(admin.ModelAdmin):
         'birth_year',
         'vacancy',
         'phone',
-        'medical_direction',
+        'med_result',
         'accepted_date',
         'imported_at',
     )
-
     search_fields = (
         'full_name',
         'full_name_normalized',
@@ -118,24 +114,20 @@ class CandidateSourceRecordAdmin(admin.ModelAdmin):
         'phone',
         'qualification',
         'note',
-        'medical_direction',
         'refusal_reason',
     )
-
     list_filter = (
         'source_date',
         'vacancy',
-        'medical_direction',
+        'med_result',
         'accepted_date',
         'import_file_name',
     )
-
     readonly_fields = (
         'full_name_normalized',
         'imported_at',
         'updated_at',
     )
-
     ordering = (
         '-source_date',
         '-id',
