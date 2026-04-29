@@ -193,23 +193,32 @@ def get_next_stage_after_card_save(candidate, old_stage):
     Автоматический маршрут кандидата при сохранении карточки.
 
     Правила:
-    1. HR создает карточку -> Служба безопасности.
-    2. Служба безопасности сохраняет -> ОТИПБ.
-    3. ОТИПБ сохраняет:
-       - если выбран реальный отдел согласования -> в этот отдел;
+    1. HR создает/сохраняет карточку -> Служба безопасности.
+    2. Служба безопасности:
+       - если "Не согласовано" -> Отказ;
+       - иначе -> ОТИПБ.
+    3. ОТИПБ:
+       - если "Не согласовано" -> Отказ;
+       - если выбран отдел согласования -> в этот отдел;
        - если отдел не выбран -> Направление на медосмотр.
-    4. ОГМ / Геологический отдел / Отдел маркшейдера / Транспортный цех
-       сохраняют карточку с отметкой "Согласован к вызову"
-       -> Направление на медосмотр.
+    4. ОГМ / Геологический отдел / Отдел маркшейдера / Транспортный цех:
+       - если "Не согласован к вызову" -> Отказ;
+       - если "Согласован к вызову" -> Направление на медосмотр;
+       - иначе остаётся на текущем этапе.
     """
 
     if old_stage == 'phone_interview':
         return 'security_service'
 
     if old_stage == 'security_service':
+        if candidate.security_approval == 'rejected':
+            return 'refusal'
         return 'otipb'
 
     if old_stage == 'otipb':
+        if candidate.otipb_approval == 'rejected':
+            return 'refusal'
+
         approval_department = (candidate.approval_department or '').strip()
 
         if approval_department in DEPARTMENT_APPROVAL_STAGES:
@@ -218,8 +227,13 @@ def get_next_stage_after_card_save(candidate, old_stage):
         return 'medical_direction'
 
     if old_stage in DEPARTMENT_APPROVAL_STAGES:
+        if candidate.department_call_approval == 'rejected':
+            return 'refusal'
+
         if candidate.department_call_approval == 'approved':
             return 'medical_direction'
+
+        return old_stage
 
     return old_stage
 

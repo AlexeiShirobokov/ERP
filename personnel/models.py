@@ -9,7 +9,7 @@ DEFAULT_STAGE_DEFINITIONS = [
     {
         'code': 'phone_interview',
         'label': 'HR',
-        'emails': ['maslova@pskgold.ru'],
+        'emails': ['maslovataia@pskgold.ru'],
         'sort_order': 10,
     },
     {
