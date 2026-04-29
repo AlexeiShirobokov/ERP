@@ -11,3 +11,4 @@ __pycache__/
 *.json
 exports_users.py
 import_users.py
+media/
