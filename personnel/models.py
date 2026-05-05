@@ -49,6 +49,18 @@ DEFAULT_STAGE_DEFINITIONS = [
         'sort_order': 50,
     },
     {
+        'code': 'chief_engineer_approval',
+        'label': 'Главный инженер',
+        'emails': ['paramonov@pskgold.ru'],
+        'sort_order': 51,
+    },
+    {
+        'code': 'agreed',
+        'label': 'Согласованные',
+        'emails': ['maslovataia@pskgold.ru','kalashnikova@pskgold.ru'],
+        'sort_order': 52,
+    },
+    {
         'code': 'medical_direction',
         'label': 'Направление на медосмотр',
         'emails': ['kalashnikova@pskgold.ru'],
@@ -305,7 +317,19 @@ class ResumeCandidate(models.Model):
         'Комментарий отдела',
         blank=True,
     )
+    chief_engineer_approval = models.CharField(
+        'Главный инженер',
+        max_length=20,
+        choices=SECURITY_APPROVAL_CHOICES,
+        default='pending',
+        blank=True,
+        db_index=True,
+    )
 
+    chief_engineer_comment = models.TextField(
+        'Комментарий главного инженера',
+        blank=True,
+    )
     refusal_reason = models.TextField('Примечание или причина отказа', blank=True)
     ticket = models.CharField('Билет', max_length=255, blank=True)
     estimated_arrival_date = models.DateField(

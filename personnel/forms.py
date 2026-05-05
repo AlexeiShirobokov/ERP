@@ -148,6 +148,8 @@ CANDIDATE_FIELD_ORDER = [
     'otipb_refusal_reason',
     'department_call_approval',
     'department_call_comment',
+    'chief_engineer_approval',
+    'chief_engineer_comment',
     'refusal_reason',
     'ticket',
     'estimated_arrival_date',
@@ -199,6 +201,7 @@ def candidate_widgets():
         'otipb_comment',
         'otipb_refusal_reason',
         'department_call_comment',
+        'chief_engineer_comment',
     ]
 
     for field_name in textarea_fields:

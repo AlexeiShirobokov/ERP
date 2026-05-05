@@ -194,17 +194,27 @@ def get_next_stage_after_card_save(candidate, old_stage):
 
     Правила:
     1. HR создает/сохраняет карточку -> Служба безопасности.
+
     2. Служба безопасности:
        - если "Не согласовано" -> Отказ;
        - иначе -> ОТИПБ.
+
     3. ОТИПБ:
        - если "Не согласовано" -> Отказ;
        - если выбран отдел согласования -> в этот отдел;
-       - если отдел не выбран -> Направление на медосмотр.
+       - если отдел не выбран -> Согласованные.
+
     4. ОГМ / Геологический отдел / Отдел маркшейдера / Транспортный цех:
        - если "Не согласован к вызову" -> Отказ;
-       - если "Согласован к вызову" -> Направление на медосмотр;
+       - если "Согласован к вызову" -> Согласованные;
        - иначе остаётся на текущем этапе.
+
+    5. Главный инженер:
+       - если "Не согласовано" -> Отказ;
+       - если "Согласовано" -> Согласованные;
+       - иначе остаётся на текущем этапе.
+
+    После этапа "Согласованные" дальнейшее перемещение выполняется вручную.
     """
 
     if old_stage == 'phone_interview':
@@ -224,14 +234,23 @@ def get_next_stage_after_card_save(candidate, old_stage):
         if approval_department in DEPARTMENT_APPROVAL_STAGES:
             return approval_department
 
-        return 'medical_direction'
+        return 'agreed'
 
     if old_stage in DEPARTMENT_APPROVAL_STAGES:
         if candidate.department_call_approval == 'rejected':
             return 'refusal'
 
         if candidate.department_call_approval == 'approved':
-            return 'medical_direction'
+            return 'agreed'
+
+        return old_stage
+
+    if old_stage == 'chief_engineer_approval':
+        if candidate.chief_engineer_approval == 'rejected':
+            return 'refusal'
+
+        if candidate.chief_engineer_approval == 'approved':
+            return 'agreed'
 
         return old_stage
 
@@ -286,6 +305,7 @@ def get_resume_candidates_queryset(request):
             | Q(otipb_comment__icontains=q)
             | Q(otipb_refusal_reason__icontains=q)
             | Q(department_call_comment__icontains=q)
+            | Q(chief_engineer_comment__icontains=q)
         )
 
     if stage:
@@ -816,6 +836,9 @@ class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
         if 'department_call_approval' in form.fields:
             form.fields['department_call_approval'].required = False
             form.fields['department_call_approval'].initial = 'pending'
+        if 'chief_engineer_approval' in form.fields:
+            form.fields['chief_engineer_approval'].required = False
+            form.fields['chief_engineer_approval'].initial = 'pending'
 
         return form
 

@@ -693,6 +693,47 @@
                             </div>
                         {% endif %}
                     </div>
+                    <hr>
+
+                    <div>
+                        <h6 class="mb-3">Главный инженер</h6>
+
+                        {% if edit_mode %}
+                            {% if form.chief_engineer_approval %}
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        Статус
+                                    </label>
+                                    {{ form.chief_engineer_approval }}
+                                    {% if form.chief_engineer_approval.errors %}
+                                        <div class="text-danger small">{{ form.chief_engineer_approval.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+
+                            {% if form.chief_engineer_comment %}
+                                <div>
+                                    <label class="form-label">
+                                        Комментарий главного инженера
+                                    </label>
+                                    {{ form.chief_engineer_comment }}
+                                    {% if form.chief_engineer_comment.errors %}
+                                        <div class="text-danger small">{{ form.chief_engineer_comment.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="field-label">Статус</div>
+                            <div class="field-value mb-2">
+                                {{ record.get_chief_engineer_approval_display|default:"—" }}
+                            </div>
+
+                            <div class="field-label">Комментарий</div>
+                            <div class="field-value">
+                                {{ record.chief_engineer_comment|default:"—"|linebreaksbr }}
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
