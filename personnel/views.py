@@ -487,6 +487,7 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
         context = super().get_context_data(**kwargs)
 
         selected_created_by = self.request.GET.get('created_by', '').strip()
+        selected_q = self.request.GET.get('q', '').strip()
         stages = get_stage_items()
 
         base_queryset = (
@@ -500,6 +501,9 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
                 'position',
                 'contacts',
                 'medical_commission',
+                'security_approval',
+                'otipb_approval',
+                'birth_year',
                 'ticket',
                 'estimated_arrival_date',
                 'comment',
@@ -515,6 +519,20 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
 
         if selected_created_by:
             base_queryset = base_queryset.filter(created_by_id=selected_created_by)
+
+        if selected_q:
+            base_queryset = base_queryset.filter(
+                Q(full_name__icontains=selected_q)
+                | Q(position__icontains=selected_q)
+                | Q(contacts__icontains=selected_q)
+                | Q(ticket__icontains=selected_q)
+                | Q(comment__icontains=selected_q)
+                | Q(note__icontains=selected_q)
+                | Q(refusal_reason__icontains=selected_q)
+                | Q(security_comment__icontains=selected_q)
+                | Q(otipb_comment__icontains=selected_q)
+                | Q(department_call_comment__icontains=selected_q)
+            )
 
         items_by_stage = defaultdict(list)
 
@@ -554,9 +572,8 @@ class ResumeCandidateKanbanView(LoginRequiredMixin, PermissionRequiredMixin, Tem
         context['columns'] = columns
         context['creators'] = creators
         context['selected_created_by'] = selected_created_by
-
+        context['selected_q'] = selected_q
         return context
-
 
 class ResumeCandidateKanbanDataView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'personnel.view_resumecandidate'
@@ -564,6 +581,7 @@ class ResumeCandidateKanbanDataView(LoginRequiredMixin, PermissionRequiredMixin,
 
     def get(self, request, *args, **kwargs):
         selected_created_by = request.GET.get('created_by', '').strip()
+        selected_q = request.GET.get('q', '').strip()
         stages = get_stage_items()
 
         queryset = (
@@ -577,6 +595,9 @@ class ResumeCandidateKanbanDataView(LoginRequiredMixin, PermissionRequiredMixin,
                 'position',
                 'contacts',
                 'medical_commission',
+                'security_approval',
+                'otipb_approval',
+                'birth_year',
                 'ticket',
                 'estimated_arrival_date',
                 'comment',
@@ -593,6 +614,20 @@ class ResumeCandidateKanbanDataView(LoginRequiredMixin, PermissionRequiredMixin,
         if selected_created_by:
             queryset = queryset.filter(created_by_id=selected_created_by)
 
+        if selected_q:
+            queryset = queryset.filter(
+                Q(full_name__icontains=selected_q)
+                | Q(position__icontains=selected_q)
+                | Q(contacts__icontains=selected_q)
+                | Q(ticket__icontains=selected_q)
+                | Q(comment__icontains=selected_q)
+                | Q(note__icontains=selected_q)
+                | Q(refusal_reason__icontains=selected_q)
+                | Q(security_comment__icontains=selected_q)
+                | Q(otipb_comment__icontains=selected_q)
+                | Q(department_call_comment__icontains=selected_q)
+            )
+
         items_by_stage = defaultdict(list)
 
         for candidate in queryset:
@@ -607,10 +642,14 @@ class ResumeCandidateKanbanDataView(LoginRequiredMixin, PermissionRequiredMixin,
             items_by_stage[candidate.stage].append(
                 {
                     'id': candidate.id,
+                    'stage': candidate.stage or '',
                     'full_name': candidate.full_name or '',
                     'position': candidate.position or 'Без должности',
                     'contacts': candidate.contacts or 'Нет контактов',
                     'medical_commission': candidate.get_medical_commission_display(),
+                    'security_approval': candidate.security_approval or '',
+                    'otipb_approval': candidate.otipb_approval or '',
+                    'birth_year': candidate.birth_year or '',
                     'ticket': candidate.ticket or '',
                     'estimated_arrival_date': (
                         candidate.estimated_arrival_date.strftime('%d.%m.%Y')
@@ -646,7 +685,6 @@ class ResumeCandidateKanbanDataView(LoginRequiredMixin, PermissionRequiredMixin,
                 'columns': columns,
             }
         )
-
 
 class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """
@@ -735,38 +773,8 @@ class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, Det
             candidate.save()
             form.save_m2m()
 
-            uploaded_file = request.FILES.get('document_file')
-
-            if uploaded_file:
-                document_title = (
-                        request.POST.get('document_title', '').strip()
-                        or uploaded_file.name
-                )
-                document_comment = request.POST.get('document_comment', '').strip()
-
-                ResumeCandidateDocument.objects.create(
-                    record=candidate,
-                    title=document_title,
-                    file=uploaded_file,
-                    comment=document_comment,
-                    uploaded_by=(
-                        request.user
-                        if request.user.is_authenticated
-                        else None
-                    ),
-                )
-
-                messages.success(request, 'Карточка и документ сохранены.')
-            else:
-                messages.success(request, 'Карточка сохранена.')
-
             if stage_changed:
-                send_stage_notification_async(
-                    candidate,
-                    candidate.stage,
-                    request.user,
-                    request,
-                )
+                send_stage_notification_async(candidate, candidate.stage, request.user, request)
 
             return redirect(KANBAN_URL)
 
@@ -1011,7 +1019,7 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, PermissionRequiredMix
             new_stage = data.get('new_stage')
             ordered_ids = data.get('ordered_ids', [])
 
-            if not candidate_id or not new_stage or not isinstance(ordered_ids, list):
+            if not candidate_id or not new_stage:
                 return JsonResponse(
                     {
                         'status': 'error',
@@ -1033,18 +1041,30 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, PermissionRequiredMix
 
             candidate = get_object_or_404(ResumeCandidate, pk=candidate_id)
             old_stage = candidate.stage
-            candidate.stage = new_stage
-            candidate.updated_by = request.user
-            candidate.save()
-
-            for index, item_id in enumerate(ordered_ids, start=1):
-                ResumeCandidate.objects.filter(pk=item_id).update(
-                    stage=new_stage,
-                    sort_order=index,
-                )
 
             if old_stage != new_stage:
+                last_sort = (
+                    ResumeCandidate.objects
+                    .filter(stage=new_stage)
+                    .aggregate(max_sort=Max('sort_order'))['max_sort'] or 0
+                )
+
+                candidate.stage = new_stage
+                candidate.sort_order = last_sort + 1
+                candidate.updated_by = request.user
+                candidate.save()
+
                 send_stage_notification_async(candidate, new_stage, request.user, request)
+            else:
+                candidate.updated_by = request.user
+                candidate.save(update_fields=['updated_by', 'updated_at'])
+
+            if isinstance(ordered_ids, list) and len(ordered_ids) > 1:
+                for index, item_id in enumerate(ordered_ids, start=1):
+                    ResumeCandidate.objects.filter(pk=item_id).update(
+                        stage=new_stage,
+                        sort_order=index,
+                    )
 
             return JsonResponse({'status': 'ok'})
 
@@ -1057,7 +1077,6 @@ class ResumeCandidateKanbanReorderView(LoginRequiredMixin, PermissionRequiredMix
                 },
                 status=500,
             )
-
 
 class ResumeCandidateCheckOtipbView(LoginRequiredMixin, View):
     """
@@ -1199,49 +1218,17 @@ class ResumeCandidateDocumentPreviewView(LoginRequiredMixin, PermissionRequiredM
         if '.' in filename:
             extension = filename.rsplit('.', 1)[-1].lower()
 
-        previewable_extensions = {
-            'pdf',
-            'png',
-            'jpg',
-            'jpeg',
-            'jpe',
-            'jfif',
-            'gif',
-            'webp',
-            'txt',
-        }
-
-        if extension not in previewable_extensions:
-            return redirect('personnel:document_download', pk=document.pk)
-
-        content_type = mimetypes.guess_type(filename)[0]
+        content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
 
         if extension in {'jpg', 'jpeg', 'jpe', 'jfif'}:
             content_type = 'image/jpeg'
-        elif extension == 'png':
-            content_type = 'image/png'
-        elif extension == 'gif':
-            content_type = 'image/gif'
-        elif extension == 'webp':
-            content_type = 'image/webp'
-        elif extension == 'pdf':
-            content_type = 'application/pdf'
-        elif extension == 'txt':
-            content_type = 'text/plain; charset=utf-8'
 
-        if not content_type:
-            content_type = 'application/octet-stream'
-
-        response = FileResponse(
+        return FileResponse(
             file_handle,
             as_attachment=False,
             filename=filename,
             content_type=content_type,
         )
-
-        response['X-Content-Type-Options'] = 'nosniff'
-
-        return response
 
 
 class ResumeCandidateDocumentDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):

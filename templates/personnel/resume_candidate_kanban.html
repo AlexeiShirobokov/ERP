@@ -29,6 +29,10 @@
         max-width: 100%;
     }
 
+    .kanban-search-filter {
+        min-width: 260px;
+    }
+
     .kanban-creator-filter {
         min-width: 220px;
     }
@@ -80,18 +84,26 @@
 
     .kanban-card {
         border-radius: 0.75rem;
-        cursor: grab;
+        cursor: default;
+        border: 1px solid transparent;
     }
 
-    .kanban-card.dragging {
-        opacity: 0.5;
+    .kanban-card-security-rejected {
+        background-color: #f8d7da !important;
+        border-color: #dc3545 !important;
     }
 
-    .drop-hover {
-        outline: 2px dashed #0d6efd;
-        outline-offset: -4px;
-        border-radius: 0.5rem;
-        background: rgba(13, 110, 253, 0.04);
+    .kanban-card-security-rejected h6 {
+        color: #842029;
+    }
+
+    .kanban-card-otipb-rejected {
+        background-color: #fff3cd !important;
+        border-color: #ffc107 !important;
+    }
+
+    .kanban-card-otipb-rejected h6 {
+        color: #664d03;
     }
 
     .kanban-wrapper::-webkit-scrollbar {
@@ -155,6 +167,15 @@
         <div class="d-flex flex-wrap align-items-end justify-content-end gap-2 kanban-top-controls">
 
             <form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-0">
+                <div class="kanban-search-filter">
+                    <label class="form-label mb-1 small">Поиск</label>
+                    <input type="text"
+                           name="q"
+                           value="{{ selected_q }}"
+                           class="form-control form-control-sm"
+                           placeholder="ФИО, должность, телефон">
+                </div>
+
                 <div class="kanban-creator-filter">
                     <label class="form-label mb-1 small">Создал карточку</label>
 
@@ -174,7 +195,7 @@
                     Показать
                 </button>
 
-                {% if selected_created_by %}
+                {% if selected_created_by or selected_q %}
                     <a href="{% url 'personnel:resume_candidate_kanban' %}"
                        class="btn btn-sm btn-outline-secondary">
                         Сбросить
@@ -218,8 +239,14 @@
                              data-stage="{{ column.code }}">
 
                             {% for item in column.items %}
-                                <div class="card kanban-card shadow-sm border-0 mb-3"
-                                     draggable="true"
+                                <div class="card kanban-card shadow-sm mb-3
+                                     {% if item.security_approval == 'rejected' %}
+                                        kanban-card-security-rejected
+                                     {% elif item.otipb_approval == 'rejected' %}
+                                        kanban-card-otipb-rejected
+                                     {% else %}
+                                        border-0
+                                     {% endif %}"
                                      data-id="{{ item.id }}">
 
                                     <div class="card-body">
@@ -236,6 +263,16 @@
                                         <div class="small mb-1">
                                             МО: {{ item.get_medical_commission_display }}
                                         </div>
+
+                                        {% if item.security_approval == 'rejected' %}
+                                            <div class="small fw-semibold text-danger mb-1">
+                                                СБ: не согласовано
+                                            </div>
+                                        {% elif item.otipb_approval == 'rejected' %}
+                                            <div class="small fw-semibold text-warning-emphasis mb-1">
+                                                ОТИПБ: не согласовано
+                                            </div>
+                                        {% endif %}
 
                                         {% if item.created_by %}
                                             <div class="small text-muted mb-1">
@@ -270,6 +307,21 @@
                                         {% endif %}
 
                                         <div class="d-grid gap-2">
+                                            {% if perms.personnel.change_resumecandidate %}
+                                                <select class="form-select form-select-sm kanban-stage-select"
+                                                        data-id="{{ item.id }}"
+                                                        data-current-stage="{{ column.code }}">
+                                                    <option value="">Переместить в этап...</option>
+
+                                                    {% for stage_option in columns %}
+                                                        <option value="{{ stage_option.code }}"
+                                                                {% if stage_option.code == column.code %}disabled{% endif %}>
+                                                            {{ stage_option.name }}
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                            {% endif %}
+
                                             <a href="{% url 'personnel:resume_candidate_detail' item.pk %}"
                                                class="btn btn-sm btn-outline-primary">
                                                 Открыть
@@ -297,9 +349,17 @@
     const KANBAN_DATA_URL = "{% url 'personnel:resume_candidate_kanban_data' %}";
     const KANBAN_REORDER_URL = "{% url 'personnel:resume_candidate_kanban_reorder' %}";
     const SELECTED_CREATED_BY = "{{ selected_created_by|default:'' }}";
+    const SELECTED_Q = "{{ selected_q|default:''|escapejs }}";
+    const CAN_CHANGE_CANDIDATES = {% if perms.personnel.change_resumecandidate %}true{% else %}false{% endif %};
+    const STAGE_OPTIONS = [
+        {% for stage_column in columns %}
+            {
+                code: "{{ stage_column.code|escapejs }}",
+                name: "{{ stage_column.name|escapejs }}"
+            }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
 
-    let draggedCard = null;
-    let isDragging = false;
     let isRefreshing = false;
 
     function getCookie(name) {
@@ -342,10 +402,66 @@
         return text.slice(0, limit - 1) + '…';
     }
 
+    function getCardStatusClass(item) {
+        if (item.security_approval === 'rejected') {
+            return 'kanban-card-security-rejected';
+        }
+
+        if (item.otipb_approval === 'rejected') {
+            return 'kanban-card-otipb-rejected';
+        }
+
+        return 'border-0';
+    }
+
+    function getCardStatusText(item) {
+        if (item.security_approval === 'rejected') {
+            return `
+                <div class="small fw-semibold text-danger mb-1">
+                    СБ: не согласовано
+                </div>
+            `;
+        }
+
+        if (item.otipb_approval === 'rejected') {
+            return `
+                <div class="small fw-semibold text-warning-emphasis mb-1">
+                    ОТИПБ: не согласовано
+                </div>
+            `;
+        }
+
+        return '';
+    }
+
+    function getStageSelectHtml(item) {
+        if (!CAN_CHANGE_CANDIDATES) {
+            return '';
+        }
+
+        const options = STAGE_OPTIONS.map(stage => {
+            const disabled = stage.code === item.stage ? 'disabled' : '';
+
+            return `
+                <option value="${escapeHtml(stage.code)}" ${disabled}>
+                    ${escapeHtml(stage.name)}
+                </option>
+            `;
+        }).join('');
+
+        return `
+            <select class="form-select form-select-sm kanban-stage-select"
+                    data-id="${item.id}"
+                    data-current-stage="${escapeHtml(item.stage || '')}">
+                <option value="">Переместить в этап...</option>
+                ${options}
+            </select>
+        `;
+    }
+
     function renderCard(item) {
         return `
-            <div class="card kanban-card shadow-sm border-0 mb-3"
-                 draggable="true"
+            <div class="card kanban-card shadow-sm mb-3 ${getCardStatusClass(item)}"
                  data-id="${item.id}">
                 <div class="card-body">
                     <h6 class="mb-1">${escapeHtml(item.full_name)}</h6>
@@ -362,9 +478,17 @@
                         МО: ${escapeHtml(item.medical_commission || '')}
                     </div>
 
+                    ${getCardStatusText(item)}
+
                     ${item.created_by ? `
                         <div class="small text-muted mb-1">
                             Создал: ${escapeHtml(item.created_by)}
+                        </div>
+                    ` : ''}
+
+                    ${item.birth_year ? `
+                        <div class="small mb-1">
+                            Год рождения: ${escapeHtml(item.birth_year)}
                         </div>
                     ` : ''}
 
@@ -387,6 +511,8 @@
                     ` : ''}
 
                     <div class="d-grid gap-2">
+                        ${getStageSelectHtml(item)}
+
                         <a href="${item.detail_url}" class="btn btn-sm btn-outline-primary">
                             Открыть
                         </a>
@@ -419,7 +545,7 @@
     }
 
     async function refreshKanban() {
-        if (isDragging || isRefreshing) {
+        if (isRefreshing) {
             return;
         }
 
@@ -430,6 +556,10 @@
 
             if (SELECTED_CREATED_BY) {
                 url.searchParams.set('created_by', SELECTED_CREATED_BY);
+            }
+
+            if (SELECTED_Q) {
+                url.searchParams.set('q', SELECTED_Q);
             }
 
             const response = await fetch(url.toString(), {
@@ -459,163 +589,67 @@
         }
     }
 
+    async function moveCardBySelect(candidateId, newStage, selectElement) {
+        if (!candidateId || !newStage) {
+            return;
+        }
+
+        selectElement.disabled = true;
+
+        try {
+            const response = await fetch(KANBAN_REORDER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    candidate_id: candidateId,
+                    new_stage: newStage,
+                    ordered_ids: [String(candidateId)]
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.status !== 'ok') {
+                alert('Ошибка при перемещении: ' + (data.message || 'неизвестная ошибка'));
+                selectElement.disabled = false;
+                selectElement.value = '';
+                return;
+            }
+
+            await refreshKanban();
+        } catch (error) {
+            alert('Ошибка соединения с сервером');
+            selectElement.disabled = false;
+            selectElement.value = '';
+        }
+    }
+
     function bindKanbanEvents() {
-        document.querySelectorAll('.kanban-card').forEach(card => {
-            if (card.dataset.bound === '1') {
+        document.querySelectorAll('.kanban-stage-select').forEach(select => {
+            if (select.dataset.bound === '1') {
                 return;
             }
 
-            card.dataset.bound = '1';
+            select.dataset.bound = '1';
 
-            card.addEventListener('dragstart', () => {
-                draggedCard = card;
-                isDragging = true;
-                card.classList.add('dragging');
+            select.addEventListener('click', event => {
+                event.stopPropagation();
             });
 
-            card.addEventListener('dragend', () => {
-                card.classList.remove('dragging');
-                draggedCard = null;
-                isDragging = false;
+            select.addEventListener('change', async () => {
+                const candidateId = select.dataset.id;
+                const newStage = select.value;
 
-                document.querySelectorAll('.drop-hover').forEach(el => {
-                    el.classList.remove('drop-hover');
-                });
-            });
-        });
-
-        document.querySelectorAll('.kanban-dropzone').forEach(zone => {
-            if (zone.dataset.bound === '1') {
-                return;
-            }
-
-            zone.dataset.bound = '1';
-
-            zone.addEventListener('dragover', (event) => {
-                event.preventDefault();
-                zone.classList.add('drop-hover');
-
-                if (!draggedCard) {
+                if (!candidateId || !newStage) {
                     return;
                 }
 
-                const emptyNote = zone.querySelector('.empty-note');
-
-                if (emptyNote) {
-                    emptyNote.remove();
-                }
-
-                const afterElement = getDragAfterElement(zone, event.clientY);
-
-                if (afterElement == null) {
-                    zone.appendChild(draggedCard);
-                } else {
-                    zone.insertBefore(draggedCard, afterElement);
-                }
+                await moveCardBySelect(candidateId, newStage, select);
             });
-
-            zone.addEventListener('dragleave', () => {
-                zone.classList.remove('drop-hover');
-            });
-
-            zone.addEventListener('drop', async (event) => {
-                event.preventDefault();
-                zone.classList.remove('drop-hover');
-
-                if (!draggedCard) {
-                    return;
-                }
-
-                const candidateId = draggedCard.dataset.id;
-                const newStage = zone.dataset.stage;
-
-                const orderedIds = Array.from(
-                    zone.querySelectorAll('.kanban-card')
-                ).map(card => card.dataset.id);
-
-                try {
-                    const response = await fetch(KANBAN_REORDER_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken,
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify({
-                            candidate_id: candidateId,
-                            new_stage: newStage,
-                            ordered_ids: orderedIds
-                        })
-                    });
-
-                    const data = await response.json();
-
-                    if (data.status !== 'ok') {
-                        alert('Ошибка при сохранении: ' + (data.message || 'неизвестная ошибка'));
-                        await refreshKanban();
-                        return;
-                    }
-
-                    updateEmptyNotes();
-                    updateColumnCounters();
-
-                    setTimeout(refreshKanban, 300);
-                } catch (error) {
-                    alert('Ошибка соединения с сервером');
-                    await refreshKanban();
-                }
-            });
-        });
-    }
-
-    function getDragAfterElement(container, y) {
-        const draggableElements = [
-            ...container.querySelectorAll('.kanban-card:not(.dragging)')
-        ];
-
-        return draggableElements.reduce((closest, child) => {
-            const box = child.getBoundingClientRect();
-            const offset = y - box.top - box.height / 2;
-
-            if (offset < 0 && offset > closest.offset) {
-                return {
-                    offset: offset,
-                    element: child
-                };
-            }
-
-            return closest;
-        }, {
-            offset: Number.NEGATIVE_INFINITY
-        }).element;
-    }
-
-    function updateEmptyNotes() {
-        document.querySelectorAll('.kanban-dropzone').forEach(zone => {
-            const cards = zone.querySelectorAll('.kanban-card');
-            const note = zone.querySelector('.empty-note');
-
-            if (cards.length === 0 && !note) {
-                const div = document.createElement('div');
-                div.className = 'text-muted small empty-note';
-                div.textContent = 'Нет кандидатов';
-                zone.appendChild(div);
-            }
-
-            if (cards.length > 0 && note) {
-                note.remove();
-            }
-        });
-    }
-
-    function updateColumnCounters() {
-        document.querySelectorAll('.kanban-column-card').forEach(column => {
-            const count = column.querySelectorAll('.kanban-card').length;
-            const badge = column.querySelector('.badge');
-
-            if (badge) {
-                badge.textContent = count;
-            }
         });
     }
 
