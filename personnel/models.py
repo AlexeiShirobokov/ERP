@@ -27,7 +27,7 @@ DEFAULT_STAGE_DEFINITIONS = [
     {
         'code': 'mechanic_approval',
         'label': 'ОГМ',
-        'emails': ['kruglov@pskgold.ru'],
+        'emails': ['garnaga@pskgold.ru', 'kruglov@pskgold.ru'],
         'sort_order': 30,
     },
     {
