@@ -106,6 +106,22 @@
         color: #664d03;
     }
 
+    .kanban-card-moved {
+        animation: kanbanMovedPulse 2.5s ease;
+    }
+
+    @keyframes kanbanMovedPulse {
+        0% {
+            box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.35);
+            transform: scale(1.02);
+        }
+
+        100% {
+            box-shadow: none;
+            transform: scale(1);
+        }
+    }
+
     .kanban-wrapper::-webkit-scrollbar {
         height: 14px;
     }
@@ -362,6 +378,93 @@
 
     let isRefreshing = false;
 
+        function getKanbanScrollState() {
+        const wrapper = document.querySelector('.kanban-wrapper');
+
+        const state = {
+            wrapperScrollLeft: wrapper ? wrapper.scrollLeft : 0,
+            zones: {}
+        };
+
+        document.querySelectorAll('.kanban-dropzone').forEach(zone => {
+            const stage = zone.dataset.stage;
+
+            if (stage) {
+                state.zones[stage] = zone.scrollTop;
+            }
+        });
+
+        return state;
+    }
+
+    function restoreKanbanScrollState(state) {
+        if (!state) {
+            return;
+        }
+
+        requestAnimationFrame(() => {
+            const wrapper = document.querySelector('.kanban-wrapper');
+
+            if (wrapper) {
+                wrapper.scrollLeft = state.wrapperScrollLeft || 0;
+            }
+
+            document.querySelectorAll('.kanban-dropzone').forEach(zone => {
+                const stage = zone.dataset.stage;
+
+                if (stage && Object.prototype.hasOwnProperty.call(state.zones, stage)) {
+                    zone.scrollTop = state.zones[stage] || 0;
+                }
+            });
+        });
+    }
+
+    function getCurrentCardStageMap() {
+        const map = {};
+
+        document.querySelectorAll('.kanban-dropzone').forEach(zone => {
+            const stage = zone.dataset.stage;
+
+            zone.querySelectorAll('.kanban-card').forEach(card => {
+                const id = card.dataset.id;
+
+                if (id) {
+                    map[id] = stage;
+                }
+            });
+        });
+
+        return map;
+    }
+
+    function highlightMovedCards(beforeMap) {
+        if (!beforeMap) {
+            return;
+        }
+
+        requestAnimationFrame(() => {
+            document.querySelectorAll('.kanban-dropzone').forEach(zone => {
+                const stage = zone.dataset.stage;
+
+                zone.querySelectorAll('.kanban-card').forEach(card => {
+                    const id = card.dataset.id;
+
+                    if (!id || !beforeMap[id]) {
+                        return;
+                    }
+
+                    if (beforeMap[id] !== stage) {
+                        card.classList.add('kanban-card-moved');
+
+                        setTimeout(() => {
+                            card.classList.remove('kanban-card-moved');
+                        }, 2600);
+                    }
+                });
+            });
+        });
+    }
+
     function getCookie(name) {
         let cookieValue = null;
 
@@ -544,10 +647,13 @@
         `;
     }
 
-    async function refreshKanban() {
+    async function refreshKanban(force = false) {
         if (isRefreshing) {
             return;
         }
+
+        const scrollState = getKanbanScrollState();
+        const beforeStageMap = getCurrentCardStageMap();
 
         isRefreshing = true;
 
@@ -581,14 +687,16 @@
             }
 
             board.innerHTML = data.columns.map(renderColumn).join('');
+
             bindKanbanEvents();
+            restoreKanbanScrollState(scrollState);
+            highlightMovedCards(beforeStageMap);
         } catch (error) {
             console.warn('Не удалось обновить канбан', error);
         } finally {
             isRefreshing = false;
         }
     }
-
     async function moveCardBySelect(candidateId, newStage, selectElement) {
         if (!candidateId || !newStage) {
             return;
@@ -620,7 +728,7 @@
                 return;
             }
 
-            await refreshKanban();
+            await refreshKanban(true);
         } catch (error) {
             alert('Ошибка соединения с сервером');
             selectElement.disabled = false;
@@ -655,6 +763,8 @@
 
     bindKanbanEvents();
 
-    setInterval(refreshKanban, 10000);
+    setInterval(() => {
+        refreshKanban(false);
+    }, 10000);
 </script>
 {% endblock %}
