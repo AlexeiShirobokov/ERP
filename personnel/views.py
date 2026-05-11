@@ -16,7 +16,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.mail import send_mail
 from django.db.models import Max, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 from django.views.generic import (
@@ -1267,25 +1267,93 @@ class ResumeCandidateDocumentPreviewView(LoginRequiredMixin, PermissionRequiredM
         if not document.file:
             raise Http404('Файл не найден')
 
-        file_handle = document.file.open('rb')
         filename = os.path.basename(document.file.name)
 
         extension = ''
         if '.' in filename:
             extension = filename.rsplit('.', 1)[-1].lower()
 
+        image_extensions = {
+            'jpg',
+            'jpeg',
+            'jpe',
+            'jfif',
+            'png',
+            'gif',
+            'webp',
+        }
+
+        previewable_extensions = image_extensions | {
+            'pdf',
+            'txt',
+        }
+
+        if extension not in previewable_extensions:
+            return redirect('personnel:document_download', pk=document.pk)
+
         content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
 
         if extension in {'jpg', 'jpeg', 'jpe', 'jfif'}:
             content_type = 'image/jpeg'
+        elif extension == 'png':
+            content_type = 'image/png'
+        elif extension == 'gif':
+            content_type = 'image/gif'
+        elif extension == 'webp':
+            content_type = 'image/webp'
+        elif extension == 'pdf':
+            content_type = 'application/pdf'
+        elif extension == 'txt':
+            content_type = 'text/plain; charset=utf-8'
 
-        return FileResponse(
+        # raw=1 нужен, чтобы HTML-страница предпросмотра могла
+        # безопасно подгрузить саму картинку через этот же защищённый view.
+        if extension in image_extensions:
+            if request.GET.get('raw') == '1':
+                file_handle = document.file.open('rb')
+
+                response = FileResponse(
+                    file_handle,
+                    as_attachment=False,
+                    filename=filename,
+                    content_type=content_type,
+                )
+                response['X-Content-Type-Options'] = 'nosniff'
+
+                return response
+
+            return render(
+                request,
+                'personnel/document_image_preview.html',
+                {
+                    'document': document,
+                    'filename': filename,
+                    'raw_url': (
+                        reverse(
+                            'personnel:document_preview',
+                            kwargs={'pk': document.pk},
+                        )
+                        + '?raw=1'
+                    ),
+                    'download_url': reverse(
+                        'personnel:document_download',
+                        kwargs={'pk': document.pk},
+                    ),
+                    'candidate_url': candidate_detail_url(document.record_id),
+                },
+            )
+
+        file_handle = document.file.open('rb')
+
+        response = FileResponse(
             file_handle,
             as_attachment=False,
             filename=filename,
             content_type=content_type,
         )
+        response['X-Content-Type-Options'] = 'nosniff'
 
+        return response
 
 class ResumeCandidateDocumentDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'personnel.change_resumecandidate'

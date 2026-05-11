@@ -1,0 +1,205 @@
+{% extends "personnel/base.html" %}
+
+{% block title %}Просмотр документа{% endblock %}
+{% block container_class %}container-fluid px-3{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        overflow: hidden;
+    }
+
+    .image-preview-page {
+        height: calc(100vh - 70px);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .image-preview-toolbar {
+        flex: 0 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .image-preview-title {
+        min-width: 260px;
+        max-width: 60vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .image-preview-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .image-preview-stage {
+        flex: 1 1 auto;
+        overflow: auto;
+        background: #212529;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .image-preview-img {
+        max-width: 95%;
+        max-height: 95%;
+        object-fit: contain;
+        transform-origin: center center;
+        transition: transform 0.15s ease;
+        background: #fff;
+        box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.35);
+    }
+
+    .image-preview-help {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+</style>
+
+<div class="image-preview-page">
+    <div class="image-preview-toolbar">
+        <div>
+            <h1 class="h5 mb-1 image-preview-title">
+                {{ document.title|default:filename }}
+            </h1>
+            <div class="image-preview-help">
+                Q / ← — повернуть влево, E / → — повернуть вправо, 0 — сбросить.
+            </div>
+        </div>
+
+        <div class="image-preview-controls">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="rotate-left">
+                ↺ Влево
+            </button>
+
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="rotate-right">
+                ↻ Вправо
+            </button>
+
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="zoom-out">
+                −
+            </button>
+
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="zoom-reset">
+                100%
+            </button>
+
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="zoom-in">
+                +
+            </button>
+
+            <button type="button" class="btn btn-outline-dark btn-sm" id="reset">
+                Сбросить
+            </button>
+
+            <a href="{{ download_url }}" class="btn btn-outline-primary btn-sm">
+                Скачать
+            </a>
+
+            <a href="{{ candidate_url }}" class="btn btn-primary btn-sm">
+                К карточке
+            </a>
+        </div>
+    </div>
+
+    <div class="image-preview-stage">
+        <img src="{{ raw_url }}"
+             alt="{{ document.title|default:filename }}"
+             class="image-preview-img"
+             id="preview-image">
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const image = document.getElementById('preview-image');
+        const rotateLeftButton = document.getElementById('rotate-left');
+        const rotateRightButton = document.getElementById('rotate-right');
+        const resetButton = document.getElementById('reset');
+        const zoomInButton = document.getElementById('zoom-in');
+        const zoomOutButton = document.getElementById('zoom-out');
+        const zoomResetButton = document.getElementById('zoom-reset');
+
+        let rotation = 0;
+        let scale = 1;
+
+        function applyTransform() {
+            image.style.transform = `rotate(${rotation}deg) scale(${scale})`;
+            zoomResetButton.textContent = `${Math.round(scale * 100)}%`;
+        }
+
+        function rotateLeft() {
+            rotation -= 90;
+            applyTransform();
+        }
+
+        function rotateRight() {
+            rotation += 90;
+            applyTransform();
+        }
+
+        function resetView() {
+            rotation = 0;
+            scale = 1;
+            applyTransform();
+        }
+
+        function zoomIn() {
+            scale = Math.min(scale + 0.1, 3);
+            applyTransform();
+        }
+
+        function zoomOut() {
+            scale = Math.max(scale - 0.1, 0.2);
+            applyTransform();
+        }
+
+        rotateLeftButton.addEventListener('click', rotateLeft);
+        rotateRightButton.addEventListener('click', rotateRight);
+        resetButton.addEventListener('click', resetView);
+        zoomInButton.addEventListener('click', zoomIn);
+        zoomOutButton.addEventListener('click', zoomOut);
+        zoomResetButton.addEventListener('click', function () {
+            scale = 1;
+            applyTransform();
+        });
+
+        document.addEventListener('keydown', function (event) {
+            const key = event.key.toLowerCase();
+
+            if (key === 'q' || event.key === 'ArrowLeft') {
+                rotateLeft();
+            }
+
+            if (key === 'e' || event.key === 'ArrowRight') {
+                rotateRight();
+            }
+
+            if (key === '0') {
+                resetView();
+            }
+
+            if (key === '+' || key === '=') {
+                zoomIn();
+            }
+
+            if (key === '-') {
+                zoomOut();
+            }
+        });
+
+        applyTransform();
+    });
+</script>
+{% endblock %}
