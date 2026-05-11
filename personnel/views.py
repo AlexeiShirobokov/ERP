@@ -793,8 +793,42 @@ class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, Det
             candidate.save()
             form.save_m2m()
 
+            document_row_ids = request.POST.getlist('document_row_ids')
+
+            for row_id in document_row_ids:
+                uploaded_file = request.FILES.get(f'document_file_{row_id}')
+
+                if not uploaded_file:
+                    continue
+
+                document_title = (
+                        request.POST.get(f'document_title_{row_id}', '').strip()
+                        or uploaded_file.name
+                )
+                document_comment = request.POST.get(
+                    f'document_comment_{row_id}',
+                    '',
+                ).strip()
+
+                ResumeCandidateDocument.objects.create(
+                    record=candidate,
+                    title=document_title,
+                    file=uploaded_file,
+                    comment=document_comment,
+                    uploaded_by=(
+                        request.user
+                        if request.user.is_authenticated
+                        else None
+                    ),
+                )
+
             if stage_changed:
-                send_stage_notification_async(candidate, candidate.stage, request.user, request)
+                send_stage_notification_async(
+                    candidate,
+                    candidate.stage,
+                    request.user,
+                    request,
+                )
 
             return redirect(KANBAN_URL)
 
@@ -806,7 +840,6 @@ class ResumeCandidateDetailView(LoginRequiredMixin, PermissionRequiredMixin, Det
                 edit_mode=True,
             )
         )
-
 
 class ResumeCandidateCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = ResumeCandidate

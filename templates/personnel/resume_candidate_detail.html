@@ -344,35 +344,59 @@
 
                 <div class="card-body">
                     {% if edit_mode and perms.personnel.change_resumecandidate %}
-                        <div class="row g-2 align-items-end mb-3">
-                            <div class="col-12 col-md-4">
-                                <label class="form-label" for="id_document_title">Название</label>
-                                <input type="text"
-                                       name="document_title"
-                                       id="id_document_title"
-                                       class="form-control">
+                        <div class="mb-3">
+                            <p class="text-muted small mb-3">
+                                Можно добавить один или несколько документов. Документы будут загружены после нажатия кнопки «Сохранить».
+                            </p>
+
+                            <div id="edit-documents-container">
+                                <div class="edit-document-row row g-2 align-items-end mb-2" data-row-id="0">
+                                    <input type="hidden" name="document_row_ids" value="0">
+
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label" for="id_document_title_0">
+                                            Название
+                                        </label>
+                                        <input type="text"
+                                               name="document_title_0"
+                                               id="id_document_title_0"
+                                               class="form-control">
+                                    </div>
+
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label" for="id_document_file_0">
+                                            Файл
+                                        </label>
+                                        <input type="file"
+                                               name="document_file_0"
+                                               id="id_document_file_0"
+                                               class="form-control">
+                                    </div>
+
+                                    <div class="col-12 col-md-3">
+                                        <label class="form-label" for="id_document_comment_0">
+                                            Комментарий
+                                        </label>
+                                        <input type="text"
+                                               name="document_comment_0"
+                                               id="id_document_comment_0"
+                                               class="form-control">
+                                    </div>
+
+                                    <div class="col-12 col-md-1 d-grid">
+                                        <button type="button"
+                                                class="btn btn-outline-danger remove-edit-document-row">
+                                            ×
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="col-12 col-md-4">
-                                <label class="form-label" for="id_document_file">Файл</label>
-                                <input type="file"
-                                       name="document_file"
-                                       id="id_document_file"
-                                       class="form-control">
-                            </div>
-
-                            <div class="col-12 col-md-4">
-                                <label class="form-label" for="id_document_comment">Комментарий</label>
-                                <input type="text"
-                                       name="document_comment"
-                                       id="id_document_comment"
-                                       class="form-control"
-                                       placeholder="Комментарий">
-                            </div>
-                        </div>
-
-                        <div class="text-muted small mb-3">
-                            Документ будет загружен после нажатия кнопки «Сохранить».
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    id="add-edit-document-row">
+                                Добавить ещё документ
+                            </button>
                         </div>
                     {% endif %}
 
@@ -759,6 +783,103 @@
             positionInput.setAttribute('autocomplete', 'off');
             positionInput.setAttribute('placeholder', 'Начните вводить должность');
         }
+    });
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const container = document.getElementById('edit-documents-container');
+        const addButton = document.getElementById('add-edit-document-row');
+
+        if (!container || !addButton) {
+            return;
+        }
+
+        let documentRowCounter = 1;
+
+        function bindRemoveButtons() {
+            container.querySelectorAll('.remove-edit-document-row').forEach(button => {
+                if (button.dataset.bound === '1') {
+                    return;
+                }
+
+                button.dataset.bound = '1';
+
+                button.addEventListener('click', function () {
+                    const rows = container.querySelectorAll('.edit-document-row');
+                    const row = button.closest('.edit-document-row');
+
+                    if (!row) {
+                        return;
+                    }
+
+                    if (rows.length === 1) {
+                        row.querySelectorAll('input').forEach(input => {
+                            if (input.type !== 'hidden') {
+                                input.value = '';
+                            }
+                        });
+                        return;
+                    }
+
+                    row.remove();
+                });
+            });
+        }
+
+        addButton.addEventListener('click', function () {
+            const rowId = documentRowCounter;
+            documentRowCounter += 1;
+
+            const row = document.createElement('div');
+            row.className = 'edit-document-row row g-2 align-items-end mb-2';
+            row.dataset.rowId = rowId;
+
+            row.innerHTML = `
+                <input type="hidden" name="document_row_ids" value="${rowId}">
+
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="id_document_title_${rowId}">
+                        Название
+                    </label>
+                    <input type="text"
+                           name="document_title_${rowId}"
+                           id="id_document_title_${rowId}"
+                           class="form-control">
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="id_document_file_${rowId}">
+                        Файл
+                    </label>
+                    <input type="file"
+                           name="document_file_${rowId}"
+                           id="id_document_file_${rowId}"
+                           class="form-control">
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <label class="form-label" for="id_document_comment_${rowId}">
+                        Комментарий
+                    </label>
+                    <input type="text"
+                           name="document_comment_${rowId}"
+                           id="id_document_comment_${rowId}"
+                           class="form-control">
+                </div>
+
+                <div class="col-12 col-md-1 d-grid">
+                    <button type="button"
+                            class="btn btn-outline-danger remove-edit-document-row">
+                        ×
+                    </button>
+                </div>
+            `;
+
+            container.appendChild(row);
+            bindRemoveButtons();
+        });
+
+        bindRemoveButtons();
     });
 </script>
 {% endblock %}
