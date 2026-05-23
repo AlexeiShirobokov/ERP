@@ -65,6 +65,37 @@
                         <div class="card-body p-4">
                             <div class="d-flex justify-content-between align-items-start mb-4 gap-3">
                                 <h2 class="h3 mb-0">
+                                    <a class="section-title-link" href="{% url 'bvr:index' %}">
+                                        Буровзрывные работы
+                                    </a>
+                                </h2>
+                                <span class="badge text-bg-dark rounded-pill px-3 py-2">
+                                    Производство
+                                </span>
+                            </div>
+
+                            <div class="d-grid gap-3">
+                                <a class="module-link" href="{% url 'bvr:index' %}">
+                                    <span class="module-link-title">Сформировать проект БВР</span>
+                                </a>
+
+                                <a class="module-link" href="{% url 'bvr:index' %}">
+                                    <span class="module-link-title">Загрузить паспорт и зарядную карту</span>
+                                </a>
+
+                                <a class="module-link" href="{% url 'bvr:index' %}">
+                                    <span class="module-link-title">Выгрузить проект в PDF и Excel</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-6">
+                    <div class="card dashboard-card h-100 border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-4 gap-3">
+                                <h2 class="h3 mb-0">
                                     <a class="section-title-link" href="{% url 'maintenance:index' %}">
                                         Техническое обслуживание
                                     </a>

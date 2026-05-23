@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -24,7 +25,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 SECRET_KEY = "django-insecure-@ou1z7gv15d@n^u(t2$6oh8jdt=0ru#aw#rqf=84ifb99y4p37"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
 
 ALLOWED_HOSTS = [
     "pskgold.pro",
@@ -52,6 +53,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "main.apps.MainConfig",
     "maintenance.apps.MaintenanceConfig",
+    "bvr.apps.BvrConfig",
     "taskmanager.apps.TaskmanagerConfig",
     "operate.apps.OperateConfig",
     "personnel.apps.PersonnelConfig",
@@ -182,5 +184,3 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
 #SECURE_SSL_REDIRECT = True
-
-

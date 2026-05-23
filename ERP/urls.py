@@ -11,6 +11,7 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
 
     path("maintenance/", include("maintenance.urls")),
+    path("bvr/", include("bvr.urls")),
     path("", include("main.urls")),
     path("", include("main.debitor_urls")),
     path("taskmanager/", include("taskmanager.urls")),

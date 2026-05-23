@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>БВР</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        body { background: #f5f7fb; color: #1f2937; }
+        .app-shell { max-width: 1500px; margin: 0 auto; padding: 24px; }
+        .topbar, .panel { background: #fff; border: 1px solid #e8edf3; border-radius: 8px; box-shadow: 0 10px 26px rgba(20, 32, 50, .06); }
+        .topbar { padding: 18px 22px; }
+        .panel { padding: 22px; margin-bottom: 18px; }
+        .section-title { color: #16355c; font-weight: 700; }
+        .muted-label { color: #667085; font-size: .84rem; }
+        .form-label { color: #667085; font-size: .82rem; font-weight: 650; }
+        .form-control, .form-select { border-color: #d9e0ea; border-radius: 7px; }
+        .form-control:focus, .form-select:focus { border-color: #234a78; box-shadow: 0 0 0 .2rem rgba(35, 74, 120, .13); }
+        textarea.charge-card { min-height: 300px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9rem; line-height: 1.45; }
+        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+        .metric { border: 1px solid #e8edf3; border-radius: 8px; padding: 14px; background: #f8fafc; }
+        .metric-value { color: #16355c; font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
+        .metric-label { color: #667085; font-size: .78rem; font-weight: 650; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+        .toolbar .form-control { width: 96px; }
+        @media (max-width: 720px) {
+            .app-shell { padding: 12px; }
+            .topbar, .panel { border-radius: 0; margin-left: -12px; margin-right: -12px; border-left: 0; border-right: 0; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+    <div class="topbar mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <div class="muted-label">ERP / Производство / БВР</div>
+            <h1 class="h3 mb-0">Проект буровзрывных работ</h1>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary" href="{% url 'index' %}">Главная</a>
+        </div>
+    </div>
+
+    {% if messages %}
+        <div class="mb-3">
+            {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} mb-2">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if result %}
+        <section class="panel">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h2 class="h5 section-title mb-1">Готовый проект</h2>
+                    <div class="muted-label">Расчёт выполнен на сервере, файлы доступны для скачивания.</div>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="{% url 'bvr:download' result.project_id 'pdf' %}">Скачать PDF</a>
+                    <a class="btn btn-outline-primary" href="{% url 'bvr:download' result.project_id 'xlsx' %}">Скачать Excel</a>
+                </div>
+            </div>
+            <div class="metric-grid">
+                <div class="metric"><div class="metric-label">Скважины</div><div class="metric-value">{{ result.wells_count }}</div></div>
+                <div class="metric"><div class="metric-label">Бурение, п.м</div><div class="metric-value">{{ result.drilling }}</div></div>
+                <div class="metric"><div class="metric-label">Объём массива, м3</div><div class="metric-value">{{ result.volume }}</div></div>
+                <div class="metric"><div class="metric-label">Масса ВВ, кг</div><div class="metric-value">{{ result.explosive_mass }}</div></div>
+                <div class="metric"><div class="metric-label">Опасная зона для людей, м</div><div class="metric-value">{{ result.people_zone }}</div></div>
+                <div class="metric"><div class="metric-label">Опасная зона для оборудования, м</div><div class="metric-value">{{ result.equipment_zone }}</div></div>
+            </div>
+        </section>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <section class="panel">
+            <h2 class="h5 section-title mb-3">Общие сведения</h2>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label" for="pred">Предприятие</label>
+                    <input class="form-control" id="pred" name="pred" value="{{ values.pred }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="mest">Месторождение</label>
+                    <input class="form-control" id="mest" name="mest" value="{{ values.mest }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="blok">Блок</label>
+                    <input class="form-control" id="blok" name="blok" value="{{ values.blok }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="prisk">Прииск / подразделение</label>
+                    <input class="form-control" id="prisk" name="prisk" value="{{ values.prisk }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="np">Населённый пункт</label>
+                    <input class="form-control" id="np" name="np" value="{{ values.np }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="data">Дата проведения взрыва</label>
+                    <input class="form-control" id="data" name="data" type="date" value="{{ values.data }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="zar1">Начало зарядки</label>
+                    <input class="form-control" id="zar1" name="zar1" value="{{ values.zar1 }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="zar2">Окончание зарядки</label>
+                    <input class="form-control" id="zar2" name="zar2" value="{{ values.zar2 }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="vz1">Начало взрыва</label>
+                    <input class="form-control" id="vz1" name="vz1" value="{{ values.vz1 }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="vz2">Окончание взрыва</label>
+                    <input class="form-control" id="vz2" name="vz2" value="{{ values.vz2 }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="prikaz">Номер приказа</label>
+                    <input class="form-control" id="prikaz" name="prikaz" value="{{ values.prikaz }}">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label" for="passport">Паспорт БВР, PDF</label>
+                    <input class="form-control" id="passport" name="passport" type="file" accept="application/pdf">
+                    <div class="muted-label mt-2" id="passportStatus">Паспорт не выбран.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 class="h5 section-title mb-3">Параметры БВР</h2>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label" for="raspol">Расположение скважин</label>
+                    <select class="form-select" id="raspol" name="raspol">
+                        <option {% if values.raspol == "Шахматное" %}selected{% endif %}>Шахматное</option>
+                        <option {% if values.raspol == "Прямоугольное" %}selected{% endif %}>Прямоугольное</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="viddt">Вид дизельного топлива</label>
+                    <select class="form-select" id="viddt" name="viddt">
+                        <option {% if values.viddt == "Зимнее" %}selected{% endif %}>Зимнее</option>
+                        <option {% if values.viddt == "Арктическое" %}selected{% endif %}>Арктическое</option>
+                    </select>
+                </div>
+                <div class="col-md-2"><label class="form-label" for="plotvv">Плотность ВВ, г/см3</label><input class="form-control" id="plotvv" name="plotvv" type="number" step="0.001" value="{{ values.plotvv }}"></div>
+                <div class="col-md-2"><label class="form-label" for="diam">Диаметр, м</label><input class="form-control" id="diam" name="diam" type="number" step="0.001" value="{{ values.diam }}"></div>
+                <div class="col-md-2"><label class="form-label" for="kis">КИС</label><input class="form-control" id="kis" name="kis" type="number" step="0.01" value="{{ values.kis }}"></div>
+                <div class="col-md-2"><label class="form-label" for="krab">k работоспособности</label><input class="form-control" id="krab" name="krab" type="number" step="0.01" value="{{ values.krab }}"></div>
+                <div class="col-md-2"><label class="form-label" for="plotpor">Плотность пород</label><input class="form-control" id="plotpor" name="plotpor" type="number" value="{{ values.plotpor }}"></div>
+                <div class="col-md-2"><label class="form-label" for="ktresh">k трещиноватости</label><input class="form-control" id="ktresh" name="ktresh" type="number" step="0.1" value="{{ values.ktresh }}"></div>
+                <div class="col-md-2"><label class="form-label" for="prev">Превышение, м</label><input class="form-control" id="prev" name="prev" type="number" step="0.1" value="{{ values.prev }}"></div>
+                <div class="col-md-2"><label class="form-label" for="a">Между скважинами, м</label><input class="form-control" id="a" name="a" type="number" step="0.1" value="{{ values.a }}"></div>
+                <div class="col-md-2"><label class="form-label" for="zaboi">Забойка, м</label><input class="form-control" id="zaboi" name="zaboi" type="number" step="0.1" value="{{ values.zaboi }}"></div>
+                <div class="col-md-2"><label class="form-label" for="ryad">Рядов, шт</label><input class="form-control" id="ryad" name="ryad" type="number" value="{{ values.ryad }}"></div>
+                <div class="col-md-2"><label class="form-label" for="ploshad">Площадь, м2</label><input class="form-control" id="ploshad" name="ploshad" type="number" value="{{ values.ploshad }}"></div>
+                <div class="col-md-2"><label class="form-label" for="boevik">Боевик, кг</label><input class="form-control" id="boevik" name="boevik" type="number" step="0.05" value="{{ values.boevik }}"></div>
+                <div class="col-md-2"><label class="form-label" for="doldt">Доля ДТ</label><input class="form-control" id="doldt" name="doldt" type="number" step="0.001" value="{{ values.doldt }}"></div>
+                <div class="col-md-2"><label class="form-label" for="iskra42">Искра-П 42 мс</label><input class="form-control" id="iskra42" name="iskra42" type="number" value="{{ values.iskra42 }}"></div>
+                <div class="col-md-2"><label class="form-label" for="iskraV">Искра-В</label><input class="form-control" id="iskraV" name="iskraV" type="number" value="{{ values.iskraV }}"></div>
+                <div class="col-md-2"><label class="form-label" for="zoob">ОЗ оборудование, м</label><input class="form-control" id="zoob" name="zoob" type="number" value="{{ values.zoob }}"></div>
+                <div class="col-md-2"><label class="form-label" for="zoso">ОЗ сооружения, м</label><input class="form-control" id="zoso" name="zoso" type="number" value="{{ values.zoso }}"></div>
+                <div class="col-md-4"><label class="form-label" for="obj">Объекты в опасной зоне</label><input class="form-control" id="obj" name="obj" value="{{ values.obj }}"></div>
+                <div class="col-md-8"><label class="form-label" for="meri">Мероприятия по защите</label><input class="form-control" id="meri" name="meri" value="{{ values.meri }}"></div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+                <div>
+                    <h2 class="h5 section-title mb-1">Зарядная карта</h2>
+                    <div class="muted-label">Каждая строка — ряд, глубины скважин разделяются пробелами.</div>
+                </div>
+                <div class="toolbar">
+                    <div>
+                        <label class="form-label" for="gridRows">Рядов</label>
+                        <input class="form-control" id="gridRows" type="number" value="14" min="1" max="40">
+                    </div>
+                    <div>
+                        <label class="form-label" for="gridCols">Скважин</label>
+                        <input class="form-control" id="gridCols" type="number" value="14" min="1" max="60">
+                    </div>
+                    <div>
+                        <label class="form-label" for="gridDepth">Глубина</label>
+                        <input class="form-control" id="gridDepth" type="number" value="8" min="0" step="0.1">
+                    </div>
+                    <button class="btn btn-outline-primary" type="button" id="fillCardBtn">Заполнить</button>
+                    <button class="btn btn-outline-secondary" type="button" id="clearCardBtn">Очистить</button>
+                </div>
+            </div>
+            <textarea class="form-control charge-card" id="charge_card" name="charge_card">{{ charge_card }}</textarea>
+            <div class="muted-label mt-2" id="cardStats"></div>
+        </section>
+
+        <section class="panel">
+            <h2 class="h5 section-title mb-3">Подписанты</h2>
+            <div class="row g-3">
+                <div class="col-md-3"><label class="form-label" for="gendir">Генеральный директор</label><input class="form-control" id="gendir" name="gendir" value="{{ values.gendir }}"></div>
+                <div class="col-md-3"><label class="form-label" for="gling">Главный инженер</label><input class="form-control" id="gling" name="gling" value="{{ values.gling }}"></div>
+                <div class="col-md-3"><label class="form-label" for="nachbvr">Начальник участка БВР</label><input class="form-control" id="nachbvr" name="nachbvr" value="{{ values.nachbvr }}"></div>
+                <div class="col-md-3"><label class="form-label" for="glgeo">Главный геолог</label><input class="form-control" id="glgeo" name="glgeo" value="{{ values.glgeo }}"></div>
+                <div class="col-md-3"><label class="form-label" for="glmark">Главный маркшейдер</label><input class="form-control" id="glmark" name="glmark" value="{{ values.glmark }}"></div>
+                <div class="col-md-3"><label class="form-label" for="nachuch">Начальник участка</label><input class="form-control" id="nachuch" name="nachuch" value="{{ values.nachuch }}"></div>
+                <div class="col-md-3"><label class="form-label" for="vzryvnik">Старший взрывник</label><input class="form-control" id="vzryvnik" name="vzryvnik" value="{{ values.vzryvnik }}"></div>
+            </div>
+        </section>
+
+        <div class="d-flex justify-content-end gap-2 mb-5">
+            <button class="btn btn-primary btn-lg" type="submit">Сформировать проект</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    const card = document.getElementById('charge_card');
+    const stats = document.getElementById('cardStats');
+    const passport = document.getElementById('passport');
+    const passportStatus = document.getElementById('passportStatus');
+    if (window.pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    function updateStats() {
+        const rows = card.value.trim().split(/\n+/).filter(Boolean);
+        let count = 0;
+        let sum = 0;
+        rows.forEach(row => {
+            row.trim().split(/\s+/).forEach(raw => {
+                const value = Number(String(raw).replace(',', '.'));
+                if (Number.isFinite(value) && value > 0) {
+                    count += 1;
+                    sum += value;
+                }
+            });
+        });
+        const avg = count ? (sum / count).toFixed(2) : '0.00';
+        stats.textContent = `Скважин: ${count}. Общая глубина: ${sum.toFixed(2)} п.м. Средняя глубина: ${avg} м.`;
+    }
+
+    function parseDepthNumber(raw) {
+        const cleaned = String(raw)
+            .replace(/[−–—]/g, '-')
+            .replace(/[^\d,.\-]/g, '')
+            .replace(',', '.');
+        if (!cleaned || cleaned === '-' || cleaned === '.') return null;
+        const value = Number(cleaned);
+        if (!Number.isFinite(value) || value < 0 || value > 40) return null;
+        return Math.round(value * 100) / 100;
+    }
+
+    function isSequentialHeader(values) {
+        if (values.length < 6) return false;
+        let sequential = 0;
+        for (let i = 0; i < values.length; i += 1) {
+            if (values[i] === i + 1) sequential += 1;
+        }
+        return sequential >= Math.min(values.length, 10);
+    }
+
+    function rowToDepths(row) {
+        const tokens = row.items
+            .map(item => ({ x: item.x, value: parseDepthNumber(item.text) }))
+            .filter(item => item.value !== null)
+            .sort((a, b) => a.x - b.x);
+
+        if (tokens.length < 4) return [];
+
+        let values = tokens.map(item => item.value);
+        if (isSequentialHeader(values)) return [];
+
+        const first = values[0];
+        const secondX = tokens[1] ? tokens[1].x : tokens[0].x;
+        if (Number.isInteger(first) && first >= 1 && first <= 80 && secondX - tokens[0].x > 10) {
+            values = values.slice(1);
+        }
+
+        const positive = values.filter(value => value > 0);
+        if (positive.length < 3) return [];
+        if (positive.length / values.length < 0.45) return [];
+        return values;
+    }
+
+    function buildChargeCardFromPdfRows(pageRows) {
+        const rows = [];
+        pageRows.forEach(row => {
+            const depths = rowToDepths(row);
+            if (depths.length) rows.push(depths);
+        });
+
+        if (!rows.length) return '';
+
+        const maxWidth = Math.max(...rows.map(row => row.length));
+        const strongRows = rows.filter(row => row.length >= Math.max(4, Math.floor(maxWidth * 0.45)));
+        return strongRows
+            .map(row => row.map(value => Number.isInteger(value) ? String(value) : String(value).replace('.', ',')).join(' '))
+            .join('\n');
+    }
+
+    function clusterTextRows(items) {
+        const sorted = items
+            .filter(item => String(item.str || '').trim())
+            .map(item => ({
+                text: String(item.str).trim(),
+                x: item.transform[4],
+                y: item.transform[5],
+            }))
+            .sort((a, b) => Math.abs(b.y - a.y) > 3 ? b.y - a.y : a.x - b.x);
+
+        const rows = [];
+        sorted.forEach(item => {
+            const last = rows[rows.length - 1];
+            if (!last || Math.abs(last.y - item.y) > 3) {
+                rows.push({ y: item.y, items: [item] });
+            } else {
+                last.items.push(item);
+                last.y = (last.y + item.y) / 2;
+            }
+        });
+        rows.forEach(row => row.items.sort((a, b) => a.x - b.x));
+        return rows;
+    }
+
+    async function fillChargeCardFromPassport(file) {
+        if (!file) {
+            passportStatus.textContent = 'Паспорт не выбран.';
+            return;
+        }
+        if (!window.pdfjsLib) {
+            passportStatus.textContent = 'Не удалось загрузить модуль чтения PDF. Зарядную карту можно заполнить вручную.';
+            return;
+        }
+
+        passportStatus.textContent = 'Читаю паспорт БВР...';
+        try {
+            const data = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data }).promise;
+            const allRows = [];
+            let textItems = 0;
+
+            for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+                const page = await pdf.getPage(pageNumber);
+                const content = await page.getTextContent();
+                textItems += content.items.length;
+                allRows.push(...clusterTextRows(content.items));
+            }
+
+            const extractedCard = buildChargeCardFromPdfRows(allRows);
+            if (!extractedCard) {
+                passportStatus.textContent = textItems
+                    ? 'Текст паспорта прочитан, но зарядная карта не найдена. Заполните карту вручную или вставьте строки глубин.'
+                    : 'В паспорте не найден текстовый слой. Для такого скана нужен OCR; карту пока нужно ввести вручную.';
+                return;
+            }
+
+            card.value = extractedCard;
+            updateStats();
+            passportStatus.textContent = `Зарядная карта заполнена из паспорта: ${extractedCard.split(/\n+/).length} ряд(ов). Проверьте и при необходимости поправьте.`;
+        } catch (error) {
+            passportStatus.textContent = `Не удалось прочитать паспорт: ${error.message || error}. Зарядную карту можно заполнить вручную.`;
+        }
+    }
+
+    document.getElementById('fillCardBtn').addEventListener('click', () => {
+        const rows = Math.max(1, Math.min(40, Number(document.getElementById('gridRows').value) || 14));
+        const cols = Math.max(1, Math.min(60, Number(document.getElementById('gridCols').value) || 14));
+        const depth = String(document.getElementById('gridDepth').value || 8).replace(',', '.');
+        card.value = Array.from({ length: rows }, () => Array.from({ length: cols }, () => depth).join(' ')).join('\n');
+        updateStats();
+    });
+
+    document.getElementById('clearCardBtn').addEventListener('click', () => {
+        card.value = '';
+        updateStats();
+    });
+
+    passport.addEventListener('change', event => {
+        fillChargeCardFromPassport(event.target.files[0]);
+    });
+
+    card.addEventListener('input', updateStats);
+    updateStats();
+</script>
+</body>
+</html>
