@@ -325,6 +325,174 @@
         return rows;
     }
 
+    function formatDepth(value) {
+        const rounded = Math.round(value * 100) / 100;
+        return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace('.', ',');
+    }
+
+    function findLikelyDepth(pageRows) {
+        const candidates = [];
+        pageRows.forEach(row => {
+            row.items.forEach(item => {
+                const text = String(item.text || '');
+                const matches = text.matchAll(/(\d{1,2}[,.]\d{1,2})\s*м\b/gi);
+                for (const match of matches) {
+                    const value = parseDepthNumber(match[1]);
+                    if (value !== null && value >= 4 && value <= 25) {
+                        candidates.push(value);
+                    }
+                }
+            });
+        });
+        if (!candidates.length) return null;
+        return Math.max(...candidates);
+    }
+
+    function isDarkPixel(data, idx) {
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        const a = data[idx + 3];
+        return a > 20 && r < 95 && g < 95 && b < 95;
+    }
+
+    function lineGroups(scores, threshold, minGap = 2) {
+        const groups = [];
+        let start = null;
+        for (let i = 0; i < scores.length; i += 1) {
+            if (scores[i] >= threshold) {
+                if (start === null) start = i;
+            } else if (start !== null) {
+                groups.push({ start, end: i - 1 });
+                start = null;
+            }
+        }
+        if (start !== null) groups.push({ start, end: scores.length - 1 });
+
+        const merged = [];
+        groups.forEach(group => {
+            const last = merged[merged.length - 1];
+            if (last && group.start - last.end <= minGap) {
+                last.end = group.end;
+            } else {
+                merged.push({ ...group });
+            }
+        });
+        return merged.map(group => Math.round((group.start + group.end) / 2));
+    }
+
+    function median(values) {
+        if (!values.length) return null;
+        const sorted = [...values].sort((a, b) => a - b);
+        const middle = Math.floor(sorted.length / 2);
+        return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+
+    function countDarkInRect(image, width, x0, y0, x1, y1) {
+        let count = 0;
+        const sx = Math.max(0, Math.floor(x0));
+        const sy = Math.max(0, Math.floor(y0));
+        const ex = Math.min(width, Math.ceil(x1));
+        const ey = Math.min(image.data.length / 4 / width, Math.ceil(y1));
+        for (let y = sy; y < ey; y += 1) {
+            for (let x = sx; x < ex; x += 1) {
+                if (isDarkPixel(image.data, (y * width + x) * 4)) count += 1;
+            }
+        }
+        return count;
+    }
+
+    async function buildChargeCardFromRaster(pdf, pageRows) {
+        const depth = findLikelyDepth(pageRows);
+        if (depth === null) return null;
+
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        await page.render({ canvasContext: context, viewport }).promise;
+
+        const pageWidth = canvas.width;
+        const pageHeight = canvas.height;
+        const rx = Math.floor(pageWidth * 0.02);
+        const ry = Math.floor(pageHeight * 0.55);
+        const rw = Math.floor(pageWidth * 0.62);
+        const rh = Math.floor(pageHeight * 0.33);
+        const image = context.getImageData(rx, ry, rw, rh);
+
+        const horizontalScores = new Array(rh).fill(0);
+        const verticalScores = new Array(rw).fill(0);
+        for (let y = 0; y < rh; y += 1) {
+            for (let x = 0; x < rw; x += 1) {
+                if (isDarkPixel(image.data, (y * rw + x) * 4)) {
+                    horizontalScores[y] += 1;
+                    verticalScores[x] += 1;
+                }
+            }
+        }
+
+        const hDetected = lineGroups(horizontalScores, rw * 0.20, 3);
+        const vDetected = lineGroups(verticalScores, rh * 0.20, 3);
+        if (hDetected.length < 8 || vDetected.length < 8) return null;
+
+        const tableTop = hDetected[0];
+        const tableBottom = hDetected[hDetected.length - 1];
+        const rowStep = median(
+            hDetected.slice(0, -1)
+                .map((value, index) => hDetected[index + 1] - value)
+                .filter(value => value >= 14 && value <= 30)
+        );
+        if (!rowStep) return null;
+
+        const totalTableRows = Math.round((tableBottom - tableTop) / rowStep);
+        if (totalTableRows < 5 || totalTableRows > 50) return null;
+
+        const labelRight = vDetected[1];
+        const tableRight = vDetected[vDetected.length - 1];
+        const colStep = median(
+            vDetected.slice(1, -1)
+                .map((value, index) => vDetected[index + 2] - value)
+                .filter(value => value >= 25 && value <= 60)
+        );
+        if (!colStep) return null;
+
+        const totalDepthCols = Math.round((tableRight - labelRight) / colStep);
+        if (totalDepthCols < 4 || totalDepthCols > 60) return null;
+
+        const hLines = Array.from({ length: totalTableRows + 1 }, (_, index) => tableTop + rowStep * index);
+        const vLines = Array.from({ length: totalDepthCols + 1 }, (_, index) => labelRight + colStep * index);
+        if (hLines.length < 8 || vLines.length < 8) return null;
+
+        const rows = [];
+        const depthText = formatDepth(depth);
+        for (let rowIndex = 2; rowIndex < hLines.length - 1; rowIndex += 1) {
+            const row = [];
+            let filled = 0;
+            for (let colIndex = 0; colIndex < vLines.length - 1; colIndex += 1) {
+                const x0 = vLines[colIndex] + 5;
+                const x1 = vLines[colIndex + 1] - 5;
+                const y0 = hLines[rowIndex] + 4;
+                const y1 = hLines[rowIndex + 1] - 4;
+                const area = Math.max(1, (x1 - x0) * (y1 - y0));
+                const dark = countDarkInRect(image, rw, x0, y0, x1, y1);
+                const hasDepth = dark > Math.max(8, area * 0.008);
+                row.push(hasDepth ? depthText : '0');
+                if (hasDepth) filled += 1;
+            }
+            if (filled >= 3) rows.push(row);
+        }
+
+        if (!rows.length) return null;
+        return {
+            card: rows.map(row => row.join(' ')).join('\n'),
+            depth: depthText,
+            rows: rows.length,
+            wells: rows.flat().filter(value => value !== '0').length,
+        };
+    }
+
     async function fillChargeCardFromPassport(file) {
         if (!file) {
             passportStatus.textContent = 'Паспорт не выбран.';
@@ -351,8 +519,15 @@
 
             const extractedCard = buildChargeCardFromPdfRows(allRows);
             if (!extractedCard) {
+                const rasterCard = await buildChargeCardFromRaster(pdf, allRows);
+                if (rasterCard) {
+                    card.value = rasterCard.card;
+                    updateStats();
+                    passportStatus.textContent = `Зарядная карта собрана из графической таблицы паспорта: ${rasterCard.rows} ряд(ов), ${rasterCard.wells} скважин, глубина ${rasterCard.depth} м. Проверьте и при необходимости поправьте.`;
+                    return;
+                }
                 passportStatus.textContent = textItems
-                    ? 'Текст паспорта прочитан, но зарядная карта не найдена. Заполните карту вручную или вставьте строки глубин.'
+                    ? 'Текст паспорта прочитан, но зарядная карта не найдена. Таблица, вероятно, сохранена как изображение; для неё нужен OCR или ручная правка.'
                     : 'В паспорте не найден текстовый слой. Для такого скана нужен OCR; карту пока нужно ввести вручную.';
                 return;
             }
