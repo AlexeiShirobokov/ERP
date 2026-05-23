@@ -486,14 +486,24 @@ def _extract_json(text: str) -> Any:
     raise ValueError("в ответе модели не найден JSON")
 
 
-def _vision_json(client, cfg: VisionConfig, model: str, prompt: str,
-                 images: list, max_tokens: int = 6000) -> Any:
-    """Один vision-вызов: текст + изображения → распарсенный JSON."""
-    content: list[dict] = [{"type": "text", "text": prompt}]
-    for img in images:
-        content.append({"type": "image_url",
-                        "image_url": {"url": _data_url(img)}})
+_STRICT_PREFIX = (
+    "ВЕРНИ СТРОГО ОДИН валидный JSON-объект и НИЧЕГО больше: без markdown, "
+    "без ```-ограждений, без пояснений, без текста до или после JSON.\n\n")
 
+
+def _image_blocks(images: list) -> list[dict]:
+    return [{"type": "image_url", "image_url": {"url": _data_url(img)}}
+            for img in images]
+
+
+def _vision_json(client, cfg: VisionConfig, model: str, prompt: str,
+                 images: list, max_tokens: int = 8000, retries: int = 1) -> Any:
+    """Один vision-вызов с повтором при невалидном JSON.
+
+    При сбое разбора JSON делается ещё ``retries`` попыток с усиленным
+    требованием вернуть только JSON. Если все попытки неудачны — бросает
+    последнее исключение.
+    """
     extra_headers = {"HTTP-Referer": cfg.referer, "X-Title": cfg.title}
     extra_body: dict = {}
     if cfg.provider:
@@ -502,16 +512,38 @@ def _vision_json(client, cfg: VisionConfig, model: str, prompt: str,
         extra_body["provider"] = {"order": [cfg.provider],
                                   "allow_fallbacks": False}
 
-    resp = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": content}],
-        max_tokens=max_tokens,
-        temperature=0,
-        extra_headers=extra_headers,
-        extra_body=extra_body or None,
-    )
-    text = resp.choices[0].message.content or ""
-    return _extract_json(text)
+    img_blocks = _image_blocks(images)
+    last_exc: Exception = ValueError("нет ответа")
+    for attempt in range(retries + 1):
+        text_prompt = prompt if attempt == 0 else (_STRICT_PREFIX + prompt)
+        content = [{"type": "text", "text": text_prompt}] + img_blocks
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": content}],
+            max_tokens=max_tokens,
+            temperature=0,
+            extra_headers=extra_headers,
+            extra_body=extra_body or None,
+        )
+        text = resp.choices[0].message.content or ""
+        try:
+            return _extract_json(text)
+        except ValueError as exc:
+            last_exc = exc
+            logger.warning("Невалидный JSON от модели %s (попытка %d/%d): %.160s",
+                           model, attempt + 1, retries + 1, text.replace("\n", " "))
+    raise last_exc
+
+
+def _safe_vision_json(client, cfg: VisionConfig, model: str, prompt: str,
+                      images: list, max_tokens: int = 8000) -> dict:
+    """Неубиваемая обёртка _vision_json: при любой ошибке возвращает {}."""
+    try:
+        data = _vision_json(client, cfg, model, prompt, images, max_tokens=max_tokens)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        logger.exception("vision-вызов не дал JSON (model=%s)", model)
+        return {}
 
 
 # ---------------------------------------------------------------------------
@@ -733,13 +765,9 @@ def _run_pipeline(page, client, cfg: VisionConfig) -> dict:
     source = "vision"
 
     if cfg.two_pass:
-        try:
-            small = _fit_to_side(page, 1400)
-            boxes = _vision_json(client, cfg, cfg.model_locate,
-                                 _LOCATE_PROMPT, [small], max_tokens=400)
-        except Exception:
-            logger.exception("Проход 1 (поиск областей) не удался.")
-            boxes = {}
+        small = _fit_to_side(page, 1400)
+        boxes = _safe_vision_json(client, cfg, cfg.model_locate,
+                                  _LOCATE_PROMPT, [small], max_tokens=600)
 
         depth_box = boxes.get("depth_table") if isinstance(boxes, dict) else None
         tech_box = boxes.get("tech_table") if isinstance(boxes, dict) else None
@@ -748,29 +776,24 @@ def _run_pipeline(page, client, cfg: VisionConfig) -> dict:
             crop = _crop_fraction(page, depth_box)
             if crop is not None:
                 crop = _fit_to_side(crop, cfg.max_image_side)
-                try:
-                    data = _vision_json(client, cfg, cfg.model_read,
-                                        _DEPTH_PROMPT, [crop])
-                    matrix = _normalize_matrix(data.get("matrix"))
-                except Exception:
-                    logger.exception("Чтение матрицы глубин не удалось.")
+                data = _safe_vision_json(client, cfg, cfg.model_read,
+                                         _DEPTH_PROMPT, [crop])
+                matrix = _normalize_matrix(data.get("matrix"))
 
         if _valid_box(tech_box):
             crop = _crop_fraction(page, tech_box)
             if crop is not None:
                 crop = _fit_to_side(crop, cfg.max_image_side)
-                try:
-                    data = _vision_json(client, cfg, cfg.model_read,
-                                        _TECH_PROMPT, [crop])
+                data = _safe_vision_json(client, cfg, cfg.model_read,
+                                         _TECH_PROMPT, [crop])
+                if data:
                     tech = _normalize_tech(data)
-                except Exception:
-                    logger.exception("Чтение техпоказателей не удалось.")
 
     # Запасной одностраничный режим, если двухпроходный не дал карты.
     if not matrix:
         source = "vision_full"
         full = _fit_to_side(page, cfg.max_image_side)
-        data = _vision_json(client, cfg, cfg.model_read, _FULL_PROMPT, [full])
+        data = _safe_vision_json(client, cfg, cfg.model_read, _FULL_PROMPT, [full])
         matrix = _normalize_matrix(data.get("matrix"))
         if not tech:
             tech = _normalize_tech(data.get("tech") or {})
@@ -779,17 +802,14 @@ def _run_pipeline(page, client, cfg: VisionConfig) -> dict:
     if (cfg.escalate and cfg.model_escalate
             and cfg.model_escalate != cfg.model_read
             and matrix and not _checks_passed(matrix, tech)):
-        try:
-            full = _fit_to_side(page, cfg.max_image_side)
-            data = _vision_json(client, cfg, cfg.model_escalate,
-                                _FULL_PROMPT, [full])
-            esc_matrix = _normalize_matrix(data.get("matrix"))
-            esc_tech = _normalize_tech(data.get("tech") or {})
-            if esc_matrix and _checks_passed(esc_matrix, esc_tech or tech):
-                matrix = esc_matrix
-                tech = esc_tech or tech
-                source = "vision_escalated"
-        except Exception:
-            logger.exception("Эскалация на сильную модель не удалась.")
+        full = _fit_to_side(page, cfg.max_image_side)
+        data = _safe_vision_json(client, cfg, cfg.model_escalate,
+                                 _FULL_PROMPT, [full])
+        esc_matrix = _normalize_matrix(data.get("matrix"))
+        esc_tech = _normalize_tech(data.get("tech") or {}) if data else {}
+        if esc_matrix and _checks_passed(esc_matrix, esc_tech or tech):
+            matrix = esc_matrix
+            tech = esc_tech or tech
+            source = "vision_escalated"
 
     return _assemble(matrix, tech, source)

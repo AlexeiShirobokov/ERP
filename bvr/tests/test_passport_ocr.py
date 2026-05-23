@@ -223,6 +223,60 @@ class PipelineTests(unittest.TestCase):
         self.assertFalse(res["ok"])
         self.assertEqual(res["source"], "disabled")
 
+    def test_non_json_does_not_crash(self):
+        """Регрессия P-17: модель вернула не-JSON — прогон не должен падать."""
+        class BadClient:
+            calls = 0
+
+            @property
+            def chat(self):
+                return self
+
+            @property
+            def completions(self):
+                return self
+
+            def create(self, model, messages, **kw):
+                BadClient.calls += 1
+                return _Resp("Извините, не могу прочитать таблицу на чертеже.")
+
+        res = po.recognize_passport(self.pdf, cfg=_cfg(), client=BadClient(),
+                                    use_cache=False)
+        self.assertFalse(res["ok"])          # не распознано, но без исключения
+        self.assertIsInstance(res.get("warnings"), list)
+        self.assertGreater(BadClient.calls, 1)  # были повторы
+
+    def test_retry_recovers(self):
+        """Невалидный JSON в первой попытке, валидный — во второй."""
+        good = {"matrix": [[5, 9.5, 9.3]], "rows": 1, "max_cols": 3,
+                "tech": {"kolichestvo_skvazhin_sht": 3, "srednyaya_glubina_m": 7.9}}
+
+        class FlakyClient:
+            def __init__(self):
+                self.n = 0
+
+            @property
+            def chat(self):
+                return self
+
+            @property
+            def completions(self):
+                return self
+
+            def create(self, model, messages, **kw):
+                text = messages[0]["content"][0]["text"]
+                if "depth_table" in text:           # locate → пусто, идём в full
+                    return _Resp(json.dumps({"depth_table": None, "tech_table": None}))
+                self.n += 1
+                if self.n == 1:
+                    return _Resp("не json, прости")  # первая попытка full — мусор
+                return _Resp(json.dumps(good))       # повтор — валидный JSON
+
+        res = po.recognize_passport(self.pdf, cfg=_cfg(), client=FlakyClient(),
+                                    use_cache=False)
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["charge_card"]["wells_count"], 3)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
