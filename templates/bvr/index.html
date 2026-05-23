@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>БВР</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         body { background: #f5f7fb; color: #1f2937; }
         .app-shell { max-width: 1500px; margin: 0 auto; padding: 24px; }
@@ -127,6 +126,8 @@
                     <label class="form-label" for="passport">Паспорт БВР, PDF</label>
                     <input class="form-control" id="passport" name="passport" type="file" accept="application/pdf">
                     <div class="muted-label mt-2" id="passportStatus">Паспорт не выбран.</div>
+                    <div class="mt-2 small" id="passportWarnings"></div>
+                    <input type="hidden" id="ocr_json" name="ocr_json">
                 </div>
             </div>
         </section>
@@ -217,13 +218,14 @@
 </div>
 
 <script>
+(function () {
     const card = document.getElementById('charge_card');
     const stats = document.getElementById('cardStats');
     const passport = document.getElementById('passport');
     const passportStatus = document.getElementById('passportStatus');
-    if (window.pdfjsLib) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    }
+    const passportWarnings = document.getElementById('passportWarnings');
+    const ocrJson = document.getElementById('ocr_json');
+    const recognizeUrl = "{% url 'bvr:recognize_passport' %}";
 
     function updateStats() {
         const rows = card.value.trim().split(/\n+/).filter(Boolean);
@@ -242,301 +244,93 @@
         stats.textContent = `Скважин: ${count}. Общая глубина: ${sum.toFixed(2)} п.м. Средняя глубина: ${avg} м.`;
     }
 
-    function parseDepthNumber(raw) {
-        const cleaned = String(raw)
-            .replace(/[−–—]/g, '-')
-            .replace(/[^\d,.\-]/g, '')
-            .replace(',', '.');
-        if (!cleaned || cleaned === '-' || cleaned === '.') return null;
-        const value = Number(cleaned);
-        if (!Number.isFinite(value) || value < 0 || value > 40) return null;
-        return Math.round(value * 100) / 100;
+    function getCsrf() {
+        const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+        return el ? el.value : '';
     }
 
-    function isSequentialHeader(values) {
-        if (values.length < 6) return false;
-        let sequential = 0;
-        for (let i = 0; i < values.length; i += 1) {
-            if (values[i] === i + 1) sequential += 1;
+    function setField(id, value) {
+        const el = document.getElementById(id);
+        if (el && value !== null && value !== undefined && value !== '') {
+            el.value = value;
         }
-        return sequential >= Math.min(values.length, 10);
     }
 
-    function rowToDepths(row) {
-        const tokens = row.items
-            .map(item => ({ x: item.x, value: parseDepthNumber(item.text) }))
-            .filter(item => item.value !== null)
-            .sort((a, b) => a.x - b.x);
-
-        if (tokens.length < 4) return [];
-
-        let values = tokens.map(item => item.value);
-        if (isSequentialHeader(values)) return [];
-
-        const first = values[0];
-        const secondX = tokens[1] ? tokens[1].x : tokens[0].x;
-        if (Number.isInteger(first) && first >= 1 && first <= 80 && secondX - tokens[0].x > 10) {
-            values = values.slice(1);
-        }
-
-        const positive = values.filter(value => value > 0);
-        if (positive.length < 3) return [];
-        if (positive.length / values.length < 0.45) return [];
-        return values;
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => (
+            { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
-    function buildChargeCardFromPdfRows(pageRows) {
-        const rows = [];
-        pageRows.forEach(row => {
-            const depths = rowToDepths(row);
-            if (depths.length) rows.push(depths);
-        });
-
-        if (!rows.length) return '';
-
-        const maxWidth = Math.max(...rows.map(row => row.length));
-        const strongRows = rows.filter(row => row.length >= Math.max(4, Math.floor(maxWidth * 0.45)));
-        return strongRows
-            .map(row => row.map(value => Number.isInteger(value) ? String(value) : String(value).replace('.', ',')).join(' '))
-            .join('\n');
-    }
-
-    function clusterTextRows(items) {
-        const sorted = items
-            .filter(item => String(item.str || '').trim())
-            .map(item => ({
-                text: String(item.str).trim(),
-                x: item.transform[4],
-                y: item.transform[5],
-            }))
-            .sort((a, b) => Math.abs(b.y - a.y) > 3 ? b.y - a.y : a.x - b.x);
-
-        const rows = [];
-        sorted.forEach(item => {
-            const last = rows[rows.length - 1];
-            if (!last || Math.abs(last.y - item.y) > 3) {
-                rows.push({ y: item.y, items: [item] });
-            } else {
-                last.items.push(item);
-                last.y = (last.y + item.y) / 2;
-            }
-        });
-        rows.forEach(row => row.items.sort((a, b) => a.x - b.x));
-        return rows;
-    }
-
-    function formatDepth(value) {
-        const rounded = Math.round(value * 100) / 100;
-        return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace('.', ',');
-    }
-
-    function findLikelyDepth(pageRows) {
-        const candidates = [];
-        pageRows.forEach(row => {
-            row.items.forEach(item => {
-                const text = String(item.text || '');
-                const matches = text.matchAll(/(\d{1,2}[,.]\d{1,2})\s*м\b/gi);
-                for (const match of matches) {
-                    const value = parseDepthNumber(match[1]);
-                    if (value !== null && value >= 4 && value <= 25) {
-                        candidates.push(value);
-                    }
-                }
-            });
-        });
-        if (!candidates.length) return null;
-        return Math.max(...candidates);
-    }
-
-    function isDarkPixel(data, idx) {
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
-        const a = data[idx + 3];
-        return a > 20 && r < 95 && g < 95 && b < 95;
-    }
-
-    function lineGroups(scores, threshold, minGap = 2) {
-        const groups = [];
-        let start = null;
-        for (let i = 0; i < scores.length; i += 1) {
-            if (scores[i] >= threshold) {
-                if (start === null) start = i;
-            } else if (start !== null) {
-                groups.push({ start, end: i - 1 });
-                start = null;
-            }
-        }
-        if (start !== null) groups.push({ start, end: scores.length - 1 });
-
-        const merged = [];
-        groups.forEach(group => {
-            const last = merged[merged.length - 1];
-            if (last && group.start - last.end <= minGap) {
-                last.end = group.end;
-            } else {
-                merged.push({ ...group });
-            }
-        });
-        return merged.map(group => Math.round((group.start + group.end) / 2));
-    }
-
-    function median(values) {
-        if (!values.length) return null;
-        const sorted = [...values].sort((a, b) => a - b);
-        const middle = Math.floor(sorted.length / 2);
-        return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-    }
-
-    function countDarkInRect(image, width, x0, y0, x1, y1) {
-        let count = 0;
-        const sx = Math.max(0, Math.floor(x0));
-        const sy = Math.max(0, Math.floor(y0));
-        const ex = Math.min(width, Math.ceil(x1));
-        const ey = Math.min(image.data.length / 4 / width, Math.ceil(y1));
-        for (let y = sy; y < ey; y += 1) {
-            for (let x = sx; x < ex; x += 1) {
-                if (isDarkPixel(image.data, (y * width + x) * 4)) count += 1;
-            }
-        }
-        return count;
-    }
-
-    async function buildChargeCardFromRaster(pdf, pageRows) {
-        const depth = findLikelyDepth(pageRows);
-        if (depth === null) return null;
-
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 2 });
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-        const context = canvas.getContext('2d', { willReadFrequently: true });
-        await page.render({ canvasContext: context, viewport }).promise;
-
-        const pageWidth = canvas.width;
-        const pageHeight = canvas.height;
-        const rx = Math.floor(pageWidth * 0.02);
-        const ry = Math.floor(pageHeight * 0.55);
-        const rw = Math.floor(pageWidth * 0.62);
-        const rh = Math.floor(pageHeight * 0.33);
-        const image = context.getImageData(rx, ry, rw, rh);
-
-        const horizontalScores = new Array(rh).fill(0);
-        const verticalScores = new Array(rw).fill(0);
-        for (let y = 0; y < rh; y += 1) {
-            for (let x = 0; x < rw; x += 1) {
-                if (isDarkPixel(image.data, (y * rw + x) * 4)) {
-                    horizontalScores[y] += 1;
-                    verticalScores[x] += 1;
-                }
-            }
-        }
-
-        const hDetected = lineGroups(horizontalScores, rw * 0.20, 3);
-        const vDetected = lineGroups(verticalScores, rh * 0.20, 3);
-        if (hDetected.length < 8 || vDetected.length < 8) return null;
-
-        const tableTop = hDetected[0];
-        const tableBottom = hDetected[hDetected.length - 1];
-        const rowStep = median(
-            hDetected.slice(0, -1)
-                .map((value, index) => hDetected[index + 1] - value)
-                .filter(value => value >= 14 && value <= 30)
-        );
-        if (!rowStep) return null;
-
-        const totalTableRows = Math.round((tableBottom - tableTop) / rowStep);
-        if (totalTableRows < 5 || totalTableRows > 50) return null;
-
-        const labelRight = vDetected[1];
-        const tableRight = vDetected[vDetected.length - 1];
-        const colStep = median(
-            vDetected.slice(1, -1)
-                .map((value, index) => vDetected[index + 2] - value)
-                .filter(value => value >= 25 && value <= 60)
-        );
-        if (!colStep) return null;
-
-        const totalDepthCols = Math.round((tableRight - labelRight) / colStep);
-        if (totalDepthCols < 4 || totalDepthCols > 60) return null;
-
-        const hLines = Array.from({ length: totalTableRows + 1 }, (_, index) => tableTop + rowStep * index);
-        const vLines = Array.from({ length: totalDepthCols + 1 }, (_, index) => labelRight + colStep * index);
-        if (hLines.length < 8 || vLines.length < 8) return null;
-
-        const rows = [];
-        const depthText = formatDepth(depth);
-        for (let rowIndex = 2; rowIndex < hLines.length - 1; rowIndex += 1) {
-            const row = [];
-            let filled = 0;
-            for (let colIndex = 0; colIndex < vLines.length - 1; colIndex += 1) {
-                const x0 = vLines[colIndex] + 5;
-                const x1 = vLines[colIndex + 1] - 5;
-                const y0 = hLines[rowIndex] + 4;
-                const y1 = hLines[rowIndex + 1] - 4;
-                const area = Math.max(1, (x1 - x0) * (y1 - y0));
-                const dark = countDarkInRect(image, rw, x0, y0, x1, y1);
-                const hasDepth = dark > Math.max(8, area * 0.008);
-                row.push(hasDepth ? depthText : '0');
-                if (hasDepth) filled += 1;
-            }
-            if (filled >= 3) rows.push(row);
-        }
-
-        if (!rows.length) return null;
-        return {
-            card: rows.map(row => row.join(' ')).join('\n'),
-            depth: depthText,
-            rows: rows.length,
-            wells: rows.flat().filter(value => value !== '0').length,
-        };
-    }
-
-    async function fillChargeCardFromPassport(file) {
-        if (!file) {
-            passportStatus.textContent = 'Паспорт не выбран.';
+    function applyRecognition(data) {
+        if (!data || !data.ok) {
+            const msg = (data && data.error) ? data.error : 'таблица не распознана';
+            passportStatus.textContent = 'Распознавание недоступно: ' + msg +
+                '. Заполните зарядную карту вручную — файл паспорта всё равно будет приложен к проекту.';
+            passportWarnings.innerHTML = '';
             return;
         }
-        if (!window.pdfjsLib) {
-            passportStatus.textContent = 'Не удалось загрузить модуль чтения PDF. Зарядную карту можно заполнить вручную.';
-            return;
+        ocrJson.value = JSON.stringify(data);
+        const cc = data.charge_card || {};
+        const tp = data.tech_params || {};
+        const stamp = data.stamp || {};
+
+        if (cc.text) { card.value = cc.text; updateStats(); }
+
+        // Автоподстановка только однозначных параметров (см. план, раздел 7.2).
+        if (tp.diametr_mm) setField('diam', (tp.diametr_mm / 1000).toFixed(3));
+        if (tp.rasst_mezhdu_skvazhinami_m) setField('a', tp.rasst_mezhdu_skvazhinami_m);
+        if (tp.kis) setField('kis', tp.kis);
+        if (tp.ploshad_bloka_tm2) setField('ploshad', Math.round(tp.ploshad_bloka_tm2 * 1000));
+        if (stamp.mestorozhdenie) setField('mest', stamp.mestorozhdenie);
+        if (stamp.burovoy_blok) {
+            setField('blok', stamp.burovoy_blok + (stamp.geol_blok ? '; ' + stamp.geol_blok : ''));
         }
 
-        passportStatus.textContent = 'Читаю паспорт БВР...';
+        const parts = ['Распознано: ' + (cc.wells_count || 0) + ' скв.'];
+        if (cc.avg_depth) parts.push('средняя глубина ' + cc.avg_depth + ' м');
+        if (tp.setka_bureniya) parts.push('сетка ' + tp.setka_bureniya);
+        if (tp.diametr_mm) parts.push('Ø ' + tp.diametr_mm + ' мм');
+        if (data.source) parts.push('(' + data.source + ')');
+        passportStatus.textContent = parts.join(' · ') +
+            '. Проверьте зарядную карту и параметры, при необходимости поправьте.';
+
+        const warns = data.warnings || [];
+        if (warns.length) {
+            passportWarnings.innerHTML = '<div class="alert alert-warning py-2 mb-0">' +
+                '<b>Проверьте вручную:</b><ul class="mb-0">' +
+                warns.map(w => '<li>' + escapeHtml(w) + '</li>').join('') +
+                '</ul></div>';
+        } else {
+            passportWarnings.innerHTML = '<div class="text-success small">Кросс-проверки сошлись.</div>';
+        }
+    }
+
+    async function recognizePassport(file) {
+        if (!file) { passportStatus.textContent = 'Паспорт не выбран.'; return; }
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            passportStatus.textContent = 'Нужен файл PDF.';
+            return;
+        }
+        passportStatus.textContent = 'Читаю паспорт БВР… Распознавание идёт на сервере, это может занять до минуты.';
+        passportWarnings.innerHTML = '';
+        ocrJson.value = '';
+        const fd = new FormData();
+        fd.append('passport', file);
         try {
-            const data = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data }).promise;
-            const allRows = [];
-            let textItems = 0;
-
-            for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-                const page = await pdf.getPage(pageNumber);
-                const content = await page.getTextContent();
-                textItems += content.items.length;
-                allRows.push(...clusterTextRows(content.items));
-            }
-
-            const extractedCard = buildChargeCardFromPdfRows(allRows);
-            if (!extractedCard) {
-                const rasterCard = await buildChargeCardFromRaster(pdf, allRows);
-                if (rasterCard) {
-                    card.value = rasterCard.card;
-                    updateStats();
-                    passportStatus.textContent = `Зарядная карта собрана из графической таблицы паспорта: ${rasterCard.rows} ряд(ов), ${rasterCard.wells} скважин, глубина ${rasterCard.depth} м. Проверьте и при необходимости поправьте.`;
-                    return;
-                }
-                passportStatus.textContent = textItems
-                    ? 'Текст паспорта прочитан, но зарядная карта не найдена. Таблица, вероятно, сохранена как изображение; для неё нужен OCR или ручная правка.'
-                    : 'В паспорте не найден текстовый слой. Для такого скана нужен OCR; карту пока нужно ввести вручную.';
+            const resp = await fetch(recognizeUrl, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrf() },
+                body: fd,
+            });
+            if (!resp.ok && resp.status >= 500) {
+                passportStatus.textContent = 'Сервер распознавания вернул ошибку. Заполните карту вручную.';
                 return;
             }
-
-            card.value = extractedCard;
-            updateStats();
-            passportStatus.textContent = `Зарядная карта заполнена из паспорта: ${extractedCard.split(/\n+/).length} ряд(ов). Проверьте и при необходимости поправьте.`;
-        } catch (error) {
-            passportStatus.textContent = `Не удалось прочитать паспорт: ${error.message || error}. Зарядную карту можно заполнить вручную.`;
+            const data = await resp.json();
+            applyRecognition(data);
+        } catch (e) {
+            passportStatus.textContent = 'Не удалось связаться с сервером распознавания: ' +
+                (e.message || e) + '. Зарядную карту можно ввести вручную.';
         }
     }
 
@@ -553,12 +347,10 @@
         updateStats();
     });
 
-    passport.addEventListener('change', event => {
-        fillChargeCardFromPassport(event.target.files[0]);
-    });
-
+    passport.addEventListener('change', event => recognizePassport(event.target.files[0]));
     card.addEventListener('input', updateStats);
     updateStats();
+})();
 </script>
 </body>
 </html>

@@ -1,15 +1,23 @@
 import datetime
+import json
+import logging
+import os
+import tempfile
 import uuid
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import render
+from django.views.decorators.http import require_POST
 
 from .bvr_calc import DEFAULTS, calculate, make_params, parse_charge_card
 from .bvr_document import build_excel, build_pdf
+from . import passport_ocr
+
+logger = logging.getLogger("bvr.views")
 
 
 NUMERIC_FIELDS = {
@@ -103,6 +111,15 @@ def index(request):
             out_dir = _project_dir(project_id)
             out_dir.mkdir(parents=True, exist_ok=True)
 
+            # JSON распознавания паспорта (если форма уже его получила) —
+            # сохраняем рядом с проектом для аудита, без повторного вызова API.
+            ocr_json = request.POST.get("ocr_json", "").strip()
+            if ocr_json:
+                try:
+                    (out_dir / "recognition.json").write_text(ocr_json, "utf-8")
+                except OSError:
+                    logger.warning("Не удалось сохранить recognition.json")
+
             passport_file = request.FILES.get("passport")
             passport_path = None
             if passport_file:
@@ -158,3 +175,74 @@ def download_project_file(request, project_id, file_kind):
     if not path.exists():
         raise Http404("Файл не найден")
     return FileResponse(path.open("rb"), as_attachment=True, filename=download_name, content_type=content_type)
+
+
+def _ocr_cache_dir():
+    return Path(settings.MEDIA_ROOT) / "bvr_ocr_cache"
+
+
+@login_required
+@require_POST
+def recognize_passport(request):
+    """Серверное распознавание паспорта БВР.
+
+    Принимает multipart-поле ``passport`` (PDF), возвращает JSON со структурой
+    result (см. ``passport_ocr.recognize_passport``): зарядную карту,
+    техпоказатели, штамп и предупреждения. Ошибки распознавания не «роняют»
+    форму — возвращается ``ok: false`` с понятным текстом.
+    """
+    upload = request.FILES.get("passport")
+    if not upload:
+        return JsonResponse({"ok": False, "error": "Файл паспорта не передан"},
+                            status=400)
+    if not upload.name.lower().endswith(".pdf"):
+        return JsonResponse({"ok": False, "error": "Нужен файл PDF"}, status=400)
+
+    cfg = passport_ocr.load_config(cache_dir=_ocr_cache_dir())
+
+    max_bytes = cfg.max_pdf_mb * 1024 * 1024
+    if upload.size and upload.size > max_bytes:
+        return JsonResponse(
+            {"ok": False,
+             "error": f"PDF больше лимита {cfg.max_pdf_mb:.0f} МБ"}, status=400)
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            for chunk in upload.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+        result = passport_ocr.recognize_passport(tmp_path, cfg=cfg)
+    except Exception as exc:  # защита: эндпоинт не должен падать 500
+        logger.exception("Сбой распознавания паспорта.")
+        result = {"ok": False, "source": "error", "warnings": [],
+                  "error": f"Внутренняя ошибка распознавания: {exc}"}
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    # Аудит в БД (best-effort, не мешает ответу).
+    if result.get("source") not in (None, "disabled"):
+        try:
+            from .models import PassportRecognition
+            card = result.get("charge_card") or {}
+            PassportRecognition.objects.create(
+                user=(getattr(request.user, "username", "") or "")[:150],
+                file_hash=result.get("file_hash", "") or "",
+                file_name=(upload.name or "")[:255],
+                ok=bool(result.get("ok")),
+                source=(result.get("source") or "")[:32],
+                model_used=cfg.model_read[:64],
+                wells_count=card.get("wells_count"),
+                avg_depth=card.get("avg_depth"),
+                warnings=result.get("warnings", []) or [],
+                payload=result,
+                error=(result.get("error") or "")[:500],
+            )
+        except Exception:
+            logger.exception("Не удалось записать аудит распознавания.")
+
+    return JsonResponse(result)
