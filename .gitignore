@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 db.sqlite3
 .env
+.env.local
 venv/
 .idea/db.sqlite3
 __pycache__/

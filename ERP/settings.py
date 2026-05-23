@@ -16,6 +16,31 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _load_dotenv(path):
+    """Минимальный загрузчик .env (без зависимостей).
+
+    Читает строки вида KEY=VALUE из файла рядом с проектом и кладёт их в
+    os.environ, НЕ перезаписывая уже заданные переменные окружения.
+    Используется для BVR_VISION_* (ключ OpenRouter) и DJANGO_DEBUG на сервере.
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except OSError:
+        pass
+
+
+_load_dotenv(BASE_DIR / ".env")
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 # Quick-start development settings - unsuitable for production
@@ -25,7 +50,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 SECRET_KEY = "django-insecure-@ou1z7gv15d@n^u(t2$6oh8jdt=0ru#aw#rqf=84ifb99y4p37"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DJANGO_DEBUG") == "1"
+DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
 ALLOWED_HOSTS = [
     "pskgold.pro",
