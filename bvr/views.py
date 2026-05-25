@@ -14,7 +14,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from .bvr_calc import DEFAULTS, calculate, make_params, parse_charge_card
-from .bvr_document import build_excel, build_pdf
+from .bvr_document import build_excel, build_pdf, build_html_context
 from . import passport_ocr
 
 logger = logging.getLogger("bvr.views")
@@ -31,6 +31,7 @@ TEXT_FIELDS = [
     "pred", "mest", "blok", "prisk", "np", "zar1", "zar2", "vz1", "vz2",
     "prikaz", "raspol", "viddt", "obj", "meri", "gendir", "gling",
     "nachbvr", "glgeo", "glmark", "nachuch", "vzryvnik",
+    "shema", "avtoVM", "voditel", "injot", "dispet", "participants",
 ]
 
 DEFAULT_CARD = "\n".join([" ".join(["8"] * 14) for _ in range(14)])
@@ -76,8 +77,96 @@ def _collect_params(post):
     return make_params(overrides)
 
 
+def _to_float(value):
+    """Безопасно приводит строку формы к float (поддержка запятой). None при пустом/мусоре."""
+    if value is None:
+        return None
+    raw = str(value).strip().replace(",", ".")
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+def _collect_declared(post):
+    """Паспортные (декларированные) значения из скрытых полей формы.
+
+    Заполняются JS после распознавания паспорта из техпоказателей:
+    количество скважин, объём буровых работ (п.м), средняя глубина (м).
+    Это «авторитетные» цифры — грид используется для рисунка/поскважинного расчёта.
+    """
+    wells = _to_float(post.get("decl_wells"))
+    meters = _to_float(post.get("decl_meters"))
+    avg = _to_float(post.get("decl_avg"))
+    return {
+        "wells": int(round(wells)) if wells and wells > 0 else None,
+        "meters": meters if meters and meters > 0 else None,
+        "avg": avg if avg and avg > 0 else None,
+    }
+
+
+def resolve_summary(calc, declared):
+    """Сводные цифры проекта: при наличии паспортных значений берём их,
+    иначе — посчитанные по зарядной карте (гриду)."""
+    declared = declared or {}
+    w = declared.get("wells")
+    m = declared.get("meters")
+    a = declared.get("avg")
+    wells_v = int(w) if w else calc["n"]
+    meters_v = float(m) if m else float(calc["sumD"])
+    if a:
+        avg_v = float(a)
+    elif (w or m):
+        avg_v = (meters_v / wells_v) if wells_v else 0.0
+    else:
+        avg_v = float(calc["sr_glub"])
+    return {
+        "wells": wells_v,
+        "meters": meters_v,
+        "avg": avg_v,
+        "from_passport": bool(w or m or a),
+        # «сеточные» значения для подсветки расхождения
+        "grid_wells": calc["n"],
+        "grid_meters": float(calc["sumD"]),
+        "grid_avg": float(calc["sr_glub"]),
+    }
+
+
 def _project_dir(project_id):
     return Path(settings.MEDIA_ROOT) / "bvr_projects" / project_id
+
+
+def _save_inputs(out_dir, params, card_text, declared):
+    """Сохраняет входные данные проекта для последующего HTML-рендера."""
+    data = dict(params)
+    if isinstance(data.get("data"), datetime.date):
+        data["data"] = data["data"].isoformat()
+    payload = {"params": data, "charge_card": card_text, "declared": declared}
+    try:
+        (out_dir / "inputs.json").write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), "utf-8")
+    except OSError:
+        logger.warning("Не удалось сохранить inputs.json")
+
+
+def _load_inputs(project_id):
+    """Восстанавливает params/wells/declared из inputs.json для HTML-проекта."""
+    path = _project_dir(project_id) / "inputs.json"
+    if not path.exists():
+        return None
+    data = json.loads(path.read_text("utf-8"))
+    params = make_params(data.get("params") or {})
+    raw_date = params.get("data")
+    if isinstance(raw_date, str):
+        try:
+            params["data"] = datetime.date.fromisoformat(raw_date)
+        except ValueError:
+            params["data"] = datetime.date.today()
+    wells = parse_charge_card(data.get("charge_card") or "")
+    declared = data.get("declared") or {}
+    return params, wells, declared
 
 
 def _remember_project(request, project_id):
@@ -131,16 +220,28 @@ def index(request):
                         fh.write(chunk)
 
             calc = calculate(params, wells)
+            declared = _collect_declared(request.POST)
+            summary = resolve_summary(calc, declared)
+            _save_inputs(out_dir, params, card_text, declared)
+
             xlsx_path = out_dir / "project.xlsx"
             pdf_path = out_dir / "project.pdf"
-            build_excel(calc, str(xlsx_path))
-            build_pdf(calc, str(pdf_path), passport_path=str(passport_path) if passport_path else None)
+            build_excel(calc, str(xlsx_path), summary=summary)
+            build_pdf(calc, str(pdf_path), summary=summary,
+                      passport_path=str(passport_path) if passport_path else None)
             _remember_project(request, project_id)
 
             result = {
                 "project_id": project_id,
-                "wells_count": calc["n"],
-                "drilling": round(calc["sumD"], 2),
+                "wells_count": summary["wells"],
+                "drilling": round(summary["meters"], 2),
+                "avg_depth": round(summary["avg"], 2),
+                "from_passport": summary["from_passport"],
+                "grid_wells": summary["grid_wells"],
+                "grid_drilling": round(summary["grid_meters"], 2),
+                "mismatch": summary["from_passport"] and (
+                    summary["wells"] != summary["grid_wells"]
+                    or abs(summary["meters"] - summary["grid_meters"]) > 0.5),
                 "volume": round(calc["objem_massiva"], 2),
                 "explosive_mass": round(calc["obsh_massa"], 2),
                 "people_zone": calc["zona_ludi"],
@@ -175,6 +276,33 @@ def download_project_file(request, project_id, file_kind):
     if not path.exists():
         raise Http404("Файл не найден")
     return FileResponse(path.open("rb"), as_attachment=True, filename=download_name, content_type=content_type)
+
+
+@login_required
+def project_html(request, project_id):
+    """Печатная HTML-версия проекта массового взрыва.
+
+    Восстанавливает входные данные из inputs.json, пересчитывает проект и
+    рендерит полную веб-страницу (акт, распорядок, таблицы, расчёты, зоны,
+    зарядная карта с нумерацией). Удобно для просмотра и печати в браузере.
+    """
+    if not _can_download(request, project_id):
+        raise Http404("Проект не найден")
+
+    loaded = _load_inputs(project_id)
+    if not loaded:
+        raise Http404("Проект не найден")
+
+    params, wells, declared = loaded
+    if not wells:
+        raise Http404("В проекте нет скважин")
+
+    calc = calculate(params, wells)
+    summary = resolve_summary(calc, declared)
+    context = build_html_context(calc, summary=summary)
+    context["project_id"] = project_id
+    context["has_passport"] = (_project_dir(project_id) / "passport.pdf").exists()
+    return render(request, "bvr/project.html", context)
 
 
 def _ocr_cache_dir():

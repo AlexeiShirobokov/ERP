@@ -16,7 +16,31 @@
         .form-label { color: #667085; font-size: .82rem; font-weight: 650; }
         .form-control, .form-select { border-color: #d9e0ea; border-radius: 7px; }
         .form-control:focus, .form-select:focus { border-color: #234a78; box-shadow: 0 0 0 .2rem rgba(35, 74, 120, .13); }
-        textarea.charge-card { min-height: 300px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9rem; line-height: 1.45; }
+        :root {
+            --cc-font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            --cc-fs: .9rem; --cc-lh: 1.45; --cc-pad-x: 12px; --cc-pad-y: 6px;
+            --cc-gutter: 46px; --cc-ruler-h: 24px;
+        }
+        .charge-grid { display: grid; grid-template-columns: var(--cc-gutter) 1fr;
+            grid-template-rows: var(--cc-ruler-h) 1fr; border: 1px solid #d9e0ea;
+            border-radius: 7px; overflow: hidden; background: #fff; }
+        .cc-corner { background: #eef3f9; border-right: 1px solid #e3e9f1; border-bottom: 1px solid #e3e9f1; }
+        .cc-corner span { display: flex; height: 100%; align-items: center; justify-content: center;
+            color: #7a879a; font-size: .58rem; line-height: 1.05; text-align: center; }
+        .cc-colruler { overflow: hidden; background: #f3f7fb; border-bottom: 1px solid #e3e9f1; }
+        .cc-colruler-inner { font-family: var(--cc-font); font-size: var(--cc-fs);
+            line-height: var(--cc-ruler-h); white-space: pre; padding-left: var(--cc-pad-x);
+            color: #5b6b80; will-change: transform; }
+        .cc-rowruler { overflow: hidden; background: #f3f7fb; border-right: 1px solid #e3e9f1; }
+        .cc-rowruler-inner { padding-top: var(--cc-pad-y); will-change: transform; }
+        .cc-rowruler-inner div { font-family: var(--cc-font); font-size: var(--cc-fs);
+            line-height: var(--cc-lh); color: #5b6b80; text-align: right; padding-right: 8px; }
+        .cc-area { overflow: hidden; }
+        textarea.charge-card { min-height: 300px; width: 100%; display: block;
+            font-family: var(--cc-font); font-size: var(--cc-fs); line-height: var(--cc-lh);
+            white-space: pre; overflow-x: auto; border: 0; border-radius: 0;
+            padding: var(--cc-pad-y) var(--cc-pad-x); box-shadow: none; resize: vertical; }
+        textarea.charge-card:focus { box-shadow: none; border: 0; }
         .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
         .metric { border: 1px solid #e8edf3; border-radius: 8px; padding: 14px; background: #f8fafc; }
         .metric-value { color: #16355c; font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
@@ -57,13 +81,27 @@
                     <div class="muted-label">Расчёт выполнен на сервере, файлы доступны для скачивания.</div>
                 </div>
                 <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-success" href="{% url 'bvr:project_html' result.project_id %}" target="_blank" rel="noopener">Открыть проект (HTML)</a>
                     <a class="btn btn-primary" href="{% url 'bvr:download' result.project_id 'pdf' %}">Скачать PDF</a>
                     <a class="btn btn-outline-primary" href="{% url 'bvr:download' result.project_id 'xlsx' %}">Скачать Excel</a>
                 </div>
             </div>
+            {% if result.from_passport %}
+                <div class="muted-label mb-2">Количество скважин и объём бурения взяты из паспорта (тех-показатели).</div>
+            {% endif %}
+            {% if result.mismatch %}
+                <div class="alert alert-warning py-2">
+                    <b>Сетка не сходится с паспортом.</b>
+                    В зарядной карте распознано {{ result.grid_wells }} скв. / {{ result.grid_drilling }} п.м,
+                    а в паспорте — {{ result.wells_count }} скв. / {{ result.drilling }} п.м.
+                    Проект сформирован по паспортным цифрам; поскважинный расчёт ВВ опирается на карту —
+                    при необходимости поправьте её и сформируйте проект заново.
+                </div>
+            {% endif %}
             <div class="metric-grid">
                 <div class="metric"><div class="metric-label">Скважины</div><div class="metric-value">{{ result.wells_count }}</div></div>
                 <div class="metric"><div class="metric-label">Бурение, п.м</div><div class="metric-value">{{ result.drilling }}</div></div>
+                <div class="metric"><div class="metric-label">Средняя глубина, м</div><div class="metric-value">{{ result.avg_depth }}</div></div>
                 <div class="metric"><div class="metric-label">Объём массива, м3</div><div class="metric-value">{{ result.volume }}</div></div>
                 <div class="metric"><div class="metric-label">Масса ВВ, кг</div><div class="metric-value">{{ result.explosive_mass }}</div></div>
                 <div class="metric"><div class="metric-label">Опасная зона для людей, м</div><div class="metric-value">{{ result.people_zone }}</div></div>
@@ -194,8 +232,18 @@
                     <button class="btn btn-outline-secondary" type="button" id="clearCardBtn">Очистить</button>
                 </div>
             </div>
-            <textarea class="form-control charge-card" id="charge_card" name="charge_card">{{ charge_card }}</textarea>
+            <div class="charge-grid">
+                <div class="cc-corner"><span>Ряд&nbsp;\&nbsp;Скв.</span></div>
+                <div class="cc-colruler"><div class="cc-colruler-inner" id="ccColRuler"></div></div>
+                <div class="cc-rowruler"><div class="cc-rowruler-inner" id="ccRowRuler"></div></div>
+                <div class="cc-area">
+                    <textarea class="form-control charge-card" id="charge_card" name="charge_card" wrap="off" spellcheck="false">{{ charge_card }}</textarea>
+                </div>
+            </div>
             <div class="muted-label mt-2" id="cardStats"></div>
+            <input type="hidden" id="decl_wells" name="decl_wells" value="">
+            <input type="hidden" id="decl_meters" name="decl_meters" value="">
+            <input type="hidden" id="decl_avg" name="decl_avg" value="">
         </section>
 
         <section class="panel">
@@ -206,8 +254,25 @@
                 <div class="col-md-3"><label class="form-label" for="nachbvr">Начальник участка БВР</label><input class="form-control" id="nachbvr" name="nachbvr" value="{{ values.nachbvr }}"></div>
                 <div class="col-md-3"><label class="form-label" for="glgeo">Главный геолог</label><input class="form-control" id="glgeo" name="glgeo" value="{{ values.glgeo }}"></div>
                 <div class="col-md-3"><label class="form-label" for="glmark">Главный маркшейдер</label><input class="form-control" id="glmark" name="glmark" value="{{ values.glmark }}"></div>
-                <div class="col-md-3"><label class="form-label" for="nachuch">Начальник участка</label><input class="form-control" id="nachuch" name="nachuch" value="{{ values.nachuch }}"></div>
+                <div class="col-md-3"><label class="form-label" for="nachuch">Начальник участка (отв. руководитель ВР)</label><input class="form-control" id="nachuch" name="nachuch" value="{{ values.nachuch }}"></div>
                 <div class="col-md-3"><label class="form-label" for="vzryvnik">Старший взрывник</label><input class="form-control" id="vzryvnik" name="vzryvnik" value="{{ values.vzryvnik }}"></div>
+                <div class="col-md-3"><label class="form-label" for="injot">Инженер ОТ и ПБ</label><input class="form-control" id="injot" name="injot" value="{{ values.injot }}"></div>
+                <div class="col-md-3"><label class="form-label" for="dispet">Диспетчер АО</label><input class="form-control" id="dispet" name="dispet" value="{{ values.dispet }}"></div>
+            </div>
+            <div class="muted-label mt-2">Ответственным руководителем ВР, за инструктаж и в приказе указывается «Начальник участка».</div>
+        </section>
+
+        <section class="panel">
+            <h2 class="h5 section-title mb-3">Прочие сведения проекта</h2>
+            <div class="row g-3">
+                <div class="col-md-4"><label class="form-label" for="shema">Схема взрывания</label><input class="form-control" id="shema" name="shema" value="{{ values.shema }}"></div>
+                <div class="col-md-5"><label class="form-label" for="avtoVM">Спецавтомобиль для ВМ (марка, госномер)</label><input class="form-control" id="avtoVM" name="avtoVM" value="{{ values.avtoVM }}"></div>
+                <div class="col-md-3"><label class="form-label" for="voditel">Водитель спецавтомобиля</label><input class="form-control" id="voditel" name="voditel" value="{{ values.voditel }}"></div>
+                <div class="col-12">
+                    <label class="form-label" for="participants">Участники (лист «Ознакомление»)</label>
+                    <textarea class="form-control" id="participants" name="participants" rows="6" style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9rem;" placeholder="Иванов И. И.; Взрывник">{{ values.participants }}</textarea>
+                    <div class="muted-label mt-1">По одному на строку, формат «Ф.И.О.; профессия». Список меняется от взрыва к взрыву.</div>
+                </div>
             </div>
         </section>
 
@@ -225,23 +290,99 @@
     const passportStatus = document.getElementById('passportStatus');
     const passportWarnings = document.getElementById('passportWarnings');
     const ocrJson = document.getElementById('ocr_json');
+    const colRuler = document.getElementById('ccColRuler');
+    const rowRuler = document.getElementById('ccRowRuler');
+    const declWells = document.getElementById('decl_wells');
+    const declMeters = document.getElementById('decl_meters');
+    const declAvg = document.getElementById('decl_avg');
     const recognizeUrl = "{% url 'bvr:recognize_passport' %}";
 
-    function updateStats() {
+    function gridStats() {
         const rows = card.value.trim().split(/\n+/).filter(Boolean);
-        let count = 0;
-        let sum = 0;
+        let count = 0, sum = 0;
         rows.forEach(row => {
             row.trim().split(/\s+/).forEach(raw => {
                 const value = Number(String(raw).replace(',', '.'));
-                if (Number.isFinite(value) && value > 0) {
-                    count += 1;
-                    sum += value;
-                }
+                if (Number.isFinite(value) && value > 0) { count += 1; sum += value; }
             });
         });
-        const avg = count ? (sum / count).toFixed(2) : '0.00';
-        stats.textContent = `Скважин: ${count}. Общая глубина: ${sum.toFixed(2)} п.м. Средняя глубина: ${avg} м.`;
+        return { count, sum };
+    }
+
+    function updateStats() {
+        const { count, sum } = gridStats();
+        const dW = Number(declWells.value) || 0;
+        const dM = Number(declMeters.value) || 0;
+        const dA = Number(declAvg.value) || 0;
+
+        if (dW > 0 || dM > 0) {
+            // «Доверять паспорту»: авторитетные цифры из тех-таблицы паспорта.
+            const w = dW || count;
+            const m = dM || sum;
+            const a = dA || (w ? m / w : 0);
+            const mismatch = (dW && dW !== count) || (dM && Math.abs(dM - sum) > 0.5);
+            let txt = `Скважин: ${w}. Общая глубина: ${m.toFixed(2)} п.м. ` +
+                      `Средняя глубина: ${a.toFixed(2)} м (по паспорту).`;
+            if (mismatch) {
+                txt += ` ⚠ В сетке распознано ${count} скв. / ${sum.toFixed(2)} п.м — ` +
+                       `поправьте карту, чтобы сошлось с паспортом.`;
+            }
+            stats.textContent = txt;
+            stats.className = mismatch ? 'mt-2 small text-warning' : 'muted-label mt-2';
+        } else {
+            const avg = count ? (sum / count).toFixed(2) : '0.00';
+            stats.textContent = `Скважин: ${count}. Общая глубина: ${sum.toFixed(2)} п.м. ` +
+                                `Средняя глубина: ${avg} м.`;
+            stats.className = 'muted-label mt-2';
+        }
+    }
+
+    function tokenStarts(line) {
+        const starts = [];
+        let inTok = false;
+        for (let i = 0; i < line.length; i++) {
+            const isSpace = /\s/.test(line[i]);
+            if (!isSpace && !inTok) { starts.push(i); inTok = true; }
+            else if (isSpace) { inTok = false; }
+        }
+        return starts;
+    }
+
+    function buildRulers() {
+        const lines = card.value.replace(/\n$/, '').split('\n');
+        // Колонка номеров рядов: один номер на строку.
+        const nRows = Math.max(lines.length, 1);
+        let rowHtml = '';
+        for (let i = 1; i <= nRows; i++) rowHtml += '<div>' + i + '</div>';
+        rowRuler.innerHTML = rowHtml;
+        // Линейка столбцов: выравниваем по строке с наибольшим числом скважин.
+        let refStarts = [];
+        lines.forEach(line => {
+            const s = tokenStarts(line);
+            if (s.length > refStarts.length) refStarts = s;
+        });
+        const arr = [];
+        let maxLen = 0;
+        refStarts.forEach((off, idx) => {
+            const label = String(idx + 1);
+            for (let k = 0; k < label.length; k++) arr[off + k] = label[k];
+            maxLen = Math.max(maxLen, off + label.length);
+        });
+        let str = '';
+        for (let i = 0; i < maxLen; i++) str += (arr[i] || ' ');
+        colRuler.textContent = str;
+        syncScroll();
+    }
+
+    function syncScroll() {
+        colRuler.style.transform = 'translateX(' + (-card.scrollLeft) + 'px)';
+        rowRuler.style.transform = 'translateY(' + (-card.scrollTop) + 'px)';
+    }
+
+    function clearDeclared() {
+        declWells.value = '';
+        declMeters.value = '';
+        declAvg.value = '';
     }
 
     function getCsrf() {
@@ -274,7 +415,15 @@
         const tp = data.tech_params || {};
         const stamp = data.stamp || {};
 
-        if (cc.text) { card.value = cc.text; updateStats(); }
+        // «Доверять паспорту»: авторитетные количество скважин / объём бурения /
+        // средняя глубина берём из техпоказателей паспорта.
+        declWells.value = tp.kolichestvo_skvazhin_sht || '';
+        declMeters.value = tp.obyom_burovyh_rabot_pm || '';
+        declAvg.value = tp.srednyaya_glubina_m || '';
+
+        if (cc.text) { card.value = cc.text; }
+        updateStats();
+        buildRulers();
 
         // Автоподстановка только однозначных параметров (см. план, раздел 7.2).
         if (tp.diametr_mm) setField('diam', (tp.diametr_mm / 1000).toFixed(3));
@@ -339,17 +488,23 @@
         const cols = Math.max(1, Math.min(60, Number(document.getElementById('gridCols').value) || 14));
         const depth = String(document.getElementById('gridDepth').value || 8).replace(',', '.');
         card.value = Array.from({ length: rows }, () => Array.from({ length: cols }, () => depth).join(' ')).join('\n');
+        clearDeclared();   // ручное заполнение — паспортные цифры больше не действуют
         updateStats();
+        buildRulers();
     });
 
     document.getElementById('clearCardBtn').addEventListener('click', () => {
         card.value = '';
+        clearDeclared();
         updateStats();
+        buildRulers();
     });
 
     passport.addEventListener('change', event => recognizePassport(event.target.files[0]));
-    card.addEventListener('input', updateStats);
+    card.addEventListener('input', () => { updateStats(); buildRulers(); });
+    card.addEventListener('scroll', syncScroll);
     updateStats();
+    buildRulers();
 })();
 </script>
 </body>
