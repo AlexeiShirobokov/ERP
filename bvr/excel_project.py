@@ -419,6 +419,7 @@ def convert_to_pdf(xlsm_bytes: bytes, out_pdf: str, timeout: float = 90.0) -> bo
             fh.write(xlsm_bytes)
         env = dict(os.environ)
         env["HOME"] = work
+        env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:" + env.get("PATH", "")
         # Русская локаль: десятичная запятая и корректные форматы TEXT(...)
         # (если локаль ru_RU.UTF-8 установлена в системе — сервер/Mac).
         env["LANG"] = "ru_RU.UTF-8"
@@ -507,6 +508,7 @@ def convert_to_html(xlsm_bytes: bytes, excel_url: Optional[str] = None,
             fh.write(xlsm_bytes)
         env = dict(os.environ)
         env["HOME"] = work
+        env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:" + env.get("PATH", "")
         # Русская локаль: десятичная запятая и корректные форматы TEXT(...)
         # (если локаль ru_RU.UTF-8 установлена в системе — сервер/Mac).
         env["LANG"] = "ru_RU.UTF-8"
