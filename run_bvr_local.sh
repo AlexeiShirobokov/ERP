@@ -14,9 +14,9 @@ if [ ! -x "$PY" ]; then
     exit 1
 fi
 
-# 1) Зависимости распознавания (идемпотентно)
+# 1) Зависимости распознавания и генерации проекта (идемпотентно)
 echo "→ Проверяю зависимости…"
-$PIP install -q pymupdf pillow openai httpx
+$PIP install -q pymupdf pillow openai httpx lxml openpyxl reportlab
 
 # 2) Переменные окружения (ключ OpenRouter и т.п.) из ERP/.env
 #    Этот же .env автоматически читает settings.py — один файл и локально, и на сервере.

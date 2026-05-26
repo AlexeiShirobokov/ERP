@@ -78,12 +78,12 @@
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                 <div>
                     <h2 class="h5 section-title mb-1">Готовый проект</h2>
-                    <div class="muted-label">Расчёт выполнен на сервере, файлы доступны для скачивания.</div>
+                    <div class="muted-label">Откройте проект, при необходимости поправьте текст и распечатайте / сохраните в PDF из браузера.</div>
                 </div>
                 <div class="d-flex flex-wrap gap-2">
-                    <a class="btn btn-success" href="{% url 'bvr:project_html' result.project_id %}" target="_blank" rel="noopener">Открыть проект (HTML)</a>
-                    <a class="btn btn-primary" href="{% url 'bvr:download' result.project_id 'pdf' %}">Скачать PDF</a>
-                    <a class="btn btn-outline-primary" href="{% url 'bvr:download' result.project_id 'xlsx' %}">Скачать Excel</a>
+                    <a class="btn btn-primary" href="{% url 'bvr:download' result.project_id 'pdf' %}">Скачать PDF{% if result.pdf_exact %} (1:1 Excel){% endif %}</a>
+                    <a class="btn btn-outline-primary" href="{% url 'bvr:download' result.project_id result.excel_kind %}">Скачать Excel</a>
+                    <a class="btn btn-success" href="{% url 'bvr:project_html' result.project_id %}" target="_blank" rel="noopener">Открыть для правок (HTML)</a>
                 </div>
             </div>
             {% if result.from_passport %}

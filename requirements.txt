@@ -9,6 +9,7 @@ sqlparse==0.5.5
 tzdata==2025.3
 openpyxl>=3.1
 reportlab>=4.0
+lxml>=4.9
 # Распознавание паспорта БВР (vision через OpenRouter)
 pymupdf>=1.24
 pillow>=10.0

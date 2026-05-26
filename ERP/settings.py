@@ -43,6 +43,12 @@ _load_dotenv(BASE_DIR / ".env")
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# БВР: HTML-страница проекта (/bvr/project/<id>/) — точное оформление из Excel
+# (экспорт заполненного шаблона через LibreOffice). Откат на «ручную» страницу:
+# BVR_HTML_FROM_EXCEL=0 в .env.
+BVR_HTML_FROM_EXCEL = os.environ.get("BVR_HTML_FROM_EXCEL", "0").strip().lower() \
+    in ("1", "true", "yes", "on", "да")
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 

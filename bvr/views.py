@@ -13,9 +13,14 @@ from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
+from django.http import HttpResponse
+
 from .bvr_calc import DEFAULTS, calculate, make_params, parse_charge_card
 from .bvr_document import build_excel, build_pdf, build_html_context
-from . import passport_ocr
+from . import passport_ocr, excel_project, html_project
+# PDF проекта формируется печатью HTML-страницы в браузере (точная вёрстка, без
+# серверных PDF-библиотек). Excel — заполненный эталон-шаблон (excel_project,
+# без LibreOffice). reportlab build_pdf оставлен как резерв.
 
 logger = logging.getLogger("bvr.views")
 
@@ -224,15 +229,33 @@ def index(request):
             summary = resolve_summary(calc, declared)
             _save_inputs(out_dir, params, card_text, declared)
 
-            xlsx_path = out_dir / "project.xlsx"
+            # Excel: заполненный эталон-шаблон (1:1). PDF: экспорт этого шаблона
+            # через LibreOffice (точь-в-точь как Excel, поля не съезжают).
+            # При недоступности LibreOffice/шаблона — откат на reportlab build_pdf.
+            excel_kind = "xlsx"
+            pdf_exact = False
             pdf_path = out_dir / "project.pdf"
-            build_excel(calc, str(xlsx_path), summary=summary)
-            build_pdf(calc, str(pdf_path), summary=summary,
-                      passport_path=str(passport_path) if passport_path else None)
+            try:
+                xlsm_data = excel_project.fill_template(params, wells)
+                (out_dir / "project.xlsm").write_bytes(xlsm_data)
+                excel_kind = "xlsm"
+                try:
+                    pdf_exact = excel_project.convert_to_pdf(xlsm_data, str(pdf_path))
+                except Exception:
+                    logger.exception("LibreOffice: конвертация шаблона в PDF не удалась")
+            except Exception:
+                logger.exception("Не удалось заполнить эталон-шаблон, простой Excel")
+            if excel_kind == "xlsx":
+                build_excel(calc, str(out_dir / "project.xlsx"), summary=summary)
+            if not pdf_exact:
+                build_pdf(calc, str(pdf_path), summary=summary,
+                          passport_path=str(passport_path) if passport_path else None)
             _remember_project(request, project_id)
 
             result = {
                 "project_id": project_id,
+                "excel_kind": excel_kind,
+                "pdf_exact": pdf_exact,
                 "wells_count": summary["wells"],
                 "drilling": round(summary["meters"], 2),
                 "avg_depth": round(summary["avg"], 2),
@@ -247,7 +270,7 @@ def index(request):
                 "people_zone": calc["zona_ludi"],
                 "equipment_zone": calc["zona_obor"],
             }
-            messages.success(request, "Проект БВР сформирован. Файлы готовы к скачиванию.")
+            messages.success(request, "Проект БВР сформирован. Откройте HTML-проект для печати/PDF.")
         except Exception as exc:
             messages.error(request, f"Не удалось сформировать проект: {exc}")
 
@@ -265,6 +288,7 @@ def download_project_file(request, project_id, file_kind):
 
     files = {
         "xlsx": ("project.xlsx", "Проект_БВР.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        "xlsm": ("project.xlsm", "Проект_БВР.xlsm", "application/vnd.ms-excel.sheet.macroEnabled.12"),
         "pdf": ("project.pdf", "Проект_БВР.pdf", "application/pdf"),
         "passport": ("passport.pdf", "Паспорт_БВР.pdf", "application/pdf"),
     }
@@ -280,11 +304,15 @@ def download_project_file(request, project_id, file_kind):
 
 @login_required
 def project_html(request, project_id):
-    """Печатная HTML-версия проекта массового взрыва.
+    """Редактируемая HTML-версия проекта массового взрыва.
 
-    Восстанавливает входные данные из inputs.json, пересчитывает проект и
-    рендерит полную веб-страницу (акт, распорядок, таблицы, расчёты, зоны,
-    зарядная карта с нумерацией). Удобно для просмотра и печати в браузере.
+    По умолчанию отдаёт точное оформление из Excel: HTML-экспорт заполненного
+    шаблона через LibreOffice (формулы и шапка — картинками, текст правится в
+    браузере, печать/PDF из браузера). Результат кэшируется в project_lo.html.
+
+    Откат: настройка BVR_HTML_FROM_EXCEL = False (settings/.env) — тогда отдаётся
+    «ручная» страница html_project.build_html. Если LibreOffice/шаблон
+    недоступны — тоже используется build_html.
     """
     if not _can_download(request, project_id):
         raise Http404("Проект не найден")
@@ -297,12 +325,32 @@ def project_html(request, project_id):
     if not wells:
         raise Http404("В проекте нет скважин")
 
+    from django.urls import reverse
+    proj_dir = _project_dir(project_id)
+    excel_kind = "xlsm" if (proj_dir / "project.xlsm").exists() else "xlsx"
+    excel_url = reverse("bvr:download", args=[project_id, excel_kind])
+
+    # Точное оформление из Excel (через LibreOffice), с кэшем.
+    if getattr(settings, "BVR_HTML_FROM_EXCEL", True):
+        cached = proj_dir / "project_lo.html"
+        if cached.exists():
+            return HttpResponse(cached.read_text("utf-8"))
+        xlsm = proj_dir / "project.xlsm"
+        if xlsm.exists():
+            try:
+                doc = excel_project.convert_to_html(xlsm.read_bytes(), excel_url=excel_url)
+                if doc:
+                    cached.write_text(doc, "utf-8")
+                    return HttpResponse(doc)
+            except Exception:
+                logger.exception("Excel→HTML не удался, откат на build_html")
+
+    # Резерв: «ручная» HTML-страница.
     calc = calculate(params, wells)
     summary = resolve_summary(calc, declared)
-    context = build_html_context(calc, summary=summary)
-    context["project_id"] = project_id
-    context["has_passport"] = (_project_dir(project_id) / "passport.pdf").exists()
-    return render(request, "bvr/project.html", context)
+    html = html_project.build_html(calc, summary=summary, project_id=project_id,
+                                   excel_url=excel_url)
+    return HttpResponse(html)
 
 
 def _ocr_cache_dir():
