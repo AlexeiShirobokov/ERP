@@ -63,7 +63,7 @@ def _send_email_notifications(users, subject, message):
         message=message,
         from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
         recipient_list=recipient_list,
-        fail_silently=False,
+        fail_silently=True,
     )
 
 
